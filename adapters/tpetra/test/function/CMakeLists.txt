@@ -1,13 +1,14 @@
 INCLUDE(TribitsAddExecutableAndTest)
 
-IF(${PROJECT_NAME}_ENABLE_Epetra)
+IF(${PROJECT_NAME}_ENABLE_Tpetra)
   TRIBITS_ADD_EXECUTABLE_AND_TEST(
-    EpetraMultiVectorInterface
+    TpetraBoundConstraintInterface
     SOURCES test_01.cpp
     ARGS PrintItAll
-    NUM_MPI_PROCS 4
+    COMM serial mpi
     PASS_REGULAR_EXPRESSION "TEST PASSED"
     ADD_DIR_TO_NAME
     )
 ENDIF()
+
 
