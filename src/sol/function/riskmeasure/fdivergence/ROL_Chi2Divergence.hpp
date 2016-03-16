@@ -41,74 +41,58 @@
 // ************************************************************************
 // @HEADER
 
-#ifndef ROL_PRIMALDUALPRECONDITIONER_H
-#define ROL_PRIMALDUALPRECONDITIONER_H
+#ifndef ROL_CHI2DIVERGENCE_HPP
+#define ROL_CHI2DIVERGENCE_HPP
 
-#include "ROL_LinearOperator.hpp"
-#include "ROL_Objective.hpp"
-#include "ROL_BoundConstraint.hpp"
-#include "ROL_Types.hpp"
+#include "ROL_FDivergence.hpp"
 
 namespace ROL {
 
-template <class Real>
-class PrimalDualPreconditioner : public LinearOperator<Real> {
-private:
-
-  const Teuchos::RCP<Objective<Real> > obj_;
-  const Teuchos::RCP<BoundConstraint<Real> > con_;
-  const Teuchos::RCP<Vector<Real> > x_;
-  const Teuchos::RCP<Vector<Real> > xlam_;
-  Teuchos::RCP<Vector<Real> > v_;
-
-  const Teuchos::RCP<Secant<Real> > secant_;
-
-  bool useSecant_;
-
-  Real eps_;
+template<class Real>
+class Chi2Divergence : public FDivergence<Real> {
 
 public:
+  Chi2Divergence(const Real thresh) : FDivergence<Real>(thresh) {}
 
-  PrimalDualPreconditioner(const Teuchos::RCP<Objective<Real> > &obj, 
-                           const Teuchos::RCP<BoundConstraint<Real> > &con, 
-                           const Teuchos::RCP<Vector<Real> > &x, 
-                           const Teuchos::RCP<Vector<Real> > &xlam ) 
-    : obj_(obj), con_(con), x_(x), xlam_(xlam), secant_(Teuchos::null), eps_(0.0) {
-    v_ = x_->clone();
-    useSecant_ = false;
-  }
+  Chi2Divergence(Teuchos::ParameterList &parlist) : FDivergence<Real>(parlist) {}
 
-  PrimalDualPreconditioner(const Teuchos::RCP<Secant<Real> > &secant, 
-                           const Teuchos::RCP<Objective<Real> > &obj, 
-                           const Teuchos::RCP<BoundConstraint<Real> > &con, 
-                           const Teuchos::RCP<Vector<Real> > &x,
-                           const Teuchos::RCP<Vector<Real> > &xlam, bool useSecant = true ) 
-    : obj_(obj), con_(con), x_(x), xlam_(xlam), secant_(secant), eps_(0.0) {
-    v_ = x_->clone();
-    useSecant_ = useSecant;
-  }
-
-  /** \brief Apply preconditioner.
-
-      This function applies the preconditioner to a vector.
-      @param[out]         Hv  is the output vector.
-      @param[in]          v   is the input vector.
-      @param[in]          tol is a tolerance for inexact Hessian application.
-  */
-  void apply( Vector<Real> &Hv, const Vector<Real> &v, Real &tol ) const {
-    v_->set(v);
-    con_->pruneActive(*v_,*xlam_,eps_);
-    if ( useSecant_ && secant_ != Teuchos::null ) {
-      secant_->applyH(Hv,*v_,*x_);
+  Real Fprimal(Real x, int deriv = 0) {
+    Real zero(0), one(1), half(0.5), val(0);
+    if (deriv==0) {
+      val = (x < zero) ? ROL_INF<Real>() : half*(x-one)*(x-one);
+    }
+    else if (deriv==1) {
+      val = (x < zero) ? ROL_INF<Real>() : x-one;
+    }
+    else if (deriv==2) {
+      val = (x < zero) ? ROL_INF<Real>() : one;
     }
     else {
-      obj_->precond(Hv,*v_,*x_,tol);
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::invalid_argument,
+        ">>> (ROL::Chi2Divergence): Derivative order must be 0, 1, or 2!");
     }
-    con_->pruneActive(Hv,*xlam_,eps_);
+    return val;
   }
 
-}; // class Preconditioner
+  Real Fdual(Real x, int deriv = 0) {
+    Real zero(0), one(1), half(0.5), val(0);
+    if (deriv==0) {
+      val = (x < -one) ? -half : (half*x + one)*x;
+    }
+    else if (deriv==1) {
+      val = (x < -one) ? zero : x + one;
+    }
+    else if (deriv==2) {
+      val = (x < -one) ? zero : one;
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::invalid_argument,
+        ">>> (ROL::Chi2Divergence): Derivative order must be 0, 1, or 2!");
+    }
+    return val;
+  }
+};
 
-} // namespace ROL
+}
 
 #endif
