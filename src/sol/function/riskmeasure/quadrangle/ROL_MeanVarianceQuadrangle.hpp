@@ -41,35 +41,61 @@
 // ************************************************************************
 // @HEADER
 
-#ifndef ROLSTDTEUCHOSBATCHMANAGER_HPP
-#define ROLSTDTEUCHOSBATCHMANAGER_HPP
+#ifndef ROL_MEANVARIANCEQUAD_HPP
+#define ROL_MEANVARIANCEQUAD_HPP
 
-#include "ROL_TeuchosBatchManager.hpp"
-#include "ROL_StdVector.hpp"
+#include "ROL_ExpectationQuad.hpp"
 
 namespace ROL {
 
-template<class Real, class Ordinal>
-class StdTeuchosBatchManager : public TeuchosBatchManager<Real,Ordinal> {
-public:
-  StdTeuchosBatchManager(const Teuchos::RCP<const Teuchos::Comm<Ordinal> > &comm)
-    : TeuchosBatchManager<Real,Ordinal>(comm) {}
+template<class Real>
+class MeanVarianceQuadrangle : public ExpectationQuad<Real> {
+private:
+  Real coeff_;
 
-  void sumAll(Vector<Real> &input, Vector<Real> &output) {
-    std::vector<Real> input_ptr
-      = *(Teuchos::dyn_cast<StdVector<Real> >(input).getVector());
-    std::vector<Real> output_ptr
-      = *(Teuchos::dyn_cast<StdVector<Real> >(output).getVector());
-    int dim_i = static_cast<int>(input_ptr.size());
-    int dim_o = static_cast<int>(output_ptr.size());
-    TEUCHOS_TEST_FOR_EXCEPTION(dim_i != dim_o, std::invalid_argument,
-      ">>> (ROL::StdTeuchosBatchManager::SumAll): Dimension mismatch!");
-    TeuchosBatchManager<Real,Ordinal>::sumAll(&input_ptr[0],
-                                              &output_ptr[0],
-                                              dim_i);
+  void checkInputs(void) const {
+    Real zero(0);
+    TEUCHOS_TEST_FOR_EXCEPTION((coeff_ <= zero), std::invalid_argument,
+      ">>> ERROR (ROL::MeanVarianceQuadrangle): Coefficient must be positive!");
   }
+
+public:
+
+  MeanVarianceQuadrangle(const Real coeff = 1)
+    : ExpectationQuad<Real>(), coeff_(coeff) {
+    checkInputs();
+  }
+
+  MeanVarianceQuadrangle(Teuchos::ParameterList &parlist)
+    : ExpectationQuad<Real>() {
+    Teuchos::ParameterList &list
+      = parlist.sublist("SOL").sublist("Risk Measure").sublist("Mean-Variance Quadrangle");
+    coeff_ = list.get<Real>("Coefficient");
+    checkInputs();
+  }
+
+  Real error(Real x, int deriv = 0) {
+    Real err(0), two(2);
+    if (deriv==0) {
+      err = coeff_*x*x;
+    }
+    else if (deriv==1) {
+      err = two*coeff_*x;
+    }
+    else {
+      err = two*coeff_;
+    }
+    return err;
+  }
+
+  Real regret(Real x, int deriv = 0) {
+    Real zero(0), one(1);
+    Real X = ((deriv==0) ? x : ((deriv==1) ? one : zero));
+    Real reg = error(x,deriv) + X;
+    return reg;
+  }
+
 };
 
 }
-
 #endif
