@@ -1,9 +1,3 @@
-// @HEADER
-// ************************************************************************
-//
-//               Rapid Optimization Library (ROL) Package
-//                 Copyright (2014) Sandia Corporation
-//
 // Under terms of Contract DE-AC04-94AL85000, there is a non-exclusive
 // license for use of this work by or on behalf of the U.S. Government.
 //
@@ -41,54 +35,72 @@
 // ************************************************************************
 // @HEADER
 
-#ifndef ROL_SPARSEGRIDGENERATOR_HPP
-#define ROL_SPARSEGRIDGENERATOR_HPP
+/*! \file  ad_functions.hpp
+    \brief Provides a generic interface for using automatic differentiation
+           with univariate and bivariate functions. The intention of these
+           components is make implementing PDE residual terms as simple 
+           as writing a function that evaluates c(u,z)
 
-#include "ROL_SampleGenerator.hpp"
-#include "ROL_Quadrature.hpp"
+*/
 
-namespace ROL {
+#ifndef PDEOPT_AD_FUNCTIONS_HPP
+#define PDEOPT_AD_FUNCTIONS_HPP
 
-template<class Real>
-class SparseGridGenerator : public SampleGenerator<Real> {
-private:
-  Teuchos::RCP<Quadrature<Real> > grid_;
-  Teuchos::RCP<SparseGridIndexSet<Real> > indices_;
-  bool adaptive_;
-  QuadratureInfo info_;
-  Real error_;
-  int npts_;
-  std::vector<int> index_;
-  std::vector<int> search_index_;
-  int direction_;
+#include "template_tools.hpp"
 
-  Teuchos::RCP<Vector<Real> > mydiff_, diff_;
-  bool isVectorInit_;
+namespace AD {
 
-  void buildDiffRule(Quadrature<Real> &outRule, const std::vector<int> &index) const;
-  void splitSamples(std::vector<std::vector<Real> > &mypts, std::vector<Real> &mywts);
-  void updateSamples(Quadrature<Real> &grid);
+// Prototype function that returns a scalar quantity
+// Takes one or more templated containers with subscript access
+template<class Param, template<class> class Array>  
+struct ScalarFunction {
 
-public:
-  SparseGridGenerator(const Teuchos::RCP<BatchManager<Real> > &bman,
-                      const QuadratureInfo &info,
-                      const bool adaptive = false);
+  using Real = ElementType<Param>;
 
-  SparseGridGenerator(const Teuchos::RCP<BatchManager<Real> > &bman,
-                      const char* SGinfo,
-                      const char* SGdata,
-                      const bool isNormalized = true);
+  template<class X> 
+  static ResultType<Real,X>
+  eval( const Param &param,
+        const Array<X> &x ) {
+    return ResultType<Real,X>(0);
+  }
 
-  void update(const Vector<Real> &x);
-  Real computeError(std::vector<Real> &vals);
-  Real computeError(std::vector<Teuchos::RCP<Vector<Real> > > &vals, const Vector<Real> &x);
-  void refine(void);
-  void setSamples(bool inConstructor = false);
-  void printIndexSet(void) const;
-}; // class SparseGridGenerator
+  template<class X, class Y> 
+  static ResultType<Real, X, Y> 
+  eval( const Param<Real> &param,
+        const Array<X> &x, 
+        const Array<Y> &y ) {
+    return ResultType<Real,X,Y>(0);
+  }
 
-} // namespace ROL
+}; // ScalarFunction
 
-#include <ROL_SparseGridGeneratorDef.hpp>
 
-#endif
+//struct<class Param, template<class> class Array, class Real, class ScalarX>
+
+
+// Prototype function that modifies an array in-place
+template<class Param, template<class> class Array>
+struct ArrayFunction {
+
+  using Real = ElementType<Param>;
+
+  template<class ScalarX>
+  static void eval( const Param &param,
+                    Array<ResultType<Real,ScalarX>> &result,
+                    const Array<ScalarX> &x ) { }
+
+  template<class ScalarX, class ScalarY>
+  static void eval( const Param &param,
+                    Array<ResultType<Real,ScalarX>> &result,
+                    const Array<ScalarX> &x,
+                    const Array<ScalarY> &y ) { }
+
+};
+
+
+
+
+} // namespace AD
+
+
+#endif // PDEOPT_AD_FUNCTIONS_HPP
