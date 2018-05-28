@@ -41,7 +41,7 @@
 // ************************************************************************
 // @HEADER
 
-#include "Teuchos_oblackholestream.hpp"
+#include "ROL_Stream.hpp"
 #include "Teuchos_GlobalMPISession.hpp"
 
 #include "ROL_PinTVector.hpp"
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
   int iprint     = argc - 1;
   ROL::Ptr<std::ostream> outStream;
-  Teuchos::oblackholestream bhs; // outputs nothing
+  ROL::nullstream bhs; // outputs nothing
   if (iprint > 0)
     outStream = ROL::makePtrFromRef(std::cout);
   else
@@ -360,11 +360,11 @@ int main(int argc, char* argv[])
       PtrVector p_vec = ROL::makePtr<ROL::StdVector<RealT>>(ROL::makePtrFromRef(p_data));
       ROL::Ptr<ROL::PinTVector<RealT>> p_pint = ROL::makePtr<ROL::PinTVector<RealT>>(pintComm,p_vec,3*numRanks,stencil);
 
-      TEUCHOS_ASSERT( ROL::is_nullPtr(p_pint->getVectorPtr(-1)) ); // this comes from the stencil
-      TEUCHOS_ASSERT( ROL::is_nullPtr(p_pint->getVectorPtr( 0)) );
-      TEUCHOS_ASSERT( ROL::is_nullPtr(p_pint->getVectorPtr( 1)) );
-      TEUCHOS_ASSERT( ROL::is_nullPtr(p_pint->getVectorPtr( 2)) );
-      TEUCHOS_ASSERT( ROL::is_nullPtr(p_pint->getVectorPtr( 3)) ); // this comes from the stencil
+      TEUCHOS_ASSERT( !ROL::is_nullPtr(p_pint->getVectorPtr(-1)) ); // this comes from the stencil
+      TEUCHOS_ASSERT( !ROL::is_nullPtr(p_pint->getVectorPtr( 0)) );
+      TEUCHOS_ASSERT( !ROL::is_nullPtr(p_pint->getVectorPtr( 1)) );
+      TEUCHOS_ASSERT( !ROL::is_nullPtr(p_pint->getVectorPtr( 2)) );
+      TEUCHOS_ASSERT( !ROL::is_nullPtr(p_pint->getVectorPtr( 3)) ); // this comes from the stencil
 
       p_pint->getRemoteBufferPtr(-1)->scale((myRank)*100-5); // this vector is being sent to left
       p_pint->getRemoteBufferPtr( 3)->scale((myRank)*100+5); // this vector is being sent to right
