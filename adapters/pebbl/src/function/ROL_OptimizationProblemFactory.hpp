@@ -41,17 +41,70 @@
 // ************************************************************************
 // @HEADER
 
-#pragma once
-#ifndef TANK_OBJECTIVE_HPP
-#define TANK_OBJECTIVE_HPP
+#ifndef ROL_OPTIMIZATIONPROBLEMFACTORY_H
+#define ROL_OPTIMIZATIONPROBLEMFACTORY_H
 
-#include "ROL_Objective_SimOpt.hpp"
+#include "ROL_Ptr.hpp"
+#include "ROL_OptimizationProblem.hpp"
 
-/** \class TankObjective
-    \brief Final time Objective for the coupled tank network
+/** @ingroup func_group
+    \class ROL::OptimizationProblemFactory
+    \brief Defines the pebbl OptimizationProblemFactory interface.
+
+    ROL's OptimizationProblemFactory constructs a new (identical)
+    instance of an optimization problem for use in pebbl.
+
+    ---
 */
 
 
-#endif // TANK_OBJECTIVE_HPP
+namespace ROL {
 
+template <class Real>
+class OptimizationProblemFactory {
+public:
+  virtual ~OptimizationProblemFactory(void) {}
 
+  virtual Ptr<Objective<Real>>       buildObjective(void) = 0;
+  virtual Ptr<Vector<Real>>          buildSolutionVector(void) = 0;
+
+  virtual Ptr<BoundConstraint<Real>> buildBoundConstraint(void) {
+    return nullPtr;
+  }
+
+  virtual Ptr<Constraint<Real>>      buildEqualityConstraint(void) {
+    return nullPtr;
+  }
+  virtual Ptr<Vector<Real>>          buildEqualityMultiplier(void) {
+    return nullPtr;
+  }
+
+  virtual Ptr<Constraint<Real>>      buildInequalityConstraint(void) {
+    return nullPtr;
+  }
+  virtual Ptr<Vector<Real>>          buildInequalityMultiplier(void) {
+    return nullPtr;
+  }
+  virtual Ptr<BoundConstraint<Real>> buildInequalityBoundConstraint(void) {
+    return nullPtr;
+  }
+
+  virtual void update(void) {}
+
+  Ptr<OptimizationProblem<Real>> build(void) {
+    update();
+    return makePtr<OptimizationProblem<Real>>(buildObjective(),
+                                              buildSolutionVector(),
+                                              buildBoundConstraint(),
+                                              buildEqualityConstraint(),
+                                              buildEqualityMultiplier(),
+                                              buildInequalityConstraint(),
+                                              buildInequalityMultiplier(),
+                                              buildInequalityBoundConstraint());
+  }
+
+}; // class OptimizationProblemFactory
+
+} // namespace ROL
+
+#endif
