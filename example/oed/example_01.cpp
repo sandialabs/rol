@@ -176,8 +176,8 @@ int main(int argc, char *argv[]) {
     problem->setProjectionAlgorithm(*parlist);
     problem->finalize(false,true,*outStream);
     ROL::Ptr<ROL::Vector<RealT>> test = factory->getDesign()->clone();
-    test->setScalar(1.0);
-    problem->check(true,*outStream, test, 0.1);
+    test->randomize(1,2);
+    problem->check(true,*outStream,test,0.1);
 
     // Setup ROL solver
     std::clock_t timer = std::clock();
