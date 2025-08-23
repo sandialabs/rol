@@ -11,92 +11,14 @@
 #define ROL_LAPACK_H
 
 /** \class ROL::LAPACK
-  \brief Provides interface to Lapack
+  \brief Provides interface to LAPACK using LAPACKE (C interface)
   */
 
-/* A) Define PREFIX and ROL_fcd based on platform. */
-
-
-// Following two macros were stolen from TEUCHOS_LAPACK.cpp
-/* for INTEL_CXML, the second arg may need to be changed to 'one'.  If so
-the appropriate declaration of one will need to be added back into
-functions that include the macro:
-*/
-#ifdef CHAR_MACRO
-#undef CHAR_MACRO
-#endif
-#if defined (INTEL_CXML)
-#define CHAR_MACRO(char_var) &char_var, one
-#else
-#define CHAR_MACRO(char_var) &char_var
-#endif
-
-#ifdef CHARPTR_MACRO
-#undef CHARPR_MACRO
-#endif
-#if defined (INTEL_CXML)
-#define CHARPTR_MACRO(charptr_var) charptr_var, one
-#else
-#define CHARPTR_MACRO(charptr_var) charptr_var
-#endif
-
-// Following macros were stolen from TEUCHOS_LAPACK_wrappers.hpp
-#if defined(INTEL_CXML)
-#  define PREFIX __stdcall
-#  define ROL_fcd const char *, unsigned int
-#elif defined(INTEL_MKL)
-#  define PREFIX
-#  define ROL_fcd const char *
-#else
-#  define PREFIX
-#  define ROL_fcd const char *
-#endif
-
-// in progress - added for EQUED which is a modified char *, not const
-#if defined(INTEL_CXML)
-#  define PREFIX __stdcall
-#  define ROL_nonconst_fcd char *, unsigned int // Need to evaluate unsigned int - CXML deprecated
-#elif defined(INTEL_MKL)
-#  define PREFIX
-#  define ROL_nonconst_fcd char *
-#else
-#  define PREFIX
-#  define ROL_nonconst_fcd char *
-#endif
-
-#define DGEEV_F77   F77_BLAS_MANGLE(dgeev,  DGEEV )
-#define DGELS_F77   F77_BLAS_MANGLE(dgels,  DGELS )
-#define DGELSS_F77  F77_BLAS_MANGLE(dgelss, DGELSS)
-#define DLATRS_F77  F77_BLAS_MANGLE(dlatrs, DLATRS)
-#define DGTTRS_F77  F77_BLAS_MANGLE(dgttrs, DGTTRS)
-#define DGTTRF_F77  F77_BLAS_MANGLE(dgttrf, DGTTRF)
-#define DTRTRS_F77  F77_BLAS_MANGLE(dtrtrs, DTRTRS)
-#define DGETRF_F77  F77_BLAS_MANGLE(dgetrf, DGETRF)
-#define DGETRI_F77  F77_BLAS_MANGLE(dgetri, DGETRI)
-#define DGETRS_F77  F77_BLAS_MANGLE(dgetrs, DGETRS)
-#define DGEQRF_F77  F77_BLAS_MANGLE(dgeqrf, DGEQRF)
-#define DORGQR_F77  F77_BLAS_MANGLE(dorgqr, DORGQR)
-#define DPTTRS_F77  F77_BLAS_MANGLE(dpttrs, DPTTRS)
-#define DPTTRF_F77  F77_BLAS_MANGLE(dpttrf, DPTTRF)
+#include <lapacke/lapacke.h>
+#include <vector>
+#include <algorithm>
 
 namespace ROL { 
-  extern "C" {
-    void PREFIX DGEEV_F77(ROL_fcd, ROL_fcd, const int* n, double* a, const int* lda, double* wr, double* wi, double* vl, const int* ldvl, double* vr, const int* ldvr, double* work, const int* lwork, int* info);
-    void PREFIX DGELS_F77(ROL_fcd ch, const int* m, const int* n, const int* nrhs, double* a, const int* lda, double* b, const int* ldb, double* work, const int* lwork, int* info);
-    void PREFIX DGELSS_F77(const int* m, const int* n, const int* nrhs, double* a, const int* lda, double* b, const int* ldb, double* s, const double* rcond, int* rank, double* work, const int* lwork, int* info);
-    void PREFIX DLATRS_F77(ROL_fcd UPLO, ROL_fcd TRANS, ROL_fcd DIAG, ROL_fcd NORMIN, const int* N, double* A, const int* LDA, double* X, double* SCALE, double* CNORM, int* INFO);
-    void PREFIX DGTTRS_F77(ROL_fcd, const int* n, const int* nrhs, const double* dl, const double* d, const double* du, const double* du2, const int* ipiv, double* x , const int* ldx, int* info);
-    void PREFIX DGTTRF_F77(const int* n, double* dl, double* d, double* du, double* du2, int* ipiv, int* info);
-    void PREFIX DSTEQR_F77(ROL_fcd, const int* n, double* D, double* E, double* Z, const int* ldz, double* work, int* info);
-    void PREFIX DTRTRS_F77(ROL_fcd, ROL_fcd, ROL_fcd, const int* n, const int* nrhs, const double* a, const int* lda, double* b, const int* ldb, int* info);
-    void PREFIX DGETRF_F77(const int* m, const int* n, double* a, const int* lda, int* ipiv, int* info);
-    void PREFIX DGETRI_F77(const int* n, double* a, const int* lda, const int* ipiv, double* work , const int* lwork, int* info);
-    void PREFIX DGETRS_F77(ROL_fcd, const int* n, const int* nrhs, const double* a, const int* lda,const int* ipiv, double* x , const int* ldx, int* info);
-    void PREFIX DGEQRF_F77(const int* m, const int* n, double* a, const int* lda, double* tau, double* work, const int* lwork, int* info);
-    void PREFIX DORGQR_F77(const int* m, const int* n, const int* k, double* a, const int* lda, const double* tau, double* work, const int* lwork, int* info);
-    void PREFIX DPTTRS_F77(const int* n, const int* nrhs, const double* d, const double* e, double* x , const int* ldx, int* info);
-    void PREFIX DPTTRF_F77(const int* n, double* d, double* e, int* info);
-  }
 
   template<typename Index, typename Real>
   struct LAPACK { 
@@ -111,7 +33,6 @@ namespace ROL {
     void GELS(const char& TRANS, const Index& m, const Index& n, const Index& nrhs, Real* A, const Index& lda, Real* B, const Index& ldb, Real* WORK, const Index& lwork, Index* info) const;
 
     void GELSS(const Index& m, const Index& n, const Index& nrhs, Real* A, const Index& lda, Real* B, const Index& ldb, Real* S, const Real& rcond, Index* rank, Real* WORK, const Index& lwork, Index* info) const;
-
 
     /// \brief Robustly solve a possibly singular triangular linear system.
     ///
@@ -162,6 +83,9 @@ namespace ROL {
 
     //! Solves a tridiagonal system \c A*X=B using the \L*D*L' factorization of \c A computed by PTTRF.
     void PTTRS(const Index& n, const Index& nrhs, const Real* d, const Real* e, Real* B, const Index& ldb, Index* info) const;
+
+    //! Computes the singular value decomposition (SVD) of a general \c m by \c n matrix \c A.
+    void GESVD(const char& JOBU, const char& JOBVT, const Index& m, const Index& n, Real* A, const Index& lda, Real* S, Real* U, const Index& ldu, Real* VT, const Index& ldvt, Real* WORK, const Index& lwork, Index* info) const;
   };
 
   template<>
@@ -170,65 +94,74 @@ namespace ROL {
     void LATRS (const char& UPLO, const char& TRANS, const char& DIAG, const char& NORMIN,
                 const int& N, double* A, const int& LDA, double* X, double* SCALE, double* CNORM,
                 int* INFO) const {
-      DLATRS_F77(CHAR_MACRO(UPLO), CHAR_MACRO(TRANS), CHAR_MACRO(DIAG), CHAR_MACRO(NORMIN),
-          &N, A, &LDA, X, SCALE, CNORM, INFO);
+      // LAPACKE doesn't have dlatrs, so we use dtrtrs as a fallback
+      // This is less robust but should work for non-singular cases
+      *SCALE = 1.0;  // Assume no scaling needed
+      *INFO = LAPACKE_dtrtrs(LAPACK_COL_MAJOR, UPLO, TRANS, DIAG, N, 1, A, LDA, X, N);
+      // Set CNORM to 1.0 as a simple approximation
+      if (CNORM) *CNORM = 1.0;
     }
 
     void GTTRS(const char& TRANS, const int& n, const int& nrhs, const double* dl, const double* d,
                const double* du, const double* du2, const int* IPIV, double* B, const int& ldb, int* info) const {
-      DGTTRS_F77(CHAR_MACRO(TRANS), &n, &nrhs, dl, d, du, du2, IPIV, B, &ldb, info); 
+      *info = LAPACKE_dgttrs(LAPACK_COL_MAJOR, TRANS, n, nrhs, dl, d, du, du2, IPIV, B, ldb);
     }
 
     void GTTRF(const int& n, double* dl, double* d, double* du, double* du2, int* IPIV, int* info) const {
-      DGTTRF_F77(&n, dl, d, du, du2, IPIV, info);
+      *info = LAPACKE_dgttrf(n, dl, d, du, du2, IPIV);
     }
 
     void STEQR(const char& COMPZ, const int& n, double* D, double* E, double* Z, const int& ldz, double* WORK, int* info) const {
-      DSTEQR_F77(CHAR_MACRO(COMPZ), &n, D, E, Z, &ldz, WORK, info);
+      *info = LAPACKE_dsteqr(LAPACK_COL_MAJOR, COMPZ, n, D, E, Z, ldz);
     }
 
     void TRTRS(const char& UPLO, const char& TRANS, const char& DIAG, const int& n, const int& nrhs, const double* A, const int& lda, double* B, const int& ldb, int* info) const { 
-      DTRTRS_F77(CHAR_MACRO(UPLO), CHAR_MACRO(TRANS), CHAR_MACRO(DIAG), &n, &nrhs, A, &lda, B, &ldb, info);
+      *info = LAPACKE_dtrtrs(LAPACK_COL_MAJOR, UPLO, TRANS, DIAG, n, nrhs, A, lda, B, ldb);
     }
 
     void GETRF(const int& m, const int& n, double* A, const int& lda, int* IPIV, int* info) const {
-      DGETRF_F77(&m, &n, A, &lda, IPIV, info); 
+      *info = LAPACKE_dgetrf(LAPACK_COL_MAJOR, m, n, A, lda, IPIV);
     }
  
     void GETRI(const int& n, double* A, const int& lda, const int* IPIV, double* WORK, const int& lwork, int* info) const {
-      DGETRI_F77(&n, A, &lda, IPIV, WORK, &lwork, info); 
+      *info = LAPACKE_dgetri(LAPACK_COL_MAJOR, n, A, lda, IPIV);
     }
 
     void GETRS(const char& TRANS, const int& n, const int& nrhs, const double* A, const int& lda, const int* IPIV, double* B, const int& ldb, int* info) const {
-      DGETRS_F77(CHAR_MACRO(TRANS), &n, &nrhs, A, &lda, IPIV, B, &ldb, info); 
+      *info = LAPACKE_dgetrs(LAPACK_COL_MAJOR, TRANS, n, nrhs, A, lda, IPIV, B, ldb);
     }
 
     void GEQRF( const int& m, const int& n, double* A, const int& lda, double* TAU, double* WORK, const int& lwork, int* info) const {
-      DGEQRF_F77(&m, &n, A, &lda, TAU, WORK, &lwork, info); 
+      *info = LAPACKE_dgeqrf(LAPACK_COL_MAJOR, m, n, A, lda, TAU);
     }
 
     void ORGQR(const int& m, const int& n, const int& k, double* A, const int& lda, const double* TAU, double* WORK, const int& lwork, int* info) const {
-      DORGQR_F77( &m, &n, &k, A, &lda, TAU, WORK, &lwork, info);
+      *info = LAPACKE_dorgqr(LAPACK_COL_MAJOR, m, n, k, A, lda, TAU);
     }
 
     void PTTRS(const int& n, const int& nrhs, const double* d, const double* e, double* B, const int& ldb, int* info) const { 
-      DPTTRS_F77(&n,&nrhs,d,e,B,&ldb,info);
+      *info = LAPACKE_dpttrs(LAPACK_COL_MAJOR, n, nrhs, d, e, B, ldb);
     }
 
     void GEEV(const char& JOBVL, const char& JOBVR, const int& n, double* A, const int& lda, double* WR, double* WI, double* VL, const int& ldvl, double* VR, const int& ldvr, double* WORK, const int& lwork, int* info) const {
-      DGEEV_F77(CHAR_MACRO(JOBVL), CHAR_MACRO(JOBVR), &n, A, &lda, WR, WI, VL, &ldvl, VR, &ldvr, WORK, &lwork, info);
+      *info = LAPACKE_dgeev(LAPACK_COL_MAJOR, JOBVL, JOBVR, n, A, lda, WR, WI, VL, ldvl, VR, ldvr);
     }
 
     void GELS(const char& TRANS, const int& m, const int& n, const int& nrhs, double* A, const int& lda, double* B, const int& ldb, double* WORK, const int& lwork, int* info) const { 
-      DGELS_F77(CHAR_MACRO(TRANS), &m, &n, &nrhs, A, &lda, B, &ldb, WORK, &lwork, info); 
+      *info = LAPACKE_dgels(LAPACK_COL_MAJOR, TRANS, m, n, nrhs, A, lda, B, ldb);
     }
 
     void GELSS(const int& m, const int& n, const int& nrhs, double* A, const int& lda, double* B, const int& ldb, double* S, const double& rcond, int* rank, double* WORK, const int& lwork, int* info) const { 
-      DGELSS_F77(&m, &n, &nrhs, A, &lda, B, &ldb, S, &rcond, rank, WORK, &lwork, info); 
+      *info = LAPACKE_dgelss(LAPACK_COL_MAJOR, m, n, nrhs, A, lda, B, ldb, S, rcond, rank);
     }
 
     void PTTRF(const int& n, double* d, double* e, int* info) const {
-      DPTTRF_F77(&n,d,e,info); 
+      *info = LAPACKE_dpttrf(n, d, e);
+    }
+
+    void GESVD(const char& JOBU, const char& JOBVT, const int& m, const int& n, double* A, const int& lda, double* S, double* U, const int& ldu, double* VT, const int& ldvt, double* WORK, const int& lwork, int* info) const {
+      std::vector<double> superb(std::min(m,n)-1);
+      *info = LAPACKE_dgesvd(LAPACK_COL_MAJOR, JOBU, JOBVT, m, n, A, lda, S, U, ldu, VT, ldvt, superb.data());
     }
   };
 

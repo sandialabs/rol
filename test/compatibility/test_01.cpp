@@ -13,7 +13,7 @@
 
 #include <exception>
 
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 
 #include "ROL_stacktrace.hpp"
 #include "ROL_Stream.hpp"

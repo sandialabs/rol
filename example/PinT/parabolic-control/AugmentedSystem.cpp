@@ -15,7 +15,7 @@
 #include "ROL_Ptr.hpp"
 
 #include "Teuchos_oblackholestream.hpp"
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 #include "Teuchos_XMLParameterListHelpers.hpp"
 #include "Teuchos_StackedTimer.hpp"
 
@@ -42,8 +42,8 @@ int main( int argc, char* argv[] )
   using ROL::makePtr;
   using ROL::makePtrFromRef;
 
-  Teuchos::GlobalMPISession mpiSession(&argc, &argv);  
-  int myRank = Teuchos::GlobalMPISession::getRank();
+  ROL::GlobalMPISession mpiSession(&argc, &argv);  
+  int myRank = ROL::GlobalMPISession::getRank();
 
   auto outStream = ROL::makeStreamPtr( std::cout, argc > 1 );
 

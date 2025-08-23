@@ -25,7 +25,7 @@
 #include "ROL_ParameterList.hpp"
 
 #include "ROL_Stream.hpp"
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 #include "Teuchos_LAPACK.hpp"
 
 #include <iostream>

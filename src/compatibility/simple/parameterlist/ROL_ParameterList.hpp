@@ -157,6 +157,9 @@ public:
   using key_type = std::string;
 
   ParameterList( int level = 0 ) : level_(level) {}
+  
+  // Constructor with name (for Teuchos compatibility) - name is ignored in simple implementation  
+  ParameterList( const std::string& name, int level = 0 ) : level_(level) {}
 
   ParameterList& sublist( key_type key, 
                           bool     mustAlreadyExist=false );
@@ -205,9 +208,16 @@ getArrayFromStringParameter( const ParameterList& parlist, std::string key ) {
 
 std::ostream& operator << ( std::ostream& os, const ParameterList& parlist );
 
+// Forward declaration for XML reader
+class XMLParameterListReader;
+
+/// \brief Create ParameterList from XML file using pugixml
+ROL::Ptr<ParameterList> getParametersFromXmlFile(const std::string& filename);
+
 } // namespace ROL
 
 #include "ROL_ParameterList.cpp"
+#include "ROL_XMLReader.hpp"
 
 #endif // ROL_PARAMETERLIST_HPP
 

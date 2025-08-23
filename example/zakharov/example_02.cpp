@@ -21,7 +21,7 @@
 #include "ROL_Zakharov.hpp"
 
 #include "ROL_Stream.hpp"
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 
 typedef double RealT;
 

@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
   using Teuchos::sublist;
   using Teuchos::getParametersFromXmlFile;
 
-  Teuchos::GlobalMPISession mpiSession(&argc, &argv);
+  ROL::GlobalMPISession mpiSession(&argc, &argv);
 
   // Save ROL output to rol.out
   std::ofstream fout;

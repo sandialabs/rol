@@ -36,7 +36,7 @@
 #include <iostream>
 
 #include "ROL_Stream.hpp"
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 
 #include "ROL_ParameterList.hpp"
 #include "ROL_StdVector.hpp"

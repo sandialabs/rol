@@ -11,7 +11,7 @@
     \brief Interior Point test using Hock & Schittkowski problem 24.
 */
 
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 
 #include "ROL_HS24.hpp"
 #include "ROL_Algorithm.hpp"
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
    
 
-  Teuchos::GlobalMPISession mpiSession(&argc, &argv);
+  ROL::GlobalMPISession mpiSession(&argc, &argv);
 
   int iprint     = argc - 1;
   ROL::Ptr<std::ostream> outStream;

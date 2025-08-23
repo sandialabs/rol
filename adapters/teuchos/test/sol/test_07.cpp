@@ -7,7 +7,7 @@
 // *****************************************************************************
 // @HEADER
 
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 #include "Teuchos_Comm.hpp"
 #include "Teuchos_DefaultComm.hpp"
 #include "Teuchos_CommHelpers.hpp"
@@ -118,7 +118,7 @@ void printSolution(const std::vector<RealT> &x,
 
 int main(int argc, char* argv[]) {
 
-  Teuchos::GlobalMPISession mpiSession(&argc, &argv);
+  ROL::GlobalMPISession mpiSession(&argc, &argv);
   ROL::Ptr<const Teuchos::Comm<int> > commptr =
     ROL::toPtr(Teuchos::DefaultComm<int>::getComm());
 

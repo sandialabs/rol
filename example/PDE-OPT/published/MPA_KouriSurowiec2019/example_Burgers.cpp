@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
   ROL::nullstream bhs; // outputs nothing
 
   /*** Initialize communicator. ***/
-  Teuchos::GlobalMPISession mpiSession (&argc, &argv, &bhs);
+  ROL::GlobalMPISession mpiSession (&argc, &argv, &bhs);
   ROL::Ptr<const Teuchos::Comm<int>> comm = Tpetra::getDefaultComm();
 
   const int myRank = comm->getRank();

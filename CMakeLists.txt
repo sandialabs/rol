@@ -1,131 +1,100 @@
-INCLUDE(TribitsPackageMacros)
-INCLUDE(TribitsAddOptionAndDefine)
+# Rapid Optimization Library
 
+if( COMMAND TRIBITS_PACKAGE )
+  set( STANDALONE_ROL FALSE )
+else()
+  set( STANDALONE_ROL TRUE )
+endif()
 
-#
-# A) Define the package
-#
+if( STANDALONE_ROL )
 
-TRIBITS_PACKAGE(ROL)
+  cmake_minimum_required(VERSION 3.23)
 
-#
-# B) Set up package-specific options
-#
+  project( ROL 
+           VERSION 2.0
+           DESCRIPTION "Rapid Optimization Library"
+           LANGUAGES CXX )
 
-TRIBITS_ADD_OPTION_AND_DEFINE(${PACKAGE_NAME}_ENABLE_DEBUG
-  HAVE_ROL_DEBUG
-  "Enable a host of runtime debug checking."
-  ${${PROJECT_NAME}_ENABLE_DEBUG}
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  set(CMAKE_CXX_EXTENSIONS OFF)  
+  set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+
+  find_package(Eigen3 REQUIRED)
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+  
+  # Find LAPACKE library (C interface to LAPACK)
+  find_library(LAPACKE_LIBRARY NAMES lapacke REQUIRED)
+
+  # Add pugixml for XML parameter file support
+  include(FetchContent)
+  FetchContent_Declare(
+    pugixml
+    GIT_REPOSITORY https://github.com/zeux/pugixml.git
+    GIT_TAG        v1.14
   )
+  FetchContent_MakeAvailable(pugixml)
 
-TRIBITS_ADD_OPTION_AND_DEFINE(${PACKAGE_NAME}_ENABLE_TIMERS
-  ROL_TIMERS
-  "Build ROL with Teuchos TimeMonitors enabled."
-  OFF
-  )
+  include(ROLUtils)
 
-TRIBITS_ADD_OPTION_AND_DEFINE(${PACKAGE_NAME}_ENABLE_PYROL
-  ENABLE_PYBIND11_PYROL
-  "Build ROL with PyROL interface."
-  OFF
-  )
+  # Configure the config header
+  configure_file("${PROJECT_SOURCE_DIR}/cmake/ROL_config.h.in" ROL_config.h @ONLY)
 
-TRIBITS_ADD_OPTION_AND_DEFINE(${PACKAGE_NAME}_ENABLE_PARAMETERLIST_VALIDATION
-  ENABLE_PARAMETERLIST_VALIDATION
-  "Build ROL with ParameterList validation."
-  OFF
-  )
+  add_library(rol INTERFACE)
+ 
+  set(SRC ${PROJECT_SOURCE_DIR}/src)
 
-# Build Options
-SET( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-INCLUDE(BuildOptions)
-GET_PROPERTY( STACKTRACE_STRING GLOBAL PROPERTY STACKTRACE_IMPL )
-#IF( ${STACKTRACE_STRING} STREQUAL "backward-cpp" )
-#INCLUDE(BackwardConfig)
-#ENDIF()
+  # Set up compatibility includes (specific directories to avoid conflicts)
+  set(ROL_COMPATIBILITY_INCLUDES ${SRC}/compatibility/simple/blas    
+                                 ${SRC}/compatibility/simple/lapack    
+                                 ${SRC}/compatibility/simple/mpi    
+                                 ${SRC}/compatibility/simple/parameterlist    
+                                 ${SRC}/compatibility/std/shared_ptr    
+                                 ${SRC}/compatibility/backward_cpp    
+                                 ${SRC}/compatibility/eigen)    
+                                 
+  # Use GLOB_RECURSE to find all directories in core components
+  set(ROL_CORE_DIRS ${SRC}/algorithm
+                    ${SRC}/elementwise
+                    ${SRC}/function
+                    ${SRC}/oed
+                    ${SRC}/sol
+                    ${SRC}/status
+                    ${SRC}/step
+                    ${SRC}/utils
+                    ${SRC}/vector
+                    ${SRC}/zoo)
+  
+  set(ROL_CORE_INCLUDES)
+  foreach(core_dir ${ROL_CORE_DIRS})
+    file(GLOB_RECURSE subdirs LIST_DIRECTORIES true "${core_dir}/*")
+    list(APPEND ROL_CORE_INCLUDES ${core_dir})
+    foreach(subdir ${subdirs})
+      if(IS_DIRECTORY ${subdir})
+        list(APPEND ROL_CORE_INCLUDES ${subdir})
+      endif()
+    endforeach()
+  endforeach()
 
+  target_include_directories(rol INTERFACE  ${CMAKE_CURRENT_BINARY_DIR}
+                                          ${ROL_COMPATIBILITY_INCLUDES}
+                                          ${ROL_CORE_INCLUDES}
+                                          ${EIGEN3_INCLUDE_DIR})
 
-include(ROLParameters)
+  target_link_libraries(rol INTERFACE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${LAPACKE_LIBRARY} pugixml)
+                                           
+  add_library(rol::rol ALIAS rol)
 
-
-#
-# C) Add the libraries, tests, and examples
-#
-
-ADD_SUBDIRECTORY(src)
-
-IF( ROL_ENABLE_Sacado ) 
-ADD_SUBDIRECTORY(adapters/sacado)
-ENDIF()
-
-IF (ROL_ENABLE_ArrayFireCPU)
-  ADD_SUBDIRECTORY(adapters/arrayfire)
-ENDIF()
-
-IF( ROL_ENABLE_PYROL ) 
-  ADD_SUBDIRECTORY(pyrol)
-ENDIF()
-
-# Adapters which require use of Teuchos
-
-#GET_PROPERTY( PTR_STRING GLOBAL PROPERTY PTR_IMPL )
-#GET_PROPERTY( PARAMETERLIST_STRING GLOBAL PROPERTY PARAMETERLIST_IMPL )
-#IF( PTR_STRING STREQUAL "Teuchos::RCP" )
-#IF( PARAMETERLIST_STRING STREQUAL "Teuchos::ParameterList" )
-
-IF( ${USING_TEUCHOS_ALL} )
-
-
-ADD_SUBDIRECTORY(adapters/teuchos)
-
-IF( TPL_ENABLE_MPI ) 
-ADD_SUBDIRECTORY(adapters/mpi)
-ENDIF()
-
-IF( ROL_ENABLE_Epetra )
-ADD_SUBDIRECTORY(adapters/epetra)
-ENDIF()
-
-IF( ROL_ENABLE_Tpetra )
-ADD_SUBDIRECTORY(adapters/tpetra)
-ENDIF()
-
-IF( ROL_ENABLE_Belos )
-ADD_SUBDIRECTORY(adapters/belos)
-ENDIF()
-
-IF( ROL_ENABLE_Thyra )
-ADD_SUBDIRECTORY(adapters/thyra)
-ENDIF()
-
-IF( ROL_ENABLE_TriKota )
-ADD_SUBDIRECTORY(adapters/trikota)
-ENDIF()
-
-IF( ROL_ENABLE_pebbl )
-ADD_SUBDIRECTORY(adapters/pebbl)
-ENDIF()
-
-IF (ROL_ENABLE_Boost AND ROL_ENABLE_MiniTensor)
-  ADD_SUBDIRECTORY(adapters/minitensor)
-ENDIF()
-
-ENDIF( ${USING_TEUCHOS_ALL} )
-
-#ENDIF( PARAMETERLIST_STRING STREQUAL "Teuchos::ParameterList" )
-#ENDIF( PTR_STRING           STREQUAL "Teuchos::RCP" )
-
-IF (ROL_ENABLE_Eigen)
-  ADD_SUBDIRECTORY(adapters/eigen)
-ENDIF()
+  option(ENABLE_TESTS OFF)
+  
+  if(ENABLE_TESTS) 
+    enable_testing()
+    add_subdirectory(test)
+  endif()
 
 
-TRIBITS_ADD_TEST_DIRECTORIES(test)
-TRIBITS_ADD_EXAMPLE_DIRECTORIES(example)
-TRIBITS_ADD_EXAMPLE_DIRECTORIES(tutorial)
 
-#
-# D) Do standard postprocessing
-#
-
-TRIBITS_PACKAGE_POSTPROCESS()
+else() # Build with Trilinos
+  include(cmake/TrilinosROL.cmake)
+endif()

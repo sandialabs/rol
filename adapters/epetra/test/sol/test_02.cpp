@@ -26,7 +26,7 @@ typedef double RealT;
 int main(int argc, char* argv[]) {
   ROL::Ptr<Epetra_Comm> comm;
 #ifdef HAVE_MPI
-  Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
+  ROL::GlobalMPISession mpiSession(&argc, &argv,0);
   comm = ROL::makePtr<Epetra_MpiComm>(MPI_COMM_WORLD);
 #else
   comm = ROL::makePtr<Epetra_SerialComm>();

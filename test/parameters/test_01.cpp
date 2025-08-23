@@ -8,7 +8,7 @@
 // @HEADER
 
 #include <iostream>
-#include "Teuchos_GlobalMPISession.hpp"
+#include "ROL_GlobalMPISession.hpp"
 
 #include "ROL_Types.hpp"
 #include "ROL_ParameterListConverters.hpp"
