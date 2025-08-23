@@ -17,20 +17,27 @@ function(ROL_ADD_EXECUTABLE_AND_TEST TARGET_NAME)
   else()
     # Standalone CMake implementation
     
+    # Handle ADD_DIR_TO_NAME by prepending current directory name
+    set(ACTUAL_TARGET_NAME ${TARGET_NAME})
+    if(ROLET_ADD_DIR_TO_NAME)
+      get_filename_component(DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+      set(ACTUAL_TARGET_NAME "${DIR_NAME}_${TARGET_NAME}")
+    endif()
+    
     # Create the executable
-    add_executable(${TARGET_NAME} ${ROLET_SOURCES})
+    add_executable(${ACTUAL_TARGET_NAME} ${ROLET_SOURCES})
     
     # Link against ROL if available
     if(TARGET rol)
-      target_link_libraries(${TARGET_NAME} rol)
+      target_link_libraries(${ACTUAL_TARGET_NAME} rol)
     endif()
     
     # Add the test
-    add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME} ${ROLET_ARGS})
+    add_test(NAME ${ACTUAL_TARGET_NAME} COMMAND ${ACTUAL_TARGET_NAME} ${ROLET_ARGS})
     
     # Set test properties
     if(ROLET_PASS_REGULAR_EXPRESSION)
-      set_tests_properties(${TARGET_NAME} PROPERTIES 
+      set_tests_properties(${ACTUAL_TARGET_NAME} PROPERTIES 
         PASS_REGULAR_EXPRESSION "${ROLET_PASS_REGULAR_EXPRESSION}")
     endif()
     
@@ -38,7 +45,7 @@ function(ROL_ADD_EXECUTABLE_AND_TEST TARGET_NAME)
     if(ROLET_NUM_MPI_PROCS AND ROLET_NUM_MPI_PROCS GREATER 1)
       find_package(MPI QUIET)
       if(MPI_FOUND)
-        set_tests_properties(${TARGET_NAME} PROPERTIES 
+        set_tests_properties(${ACTUAL_TARGET_NAME} PROPERTIES 
           PROCESSORS ${ROLET_NUM_MPI_PROCS})
       endif()
     endif()
@@ -60,11 +67,19 @@ function(ROL_ADD_EXECUTABLE TARGET_NAME)
     tribits_add_executable(${TARGET_NAME} ${ARGN})
   else()
     # Standalone CMake implementation
-    add_executable(${TARGET_NAME} ${ROLE_SOURCES})
+    
+    # Handle ADD_DIR_TO_NAME by prepending current directory name
+    set(ACTUAL_TARGET_NAME ${TARGET_NAME})
+    if(ROLE_ADD_DIR_TO_NAME)
+      get_filename_component(DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+      set(ACTUAL_TARGET_NAME "${DIR_NAME}_${TARGET_NAME}")
+    endif()
+    
+    add_executable(${ACTUAL_TARGET_NAME} ${ROLE_SOURCES})
     
     # Link against ROL if available
     if(TARGET rol)
-      target_link_libraries(${TARGET_NAME} rol)
+      target_link_libraries(${ACTUAL_TARGET_NAME} rol)
     endif()
   endif()
 endfunction()
