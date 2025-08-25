@@ -85,7 +85,7 @@ namespace ROL {
     void PTTRS(const Index& n, const Index& nrhs, const Real* d, const Real* e, Real* B, const Index& ldb, Index* info) const;
 
     //! Computes the singular value decomposition (SVD) of a general \c m by \c n matrix \c A.
-    void GESVD(const char& JOBU, const char& JOBVT, const Index& m, const Index& n, Real* A, const Index& lda, Real* S, Real* U, const Index& ldu, Real* VT, const Index& ldvt, Real* WORK, const Index& lwork, Index* info) const;
+    void GESVD(const char& JOBU, const char& JOBVT, const Index& m, const Index& n, Real* A, const Index& lda, Real* S, Real* U, const Index& ldu, Real* VT, const Index& ldvt, Real* WORK, const Index& lwork, Real* RWORK, Index* info) const;
   };
 
   template<>
@@ -97,7 +97,12 @@ namespace ROL {
       // LAPACKE doesn't have dlatrs, so we use dtrtrs as a fallback
       // This is less robust but should work for non-singular cases
       *SCALE = 1.0;  // Assume no scaling needed
-      *INFO = LAPACKE_dtrtrs(LAPACK_COL_MAJOR, UPLO, TRANS, DIAG, N, 1, A, LDA, X, N);
+      
+      // Ensure LDA is valid (must be >= max(1, N))
+      int actualLDA = std::max(LDA, std::max(1, N));
+      int actualLDB = std::max(1, N);  // Leading dimension for vector X
+      
+      *INFO = LAPACKE_dtrtrs(LAPACK_COL_MAJOR, UPLO, TRANS, DIAG, N, 1, A, actualLDA, X, actualLDB);
       // Set CNORM to 1.0 as a simple approximation
       if (CNORM) *CNORM = 1.0;
     }
@@ -116,7 +121,11 @@ namespace ROL {
     }
 
     void TRTRS(const char& UPLO, const char& TRANS, const char& DIAG, const int& n, const int& nrhs, const double* A, const int& lda, double* B, const int& ldb, int* info) const { 
-      *info = LAPACKE_dtrtrs(LAPACK_COL_MAJOR, UPLO, TRANS, DIAG, n, nrhs, A, lda, B, ldb);
+      // Ensure leading dimensions are valid
+      int actualLDA = std::max(lda, std::max(1, n));
+      int actualLDB = std::max(ldb, std::max(1, n));
+      
+      *info = LAPACKE_dtrtrs(LAPACK_COL_MAJOR, UPLO, TRANS, DIAG, n, nrhs, A, actualLDA, B, actualLDB);
     }
 
     void GETRF(const int& m, const int& n, double* A, const int& lda, int* IPIV, int* info) const {
@@ -159,7 +168,9 @@ namespace ROL {
       *info = LAPACKE_dpttrf(n, d, e);
     }
 
-    void GESVD(const char& JOBU, const char& JOBVT, const int& m, const int& n, double* A, const int& lda, double* S, double* U, const int& ldu, double* VT, const int& ldvt, double* WORK, const int& lwork, int* info) const {
+    void GESVD(const char& JOBU, const char& JOBVT, const int& m, const int& n, double* A, const int& lda, double* S, double* U, const int& ldu, double* VT, const int& ldvt, double* WORK, const int& lwork, double* RWORK, int* info) const {
+      // RWORK parameter is not used for real double precision (it's for complex types)
+      // But we need to accept it for API compatibility
       std::vector<double> superb(std::min(m,n)-1);
       *info = LAPACKE_dgesvd(LAPACK_COL_MAJOR, JOBU, JOBVT, m, n, A, lda, S, U, ldu, VT, ldvt, superb.data());
     }

@@ -1,17 +1,15 @@
-# ADD_SUBDIRECTORY(operator) SegFaults!
-
+ADD_SUBDIRECTORY(operator) 
 ADD_SUBDIRECTORY(constraint)
-#ADD_SUBDIRECTORY(sketching)
+ADD_SUBDIRECTORY(sketching)
 
-# Uses Teuchos::SerialDenseMatrix
-#ROL_ADD_EXECUTABLE_AND_TEST(
-#  DerivativeCheck
-#  SOURCES test_01.cpp
-#  ARGS PrintItAll
-#  NUM_MPI_PROCS 1
-#  PASS_REGULAR_EXPRESSION "TEST PASSED"
-#  ADD_DIR_TO_NAME
-#  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  DerivativeCheck
+  SOURCES test_01.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
 ROL_ADD_EXECUTABLE_AND_TEST(
   BarrierFunctionCheck
@@ -31,23 +29,23 @@ ROL_ADD_EXECUTABLE_AND_TEST(
   ADD_DIR_TO_NAME
   )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  SimOptSolveCheck
-  #  SOURCES test_04.cpp
-  #  ARGS PrintItAll
-  #  NUM_MPI_PROCS 1
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  SimOptSolveCheck
+  SOURCES test_04.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  NonlinearLeastSquaresCheck
-  #  SOURCES test_05.cpp
-  #  ARGS PrintItAll
-  #  NUM_MPI_PROCS 1
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  NonlinearLeastSquaresCheck
+  SOURCES test_05.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
 ROL_ADD_EXECUTABLE_AND_TEST(
   StdObjectiveCheck
@@ -58,14 +56,14 @@ ROL_ADD_EXECUTABLE_AND_TEST(
   ADD_DIR_TO_NAME
   )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  CompositeObjectiveCheck
-  #  SOURCES test_07.cpp
-  #  ARGS PrintItAll
-  #  NUM_MPI_PROCS 1
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  CompositeObjectiveCheck
+  SOURCES test_07.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
 ROL_ADD_EXECUTABLE_AND_TEST(
   CompositeObjectiveSimOptCheck
@@ -76,23 +74,23 @@ ROL_ADD_EXECUTABLE_AND_TEST(
   ADD_DIR_TO_NAME
   )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  ConstraintPartionedCheck
-  #  SOURCES test_09.cpp
-  #  ARGS PrintItAll
-  #  NUM_MPI_PROCS 1
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  ConstraintPartionedCheck
+  SOURCES test_09.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  CompositeConstraintCheck
-  #  SOURCES test_10.cpp
-  #  ARGS PrintItAll
-  #  NUM_MPI_PROCS 1
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  CompositeConstraintCheck
+  SOURCES test_10.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
 ROL_ADD_EXECUTABLE(
   ColemanLiModelCheck
@@ -109,21 +107,21 @@ ROL_ADD_EXECUTABLE_AND_TEST(
   ADD_DIR_TO_NAME
   )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  BinaryConstraintCheck
-  #  SOURCES test_13.cpp
-  #  ARGS PrintItAll
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  BinaryConstraintCheck
+  SOURCES test_13.cpp
+  ARGS PrintItAll
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  PolyhedralProjectionCheck
-  #  SOURCES test_14.cpp
-  #  ARGS PrintItAll
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  PolyhedralProjectionCheck
+  SOURCES test_14.cpp
+  ARGS PrintItAll
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
 ROL_ADD_EXECUTABLE_AND_TEST(
   NullSpaceProjectionCheck
@@ -149,21 +147,21 @@ ROL_ADD_EXECUTABLE_AND_TEST(
   ADD_DIR_TO_NAME
   )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  ChainRuleObjectiveCheck
-  #  SOURCES test_18.cpp
-  #  ARGS PrintItAll
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  ChainRuleObjectiveCheck
+  SOURCES test_18.cpp
+  ARGS PrintItAll
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
-  #ROL_ADD_EXECUTABLE_AND_TEST(
-  #  ReducedConstraintSimOptCheck
-  #  SOURCES test_19.cpp
-  #  ARGS PrintItAll
-  #  PASS_REGULAR_EXPRESSION "TEST PASSED"
-  #  ADD_DIR_TO_NAME
-  #  )
+ROL_ADD_EXECUTABLE_AND_TEST(
+  ReducedConstraintSimOptCheck
+  SOURCES test_19.cpp
+  ARGS PrintItAll
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
 
 ROL_COPY_FILES_TO_BINARY_DIR(
   BinaryConstraintDataCopy

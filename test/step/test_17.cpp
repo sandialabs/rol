@@ -15,7 +15,6 @@
 #include "ROL_OptimizationSolver.hpp"
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
 
 #include <iostream>
 

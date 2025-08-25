@@ -41,9 +41,8 @@
 //#pragma GCC diagnostic ignored "-Wshadow"
 //#pragma GCC diagnostic ignored "-Wundef"
 
-#include "Teuchos_ParameterList.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
-
+#include "ROL_ParameterList.hpp"
+#include "ROL_GlobalMPISession.hpp"
 #include "ROL_Vector.hpp"
 #include "ROL_CArrayVector.hpp"
 #include "ROL_Bounds.hpp"

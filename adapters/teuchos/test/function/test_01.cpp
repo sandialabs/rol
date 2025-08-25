@@ -27,7 +27,7 @@
 #include "ROL_OptimizationSolver.hpp"
 
 #include "ROL_Stream.hpp"
-#include "ROL_GlobalMPISession.hpp"
+#include "Teuchos_GlobalMPISession.hpp"
 #include "Teuchos_SerialDenseSolver.hpp"
 
 #include <random>
@@ -150,7 +150,7 @@ using RealT = double;
 
 int main( int argc, char *argv[] ) {
 
-  ROL::GlobalMPISession mpiSession(&argc, &argv);
+  Teuchos::GlobalMPISession mpiSession(&argc, &argv);
 
   using Teuchos::RCP;
   using Teuchos::rcp;  

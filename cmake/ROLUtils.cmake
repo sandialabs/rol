@@ -116,3 +116,22 @@ function(ROL_COPY_FILES_TO_BINARY_DIR TARGET_NAME)
     endforeach()
   endif()
 endfunction()
+
+# Function to include directories, compatible with both TriBITS and standalone CMake
+function(ROL_INCLUDE_DIRECTORIES)
+  # Check if we're in TriBITS environment
+  if(COMMAND TRIBITS_INCLUDE_DIRECTORIES)
+    # Forward to TriBITS function with all arguments
+    tribits_include_directories(${ARGN})
+  else()
+    # Standalone CMake implementation
+    cmake_parse_arguments(
+      INC
+      "REQUIRED_DURING_INSTALLATION_TESTING"
+      ""
+      ""
+      ${ARGN}
+    )
+    include_directories(${INC_UNPARSED_ARGUMENTS})
+  endif()
+endfunction()

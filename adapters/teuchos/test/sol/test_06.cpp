@@ -16,14 +16,14 @@
 #include "ROL_TeuchosBatchManager.hpp"
 
 #include "ROL_Stream.hpp"
-#include "ROL_GlobalMPISession.hpp"
+#include "Teuchos_GlobalMPISession.hpp"
 #include "Teuchos_DefaultComm.hpp"
 
 typedef double RealT;
 
 int main(int argc, char *argv[]) {
 
-  ROL::GlobalMPISession mpiSession(&argc, &argv,0);
+  Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   ROL::Ptr<const Teuchos::Comm<int> > comm
     = ROL::toPtr(Teuchos::DefaultComm<int>::getComm());
 

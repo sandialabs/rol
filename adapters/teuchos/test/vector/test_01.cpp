@@ -15,7 +15,7 @@
 #include "ROL_StdVector.hpp"
 #include "ROL_TeuchosVector.hpp"
 #include "ROL_Stream.hpp"
-#include "ROL_GlobalMPISession.hpp"
+#include "Teuchos_GlobalMPISession.hpp"
 
 #include <iostream>
 
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
   using StdVector     = ROL::StdVector<RealT>;
   using TeuchosVector = ROL::TeuchosVector<OrdinalT,RealT>;
    
-  ROL::GlobalMPISession mpiSession(&argc, &argv);
+  Teuchos::GlobalMPISession mpiSession(&argc, &argv);
 
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
   int iprint     = argc - 1;

@@ -17,7 +17,7 @@
 #include "ROL_Types.hpp"
 
 #include "ROL_Stream.hpp"
-#include "ROL_GlobalMPISession.hpp"
+#include "Teuchos_GlobalMPISession.hpp"
 
 #include <iomanip>
 #include <iostream>
@@ -46,7 +46,7 @@ Real norm_sum(const MultiVector<Real> &A) {
 
 int main(int argc, char *argv[]) {
 
-    ROL::GlobalMPISession mpiSession(&argc,&argv);
+    Teuchos::GlobalMPISession mpiSession(&argc,&argv);
 
     int iprint     = argc - 1;
     ROL::Ptr<std::ostream> outStream;

@@ -46,6 +46,18 @@ class Vector{
   public:
     Vector(int size) : v_(size) {}
     Vector() : v_() {}
+    Vector( const Vector& other ) : Vector(other.numRows()) {
+      v_ = other.v_;
+    }
+    Vector(DataAccess access, Real* data, int size) {
+      if (access == View) {
+        v_ = Eigen::Map<EVector<Real>>(data, size);
+      } else {
+        v_.resize(size);
+        std::copy(data, data + size, v_.data());
+      }
+    }
+
     Real* values(){ return const_cast<Real*>(v_.data()); }
     void resize(int n) { v_.resize(n); }
     void size(int n) { v_.resize(n); v_.setZero();}
@@ -59,8 +71,8 @@ class Vector{
     void operator -=(Vector<Real> x) { v_-= x.v_;}
     void operator +=(Vector<Real> x) { v_+= x.v_;}
     void scale(Real alpha) { v_ *= alpha; }
-    int numRows() { return v_.size(); }
-    int stride() { return v_.outerStride(); }
+    int numRows() const { return v_.size(); }
+    int stride() const { return v_.size(); } // For LAPACK compatibility - return size for vectors
 };
 
 template<typename Real>
@@ -69,6 +81,9 @@ class Matrix{
     EMatrix<Real> M_;
   public:
     Matrix() : M_() {}
+    Matrix( const Matrix& other ) : Matrix(other.numRows(),other.numCols()) {
+      M_ = other.M_;
+    }
     Matrix(int rows, int columns) : M_(rows, columns) {}
     Matrix(DataAccess access, Matrix<Real> A, int rows, int cols, int rowstart = 0, int colstart=0)
     {
@@ -79,7 +94,7 @@ class Matrix{
 
     }
     Real* values(){ return const_cast<Real*>(M_.data()); }
-    int stride() { return M_.outerStride(); }
+    int stride() { return M_.rows(); } // For LAPACK compatibility - return number of rows (leading dimension)
     void reshape(int m, int n) { M_.resize(m, n); }
     Real normOne() { return M_.template lpNorm<1>(); }
     Eigen::PartialPivLU<EMatrix<Real>> partialPivLu(bool inplace)
@@ -115,8 +130,13 @@ class Matrix{
       M_.noalias() += alpha * AA * BB;
     }
 
-    int numRows() { return M_.rows(); }
-    int numCols() { return M_.cols(); }
+    int numRows() const { return M_.rows(); }
+    int numCols() const { return M_.cols(); }
+    
+    // Set all elements to scalar value
+    void putScalar(Real value) {
+      M_.setConstant(value);
+    }
 
 };
 

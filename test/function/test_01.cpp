@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
                << std::setw(20) << hsymCheck[2]
                << "\n";
 
-    Teuchos::SerialDenseMatrix<int, RealT> H(x.dimension(), x.dimension());
+    ROL::LA::Matrix<RealT> H(x.dimension(), x.dimension());
     H = ROL::computeDenseHessian(obj, x);
     //H.print(*outStream);
 

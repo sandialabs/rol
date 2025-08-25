@@ -20,6 +20,7 @@
 #include "ROL_StdObjective.hpp"
 #include "ROL_StdConstraint.hpp"
 #include "ROL_Bounds.hpp"
+#include "ROL_GlobalMPISession.hpp"
 
 #include <cmath>
 #include <iostream>
