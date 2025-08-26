@@ -22,16 +22,15 @@
 #include "ROL_LinearAlgebra.hpp"
 #include "ROL_LAPACK.hpp"
 
-
 namespace ROL {
 
   template<class Real>
-  ROL::LA::Matrix<Real> computeDenseHessian(Objective<Real> &obj, const Vector<Real> &x) {
+  ROL::LA::Matrix< Real> computeDenseHessian(Objective<Real> &obj, const Vector<Real> &x) {
 
     Real tol = std::sqrt(ROL_EPSILON<Real>());
 
     int dim = x.dimension();
-    ROL::LA::Matrix<Real> H(dim, dim);
+    ROL::LA::Matrix< Real> H(dim, dim);
 
     ROL::Ptr<Vector<Real> > e = x.clone();
     ROL::Ptr<Vector<Real> > h = x.dual().clone();
@@ -52,12 +51,12 @@ namespace ROL {
 
 
   template<class Real>
-  ROL::LA::Matrix<Real> computeScaledDenseHessian(Objective<Real> &obj, const Vector<Real> &x) {
+  ROL::LA::Matrix< Real> computeScaledDenseHessian(Objective<Real> &obj, const Vector<Real> &x) {
 
     Real tol = std::sqrt(ROL_EPSILON<Real>());
 
     int dim = x.dimension();
-    ROL::LA::Matrix<Real> H(dim, dim);
+    ROL::LA::Matrix< Real> H(dim, dim);
 
     ROL::Ptr<Vector<Real> > ei = x.clone();
     ROL::Ptr<Vector<Real> > ej = x.dual().clone();
@@ -78,10 +77,10 @@ namespace ROL {
 
 
   template<class Real>
-  ROL::LA::Matrix<Real> computeDotMatrix(const Vector<Real> &x) {
+  ROL::LA::Matrix< Real> computeDotMatrix(const Vector<Real> &x) {
 
     int dim = x.dimension();
-    ROL::LA::Matrix<Real> M(dim, dim);
+    ROL::LA::Matrix< Real> M(dim, dim);
 
     ROL::Ptr<Vector<Real> > ei = x.clone();
     ROL::Ptr<Vector<Real> > ej = x.clone();
@@ -99,11 +98,11 @@ namespace ROL {
   }
 
   template<class Real>
-  std::vector<std::vector<Real> > computeEigenvalues(const ROL::LA::Matrix<Real> & mat) {
+  std::vector<std::vector<Real> > computeEigenvalues(const ROL::LA::Matrix< Real> & mat) {
 
     ROL::LAPACK<int, Real> lapack;
 
-    ROL::LA::Matrix<Real> mymat(mat);
+    ROL::LA::Matrix< Real> mymat(mat);
 
     char jobvl = 'N';
     char jobvr = 'N';
@@ -137,13 +136,13 @@ namespace ROL {
 
 
   template<class Real>
-  std::vector<std::vector<Real> > computeGenEigenvalues(const ROL::LA::Matrix<Real> & A,
-                                                        const ROL::LA::Matrix<Real> & B) {
+  std::vector<std::vector<Real> > computeGenEigenvalues(const ROL::LA::Matrix< Real> & A,
+                                                        const ROL::LA::Matrix< Real> & B) {
 
     ROL::LAPACK<int, Real> lapack;
 
-    ROL::LA::Matrix<Real> myA(A);
-    ROL::LA::Matrix<Real> myB(B);
+    ROL::LA::Matrix< Real> myA(A);
+    ROL::LA::Matrix< Real> myB(B);
 
     char jobvl = 'N';
     char jobvr = 'N';
@@ -184,11 +183,11 @@ namespace ROL {
 
 
   template<class Real>
-  ROL::LA::Matrix<Real> computeInverse(const ROL::LA::Matrix<Real> & mat) {
+  ROL::LA::Matrix< Real> computeInverse(const ROL::LA::Matrix< Real> & mat) {
 
     ROL::LAPACK<int, Real> lapack;
 
-    ROL::LA::Matrix<Real> mymat(mat);
+    ROL::LA::Matrix< Real> mymat(mat);
 
     int n = mat.numRows();
 

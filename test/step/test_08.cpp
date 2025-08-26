@@ -25,7 +25,6 @@ int main(int argc, char *argv[]) {
 
   typedef std::vector<RealT>            vec;
   typedef ROL::StdVector<RealT>         SV;
-  typedef ROL::Ptr<ROL::Vector<RealT> >      ROL::PtrV;
 
   ROL::GlobalMPISession mpiSession(&argc, &argv);
 
@@ -55,8 +54,8 @@ int main(int argc, char *argv[]) {
     using ROL::ZOO::Objective_HS29;
     using ROL::ZOO::InequalityConstraint_HS29;
     
-    ROL::Ptr<ROL::Objective<RealT> >             obj_hs29 = ROL::makePtr<Objective_HS29<RealT>>();
-    ROL::Ptr<ROL::InequalityConstraint<RealT> >  incon_hs29 = ROL::makePtr<InequalityConstraint_HS29<RealT>>();
+    auto obj_hs29 = ROL::makePtr<Objective_HS29<RealT>>();
+    auto incon_hs29 = ROL::makePtr<InequalityConstraint_HS29<RealT>>();
 
     
     std::string stepname = "Interior Point"; 

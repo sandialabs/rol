@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
   typedef ROL::Vector<RealT>               V;
   typedef ROL::BoundConstraint<RealT>      BC;
   typedef ROL::Objective<RealT>            OBJ;
-  typedef ROL::InequalityConstraint<RealT> INEQ; 
 
    
 
@@ -46,14 +45,14 @@ int main(int argc, char *argv[]) {
   try { 
 
     ROL::ZOO::getHS24<RealT> HS24;
-    ROL::Ptr<V>    x     = HS24.getInitialGuess();
-    ROL::Ptr<V>    xs    = HS24.getSolution();
-    ROL::Ptr<V>    inmul = HS24.getInequalityMultiplier();    
+    auto x     = HS24.getInitialGuess();
+    auto xs    = HS24.getSolution();
+    auto inmul = HS24.getInequalityMultiplier();    
 
-    ROL::Ptr<BC>   bnd   = HS24.getBoundConstraint();
-    ROL::Ptr<OBJ>  obj   = HS24.getObjective();
-    ROL::Ptr<INEQ> incon = HS24.getInequalityConstraint();
-    ROL::Ptr<BC>   inbnd = HS24.getSlackBoundConstraint();
+    auto bnd   = HS24.getBoundConstraint();
+    auto obj   = HS24.getObjective();
+    auto incon = HS24.getInequalityConstraint();
+    auto inbnd = HS24.getSlackBoundConstraint();
    
     
 

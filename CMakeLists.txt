@@ -24,9 +24,20 @@ if( STANDALONE_ROL )
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
   
-  # Find LAPACKE library (C interface to LAPACK)
-  find_library(LAPACKE_LIBRARY NAMES lapacke REQUIRED)
-
+  # Set F77_BLAS_MANGLE macro based on Fortran-C interface (similar to Kokkos Kernels)
+  if("${F77_BLAS_MANGLE}" STREQUAL "")
+    enable_language(C)
+    enable_language(Fortran)
+    include(FortranCInterface)
+    FortranCInterface_HEADER(${CMAKE_CURRENT_BINARY_DIR}/FortranCInterface.h MACRO_NAMESPACE "F77_")
+    if(FortranCInterface_GLOBAL_SUFFIX STREQUAL "")
+      set(F77_BLAS_MANGLE "(name,NAME) ${FortranCInterface_GLOBAL_PREFIX}name")
+    else()
+      set(F77_BLAS_MANGLE "(name,NAME) ${FortranCInterface_GLOBAL_PREFIX}name ## ${FortranCInterface_GLOBAL_SUFFIX}")
+    endif()
+    message(STATUS "Detected Fortran name mangling: ${F77_BLAS_MANGLE}")
+  endif()
+  
   # Add pugixml for XML parameter file support
   include(FetchContent)
   FetchContent_Declare(
@@ -82,7 +93,7 @@ if( STANDALONE_ROL )
                                           ${ROL_CORE_INCLUDES}
                                           ${EIGEN3_INCLUDE_DIR})
 
-  target_link_libraries(rol INTERFACE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${LAPACKE_LIBRARY} pugixml)
+  target_link_libraries(rol INTERFACE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} pugixml)
                                            
   add_library(rol::rol ALIAS rol)
 
