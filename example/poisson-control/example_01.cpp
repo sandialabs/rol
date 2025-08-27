@@ -24,7 +24,6 @@
 
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -71,10 +70,10 @@ int main(int argc, char *argv[]) {
   typedef std::vector<RealT>     vector;
   typedef ROL::Vector<RealT>     V;
   typedef ROL::StdVector<RealT>  SV;
- 
+
   typedef typename vector::size_type uint;
-  
-    
+
+
 
   ROL::GlobalMPISession mpiSession(&argc, &argv);
 
@@ -104,7 +103,7 @@ int main(int argc, char *argv[]) {
 
     for ( uint i = 0; i < dim; i++ ) {
       if ( i < dim/3.0  ||  i > 2*dim/3.0 ) {
-        (*l_ptr)[i] = 0.0; 
+        (*l_ptr)[i] = 0.0;
         (*u_ptr)[i] = 0.25;
       }
       else {
@@ -175,7 +174,7 @@ int main(int argc, char *argv[]) {
       file_tr << (*y_ptr)[i] << "\n";
     }
     file_tr.close();
-   
+
     ROL::Ptr<V> error = x.clone();
     error->set(x);
     error->axpy(-1.0,y);

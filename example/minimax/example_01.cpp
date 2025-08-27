@@ -20,8 +20,6 @@
 
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
-#include "Teuchos_LAPACK.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -70,7 +68,7 @@ int main(int argc, char *argv[]) {
     // Run algorithm.
     algo.run(x, obj, true, *outStream);
 
-    // Compute error 
+    // Compute error
     ROL::Ptr<ROL::Vector<RealT>> diff = x.clone();
     diff->set(x);
     diff->axpy(-1.0,z);

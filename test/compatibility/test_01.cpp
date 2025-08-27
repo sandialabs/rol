@@ -12,6 +12,7 @@
 */
 
 #include <exception>
+#include <iostream>
 
 #include "ROL_GlobalMPISession.hpp"
 
@@ -27,7 +28,7 @@ int main( int argc, char* argv[] ) {
     ROL_TEST_FOR_EXCEPTION( 0<1, std::logic_error, "End Result: TEST PASSED\n")
   }
   catch( std::exception& e ) {
-    *outStream << e.what() << std::endl;   
+    *outStream << e.what() << std::endl;
   }
 
   return 0;

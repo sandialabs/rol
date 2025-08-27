@@ -22,6 +22,7 @@
 #include "ROL_Types.hpp"
 #include "ROL_HelperFunctions.hpp"
 #include "ROL_Stream.hpp"
+#include "ROL_LAPACK.hpp"
 
 
 #include "ROL_GlobalMPISession.hpp"
@@ -155,7 +156,7 @@ public:
     u[    0] = z[    0]/hu_ * u0_;
     u[nu_-1] = z[nz_-1]/hu_ * u1_;
     // Solve Tridiagonal System Using LAPACK's SPD Tridiagonal Solver
-    Teuchos::LAPACK<int,Real> lp;
+    ROL::LAPACK<int,Real> lp;
     int info;
     int ldb  = nu_;
     int nhrs = 1;
@@ -182,7 +183,7 @@ public:
     p.resize(nu_,0.0);
     apply_mass(p,r);    
     // Solve Tridiagonal System Using LAPACK's SPD Tridiagonal Solver
-    Teuchos::LAPACK<int,Real> lp;
+    ROL::LAPACK<int,Real> lp;
     int info;
     int ldb  = nu_;
     int nhrs = 1;
@@ -206,7 +207,7 @@ public:
     w.resize(nu_,0.0);
     apply_linearized_control_operator(w,z,v,u);
     // Solve Tridiagonal System Using LAPACK's SPD Tridiagonal Solver
-    Teuchos::LAPACK<int,Real> lp;
+    ROL::LAPACK<int,Real> lp;
     int info;
     int ldb  = nu_;
     int nhrs = 1;
@@ -236,7 +237,7 @@ public:
       q[i] -= res[i];
     }
     // Solve Tridiagonal System Using LAPACK's SPD Tridiagonal Solver
-    Teuchos::LAPACK<int,Real> lp;
+    ROL::LAPACK<int,Real> lp;
     int info;
     int ldb  = nu_;
     int nhrs = 1;

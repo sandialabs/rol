@@ -21,7 +21,6 @@
 
 #include "Teuchos_Time.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
 
 #include <iostream>
 #include <fstream>

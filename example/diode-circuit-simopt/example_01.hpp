@@ -8,8 +8,6 @@
 #include "ROL_Types.hpp"
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
-#include "Teuchos_LAPACK.hpp"
 
 #include <iostream>
 #include <algorithm>

@@ -7,7 +7,6 @@
 // *****************************************************************************
 // @HEADER
 
-#include "Teuchos_XMLParameterListHelpers.hpp"
 #include "Teuchos_DefaultComm.hpp"
 
 #include "example_sincos.hpp"
@@ -21,7 +20,7 @@
 int main(int argc, char *argv[])
 {
   using Teuchos::RCP;
-  using Teuchos::ParameterList;
+  using ROL::ParameterList;
   using Teuchos::sublist;
   using Teuchos::getParametersFromXmlFile;
 

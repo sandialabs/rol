@@ -15,7 +15,7 @@
 #include "Teuchos_Comm.hpp"
 #include "Teuchos_Time.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
+#include "ROL_XMLReader.hpp"
 
 #include "Tpetra_Core.hpp"
 #include "Tpetra_Version.hpp"

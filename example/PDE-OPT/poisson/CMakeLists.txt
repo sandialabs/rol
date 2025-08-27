@@ -8,7 +8,7 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
   # Need ROL_TpetraMultiVector.hpp
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/vector)
 
-  TRIBITS_ADD_EXECUTABLE_AND_TEST(
+  ROL_ADD_EXECUTABLE_AND_TEST(
     example_01
     SOURCES example_01.cpp
     ARGS PrintItAll
@@ -18,7 +18,7 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_COPY_FILES_TO_BINARY_DIR(
+  ROL_COPY_FILES_TO_BINARY_DIR(
     PoissonDataCopy
     SOURCE_FILES
       input.xml plotresults.m p-cube-4x4x4.txt p-cube-4x4x4.e p-cube-8x8x8.txt p-cube-8x8x8.e

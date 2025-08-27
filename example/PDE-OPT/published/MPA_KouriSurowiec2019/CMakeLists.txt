@@ -10,25 +10,25 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/sol)
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/teuchos/src/sol)
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     Burgers
     SOURCES example_Burgers.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     1dPoisson
     SOURCES example_1dPoisson.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     2dPoisson
     SOURCES example_2dPoisson.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_COPY_FILES_TO_BINARY_DIR(
+  ROL_COPY_FILES_TO_BINARY_DIR(
     MPAKouriSurowiec2019DataCopy
     SOURCE_FILES
       input_Burgers.xml

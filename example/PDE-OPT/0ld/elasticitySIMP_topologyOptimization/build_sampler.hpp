@@ -13,7 +13,7 @@
 #include "Teuchos_Comm.hpp"
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
+#include "ROL_XMLReader.hpp"
 
 // SOL Inputs
 #include "ROL_MonteCarloGenerator.hpp"

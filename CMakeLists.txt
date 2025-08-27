@@ -10,20 +10,22 @@ if( STANDALONE_ROL )
 
   cmake_minimum_required(VERSION 3.23)
 
-  project( ROL 
+  project( ROL
            VERSION 2.0
            DESCRIPTION "Rapid Optimization Library"
            LANGUAGES CXX )
-
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
-  set(CMAKE_CXX_EXTENSIONS OFF)  
+  set(CMAKE_CXX_EXTENSIONS OFF)
   set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
-  find_package(Eigen3 REQUIRED)
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
-  
+
+  if(NOT CMAKE_BUILD_TYPE)
+      set(CMAKE_BUILD_TYPE RELEASE CACHE STRING "Build type" FORCE)
+  endif()
+
   # Set F77_BLAS_MANGLE macro based on Fortran-C interface (similar to Kokkos Kernels)
   if("${F77_BLAS_MANGLE}" STREQUAL "")
     enable_language(C)
@@ -37,7 +39,7 @@ if( STANDALONE_ROL )
     endif()
     message(STATUS "Detected Fortran name mangling: ${F77_BLAS_MANGLE}")
   endif()
-  
+
   # Add pugixml for XML parameter file support
   include(FetchContent)
   FetchContent_Declare(
@@ -52,19 +54,24 @@ if( STANDALONE_ROL )
   # Configure the config header
   configure_file("${PROJECT_SOURCE_DIR}/cmake/ROL_config.h.in" ROL_config.h @ONLY)
 
-  add_library(rol INTERFACE)
- 
+  add_library(rol SHARED)
+
   set(SRC ${PROJECT_SOURCE_DIR}/src)
 
   # Set up compatibility includes (specific directories to avoid conflicts)
-  set(ROL_COMPATIBILITY_INCLUDES ${SRC}/compatibility/simple/blas    
-                                 ${SRC}/compatibility/simple/lapack    
-                                 ${SRC}/compatibility/simple/mpi    
-                                 ${SRC}/compatibility/simple/parameterlist    
-                                 ${SRC}/compatibility/std/shared_ptr    
-                                 ${SRC}/compatibility/backward_cpp    
-                                 ${SRC}/compatibility/eigen)    
-                                 
+  set(ROL_COMPATIBILITY_INCLUDES ${SRC}/compatibility/teuchos/blas
+                                 ${SRC}/compatibility/teuchos/la
+                                 ${SRC}/compatibility/simple/lapack
+                                 ${SRC}/compatibility/simple/mpi
+                                 ${SRC}/compatibility/simple/parameterlist
+                                 ${SRC}/compatibility/std/shared_ptr
+                                 ${SRC}/compatibility/teuchos/stacktrace
+                                 ${SRC}/compatibility/teuchos-lite)
+
+  add_library(Teuchos_BLAS OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_BLAS.cpp)
+  add_library(Teuchos_CompObject OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_CompObject.cpp)
+  add_library(Teuchos_TestForException OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_TestForException.cpp)
+
   # Use GLOB_RECURSE to find all directories in core components
   set(ROL_CORE_DIRS ${SRC}/algorithm
                     ${SRC}/elementwise
@@ -76,7 +83,7 @@ if( STANDALONE_ROL )
                     ${SRC}/utils
                     ${SRC}/vector
                     ${SRC}/zoo)
-  
+
   set(ROL_CORE_INCLUDES)
   foreach(core_dir ${ROL_CORE_DIRS})
     file(GLOB_RECURSE subdirs LIST_DIRECTORIES true "${core_dir}/*")
@@ -88,23 +95,27 @@ if( STANDALONE_ROL )
     endforeach()
   endforeach()
 
-  target_include_directories(rol INTERFACE  ${CMAKE_CURRENT_BINARY_DIR}
-                                          ${ROL_COMPATIBILITY_INCLUDES}
-                                          ${ROL_CORE_INCLUDES}
-                                          ${EIGEN3_INCLUDE_DIR})
+  target_include_directories(rol PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
+                                        ${ROL_COMPATIBILITY_INCLUDES}
+                                        ${ROL_CORE_INCLUDES})
 
-  target_link_libraries(rol INTERFACE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} pugixml)
-                                           
+  target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
+                                    pugixml
+                                    Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
+
   add_library(rol::rol ALIAS rol)
 
   option(ENABLE_TESTS OFF)
-  
-  if(ENABLE_TESTS) 
+  option(ENABLE_EXAMPLES OFF)
+
+  if(ENABLE_TESTS)
     enable_testing()
     add_subdirectory(test)
   endif()
 
-
+  if(ENABLE_EXAMPLES)
+    add_subdirectory(example)
+  endif()
 
 else() # Build with Trilinos
   include(cmake/TrilinosROL.cmake)

@@ -13,7 +13,7 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
   # Need ROL_TpetraTeuchosBatchManager.hpp
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/sol)
 
-  TRIBITS_ADD_EXECUTABLE_AND_TEST(
+  ROL_ADD_EXECUTABLE_AND_TEST(
     example_01
     SOURCES example_01.cpp
     ARGS PrintItAll
@@ -23,19 +23,19 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     example_02
     SOURCES example_02.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     example_03
     SOURCES example_03.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_COPY_FILES_TO_BINARY_DIR(
+  ROL_COPY_FILES_TO_BINARY_DIR(
     PoissonBoltzmannDataCopy
     SOURCE_FILES
       input.xml input_ex02.xml input_ex03.xml plotresults.m

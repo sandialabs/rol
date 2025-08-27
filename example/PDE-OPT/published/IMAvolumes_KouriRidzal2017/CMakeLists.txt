@@ -15,19 +15,19 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/trikota/src/sol)
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/trikota/src/sol/sparse_grids)
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     example_RS
     SOURCES example_RS.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_ADD_EXECUTABLE(
+  ROL_ADD_EXECUTABLE(
     example_FS
     SOURCES example_FS.cpp
     ADD_DIR_TO_NAME
   )
 
-  TRIBITS_COPY_FILES_TO_BINARY_DIR(
+  ROL_COPY_FILES_TO_BINARY_DIR(
     IMAvolumesKouriRidzal2017DataCopy
     SOURCE_FILES
       input_RS.xml input_FS.xml

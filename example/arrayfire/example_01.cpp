@@ -17,7 +17,7 @@
 #include "ROL_StatusTest.hpp"
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
+#include "ROL_XMLReader.hpp"
 
 #include "example_01.hpp"
 

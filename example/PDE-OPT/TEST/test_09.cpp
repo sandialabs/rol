@@ -18,7 +18,7 @@
 
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
+#include "ROL_XMLReader.hpp"
 
 #include "Intrepid_HGRAD_LINE_Cn_FEM.hpp"
 

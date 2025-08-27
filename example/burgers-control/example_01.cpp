@@ -17,8 +17,6 @@
 #include "ROL_Bounds.hpp"
 
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
-#include "Teuchos_LAPACK.hpp"
 
 #include <iostream>
 #include <fstream>

@@ -22,7 +22,6 @@
 
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
 
 #include <iostream>
 
@@ -97,11 +96,11 @@ int main(int argc, char *argv[]) {
   int errorFlag  = 0;
 
   // *** Example body.
- 
+
   try {
 
     // Set up problem data
-    int dim = 10; // Set problem dimension. 
+    int dim = 10; // Set problem dimension.
     ROL::Ptr<std::vector<RealT> > x_ptr = ROL::makePtr<std::vector<RealT>>(dim, 0.0);
     ROL::Ptr<std::vector<RealT> > g_ptr = ROL::makePtr<std::vector<RealT>>(dim, 0.0);
     ROL::Ptr<std::vector<RealT> > d_ptr = ROL::makePtr<std::vector<RealT>>(dim, 0.0);
@@ -133,7 +132,7 @@ int main(int argc, char *argv[]) {
 
     // Test objective
     obj->checkGradient(*x, *d, true, *outStream);
-    *outStream << "\n"; 
+    *outStream << "\n";
 
     obj->checkHessVec(*x, *v, true, *outStream);
     *outStream << "\n";
