@@ -1,0 +1,33 @@
+name: Build standalone ROL
+
+on:
+  push:
+    branches: actions
+
+jobs:
+  trilinos:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout ROL
+      uses: actions/checkout@v3
+    - name: Set up dependencies
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libopenblas-dev
+        sudo apt-get install -y ninja-build
+    - name: Build ROL
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        cmake -G Ninja \
+              -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+              -D ENABLE_EXAMPLES=ON \
+              -D ENABLE_TESTS:BOOL=ON \
+              -B build \
+               .
+        cmake --build build
+    - name: Run CTest
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        cd build
+        ctest --output-on-failure
