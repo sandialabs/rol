@@ -1,4 +1,4 @@
-# Rapid Optimization Library (ROL) Package
+# Rapid Optimization Library (ROL)
 
 ![Rapid Optimization Library](rol.png)
 
@@ -23,13 +23,13 @@ Feature highlights:
 
 
 ## Copyright and License
-See rol/COPYRIGHT, rol/LICENSE, https://trilinos.github.io/license.html and individual file headers for additional information.
+See COPYRIGHT and LICENSE.
 
 
-## Questions? 
-Contact lead developers:
+## Questions?
+Contact team or developers:
 
-* ROL team     (GitHub handle: @trilinos/rol)
+* ROL Team     (GitHub handle: @sandialabs/rol)
 * Drew Kouri   (GitHub handle: [dpkouri](https://github.com/dpkouri) or dpkouri@sandia.gov)
 * Denis Ridzal (GitHub handle: [dridzal](https://github.com/dridzal) or dridzal@sandia.gov)
 
