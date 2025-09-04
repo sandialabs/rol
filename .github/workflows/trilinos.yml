@@ -1,11 +1,12 @@
-name: Build ROL as part of Trilinos
+name: Test ROL as part of Trilinos
 
 on:
+  # workflow_dispatch
   push:
     branches: actions
 
 jobs:
-  trilinos:
+  test-trilinos:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout ROL

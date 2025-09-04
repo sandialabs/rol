@@ -1,11 +1,12 @@
-name: Build standalone ROL
+name: Test standalone ROL
 
 on:
+  # workflow_dispatch
   push:
     branches: actions
 
 jobs:
-  trilinos:
+  test-standalone:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout ROL

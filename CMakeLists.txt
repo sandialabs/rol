@@ -10,6 +10,8 @@ if( STANDALONE_ROL )
 
   cmake_minimum_required(VERSION 3.23)
 
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
   project( ROL
            VERSION 2.0
            DESCRIPTION "Rapid Optimization Library"
