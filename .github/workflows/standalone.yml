@@ -13,13 +13,11 @@ jobs:
     - name: Checkout ROL
       uses: actions/checkout@v3
     - name: Set up dependencies
-      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake libopenblas-dev
         sudo apt-get install -y ninja-build
     - name: Build ROL
-      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
@@ -29,7 +27,6 @@ jobs:
                .
         cmake --build build
     - name: Run CTest
-      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
       run: |
         cd build
         ctest --output-on-failure
