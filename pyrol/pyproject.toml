@@ -4,25 +4,26 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyrol"
-version = "0.0.1"
+version = "VERSION"
 description="A Python interface to the Rapid Optimization Library (ROL)"
-#readme = "README.md"
+readme = "packages/rol/README.md"
+license = "BSD-3-Clause"
 authors = [
   { name = "Christian Glusa" },
   { name = "Kim Liegeois" },
   { name = "Aurya Javeed" },
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = ["numpy"]
 classifiers = [
   "Development Status :: 4 - Beta",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 
 [tool.scikit-build]

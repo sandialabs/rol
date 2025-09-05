@@ -1,9 +1,10 @@
 name: Test standalone ROL
 
 on:
-  # workflow_dispatch
-  push:
-    branches: actions
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
 
 jobs:
   test-standalone:

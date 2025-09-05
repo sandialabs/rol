@@ -1,9 +1,9 @@
 name: Test ROL as part of Trilinos
 
 on:
-  # workflow_dispatch
-  push:
-    branches: actions
+  workflow_dispatch:
+  # push:
+  #   branches: actions
 
 jobs:
   test-trilinos:
