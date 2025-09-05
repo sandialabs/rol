@@ -1,0 +1,170 @@
+name: Build Python interface
+
+on:
+  workflow_dispatch:
+  # push
+
+jobs:
+
+  build-sdist:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Install packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build libopenblas-dev
+        # see https://cppbinder.readthedocs.io/en/latest/install.html#id1
+        sudo apt-get install -y clang-15 llvm-15 libclang-15-dev llvm-15-dev
+        python3 -m pip install build
+        python3 -m pip install pybind11@git+https://github.com/pybind/pybind11.git@c6c9a9e59b2b64393de0432aa6867ed27367912a
+    - name: Build Binder
+      run: |
+        git clone https://github.com/RosettaCommons/binder.git ../binder
+        cmake -G Ninja \
+              -D LLVM_DIR=/usr/lib/llvm-15/lib/cmake/llvm \
+              -D Clang_DIR=/usr/lib/llvm-15/lib/cmake/clang \
+              -D pybind11_DIR=`python3 -c "import pybind11; print(pybind11.get_cmake_dir())"` \
+              -B ../binder-build \
+              ../binder
+        cmake --build ../binder-build
+        ctest --test-dir ../binder-build --output-on-failure
+        cmake --install ../binder-build
+    - name: Clone Trilinos
+      run: git clone https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
+    - name: Copy ROL
+      run: rsync -ar --delete . ../trilinos/packages/rol
+    - name: Write version
+      run: |
+        cp pyrol/pyproject.toml ../trilinos/
+        export TZ='America/Denver'
+        # VERSION="$(date +%Y.%m.%d).dev$(date +%H%M)$(git rev-parse --abbrev-ref HEAD)$(git rev-parse --short HEAD)"
+        VERSION="$(date +%Y.%m.%d).dev$(date +%H%M)"
+        sed -i "s/version = \"VERSION\"/version = \"${VERSION}\"/" ../trilinos/pyproject.toml
+    - name: Configure (requires running Binder)
+      run: |
+        cmake -G Ninja \
+              -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+              -D CPACK_SOURCE_IGNORE_FILES="/packages/rol/example;/packages/rol/test;/packages/rol/tutorial;/packages/teuchos/core/test;/packages/teuchos/core/example;/packages/teuchos/numerics/test;/packages/teuchos/numerics/example;/packages/teuchos/parameterlist/test;/packages/teuchos/parameterlist/example;/packages/teuchos/parser/test;/packages/teuchos/parser/example;/packages/teuchos/remainder/test;/packages/teuchos/remainder/example;/packages/teuchos/comm/test;/packages/teuchos/comm/example" \
+              -D BUILD_SHARED_LIBS:BOOL=ON \
+              -D ROL_ENABLE_EXAMPLES:BOOL=OFF \
+              -D ROL_ENABLE_PYROL:BOOL=ON \
+              -D ROL_ENABLE_TESTS:BOOL=OFF \
+              -D PyROL_BINDER_clang_include_dirs:PATH="${LLVM_PREFIX}/include" \
+              -D PyROL_BINDER_LibClang_include_dir:PATH="${LLVM_PREFIX}/lib/clang/${LLVM_VERSION}/include" \
+              -D PyROL_BINDER_GCC_TOOLCHAIN:PATH="${GCC_PREFIX}" \
+              -D PYROL_ENABLE_BINDER:BOOL=ON \
+              -D PYROL_ENABLE_BINDER_UPDATE:BOOL=ON \
+              -D Trilinos_CPACK_SOURCE_GENERATOR="TGZ" \
+              -D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+              -D Trilinos_ENABLE_CPACK_PACKAGING=ON \
+              -D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
+              -D Trilinos_ENABLE_Fortran:BOOL=OFF \
+              -D Trilinos_ENABLE_ROL:BOOL=ON \
+              -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+              -B ../trilinos-build \
+              ../trilinos
+    - name: Create reduced tarball (ROL + Binder files + Teuchos)
+      run: |
+        #pushd ../trilinos-build
+        #make package_source
+        #popd
+        cmake --build ../trilinos-build --target package_source
+    - name: Unpack reduced tarball
+      run: |
+        tar -zxf `find ../trilinos-build -name "*-Source.tar.gz" -print -quit`
+        mv `find . -name "trilinos-*-Source" -print -quit` ../pyrol
+        rm ../pyrol/packages/framework/asan_assets/dummy_dlclose.so
+    - name: Create source distribution from upacked tarball
+      run: |
+        python3 -m build --sdist ../pyrol
+    - name: Upload source distribution as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: /home/runner/work/rol/pyrol/dist/*.tar.gz
+
+  build-wheels:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: build-sdist
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{matrix.os}}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download source distribution artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: sdist
+    - name: Store source distribution name
+      run: |
+        SDIST_NAME=$(find . -name "pyrol-*.tar.gz" -print -quit)
+        echo $SDIST_NAME
+        echo "SDIST_NAME=${SDIST_NAME}" >> $GITHUB_ENV
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Build wheels (Ubuntu and Mac)
+      uses: pypa/cibuildwheel@v3.1.4
+      with:
+        output-dir: dist
+        package-dir: ${{ env.SDIST_NAME }}
+      env:
+        CIBW_BUILD: "cp311* cp312*"
+        CIBW_SKIP: "*i686 *musllinux*"
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_BEFORE_ALL_LINUX: |
+            yum install -y openblas-devel ninja-build
+    - name: Set artifact name
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          echo "ARTIFACT_NAME=wheels-linux" >> $GITHUB_ENV
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          echo "ARTIFACT_NAME=wheels-macos" >> $GITHUB_ENV
+        fi
+    - name: Upload wheels as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: dist/*
+  
+  publish-testpypi:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs:
+    - build-sdist
+    - build-wheels
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/pyrol
+    permissions:
+      id-token: write
+    steps:
+    - name: Download the source distribution
+      uses: actions/download-artifact@v4
+      with:
+        name: sdist
+        path: dist/
+    - name: Download the Linux wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: wheels-linux
+        path: dist/
+    - name: Download the MacOS wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: wheels-macos
+        path: dist/
+    - name: Debug
+      run: ls dist
+    - name: Publish distribution to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
+        repository-url: https://test.pypi.org/legacy/

@@ -1,0 +1,49 @@
+name: Test ROL as part of Trilinos
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: actions
+
+jobs:
+  test-trilinos:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout ROL
+      uses: actions/checkout@v3
+    - name: Clone Trilinos
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: git clone https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
+    - name: Copy ROL into Trilinos
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        rsync -ar --delete --exclude=.git* . ../trilinos/packages/rol
+    - name: Set up dependencies
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libopenblas-dev
+        sudo apt-get install -y ninja-build
+    - name: Build Trilinos
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        cmake -G Ninja \
+              -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+              -D BUILD_SHARED_LIBS:BOOL=ON \
+              -D ROL_ENABLE_EXAMPLES=ON \
+              -D ROL_ENABLE_TESTS=ON \
+              -D TPL_ENABLE_MPI:BOOL=OFF \
+              -D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=ON \
+              -D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
+              -D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+              -D Trilinos_ENABLE_ROL:BOOL=ON \
+              -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+              -D Trilinos_ENABLE_Intrepid:BOOL=ON \
+              -B ../trilinos/build \
+              ../trilinos
+        cmake --build ../trilinos/build
+    - name: Run CTest in the ROL directory
+      if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
+      run: |
+        cd ../trilinos/build/packages/rol
+        ctest --output-on-failure

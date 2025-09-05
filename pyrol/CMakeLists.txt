@@ -404,7 +404,7 @@ EXECUTE_PROCESS(COMMAND
   )
 MESSAGE(STATUS "pybind11 CMake path: ${pybind11_DIR}")
 
-find_package(Python3 REQUIRED Development)
+find_package(Python3 REQUIRED Development.Module)
 find_package(pybind11 REQUIRED)
 
 EXECUTE_PROCESS(COMMAND
