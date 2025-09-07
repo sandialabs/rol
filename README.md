@@ -1,6 +1,6 @@
 # Rapid Optimization Library (ROL)
 
-![Rapid Optimization Library](rol.png)
+![Rapid Optimization Library](https://raw.githubusercontent.com/sandialabs/rol/refs/heads/develop/rol.png)
 
 **ROL** (as in rock and _roll_) is a high-performance C++ library for numerical optimization.
 ROL brings an extensive collection of state-of-the-art optimization algorithms to virtually
