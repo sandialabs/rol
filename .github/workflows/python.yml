@@ -1,8 +1,8 @@
 name: Build Python interface
 
 on:
-  # workflow_dispatch:
-  push
+  workflow_dispatch:
+  # push
 
 jobs:
 
@@ -86,7 +86,7 @@ jobs:
         path: /home/runner/work/rol/pyrol/dist/*.tar.gz
 
   build-wheels:
-    # if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'release' && github.event.action == 'published'
     needs: build-sdist
     strategy:
       matrix:
@@ -134,7 +134,7 @@ jobs:
         path: dist/*
   
   publish-pypi:
-    # if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'release' && github.event.action == 'published'
     needs:
     - build-sdist
     - build-wheels
