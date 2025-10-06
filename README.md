@@ -20,6 +20,7 @@ Feature highlights:
 4. Fast and robust algorithms for nonsmooth optimization
 5. Trust-region methods for inexact and adaptive computations
 6. PDE-OPT application development kit for PDE-constrained optimization
+7. Interfaces and algorithms for optimal experimental design
 
 
 ## Copyright and License
