@@ -214,9 +214,9 @@ public:
   }
 
   virtual std::vector<basis_ptr> getFields() = 0;
-  //virtual std::vector<basis_ptr> getFields2() {
-  //  return getFields();
-  // }
+  virtual std::vector<basis_ptr> getFields2() {
+    return getFields();
+  }
 
   virtual void setCellNodes(const scalar_view &cellNodes,
                             const std::vector<std::vector<scalar_view>> &bdryCellNodes,

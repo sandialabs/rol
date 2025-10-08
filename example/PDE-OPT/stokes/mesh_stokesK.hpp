@@ -25,7 +25,7 @@ public:
     computeSideSets();
   }
 
-  void computeSideSets() {
+  void computeSideSets() override {
 
     int numSideSets = 5;
     meshSideSets_ = ROL::makePtr<std::vector<std::vector<std::vector<int>>>>(numSideSets);
@@ -89,7 +89,7 @@ public:
 
   ROL::Ptr<std::vector<std::vector<std::vector<int>>>> getSideSets(
               const bool verbose = false,
-              std::ostream & outStream = std::cout) const { 
+              std::ostream & outStream = std::cout) const override { 
     return meshSideSets_;
   }
 

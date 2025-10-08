@@ -522,7 +522,7 @@ public:
   }
 
 
-  virtual ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  virtual ROL::Ptr<std::vector<std::vector<std::vector<int>>>> getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const override { 
     return meshSideSets_;
