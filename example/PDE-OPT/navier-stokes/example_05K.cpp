@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
     p_ptr->randomize();  //p_ptr->putScalar(static_cast<RealT>(1));
     du_ptr->randomize(); //du_ptr->putScalar(static_cast<RealT>(0));
     auto up  = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(u_ptr,pde,assembler,*parlist);
-    auto zp  = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(p_ptr,pde,assembler,*parlist);
+    auto pp  = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(p_ptr,pde,assembler,*parlist);
     auto dup = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(du_ptr,pde,assembler,*parlist);
     // Create residual vectors
     auto r_ptr = assembler->createResidualVector();
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
     yz_ptr->randomize(); //yz_ptr->putScalar(static_cast<RealT>(0));
     ROL::Ptr<ROL::TpetraMultiVector<RealT>> zpde
       = ROL::makePtr<PDE_PrimalOptVector<RealT,DeviceT>>(z_ptr,pde,assembler,*parlist);
-    ROL::Ptr<ROL::TpetraMultiVector<RealT,DeviceT>> dzpde
+    ROL::Ptr<ROL::TpetraMultiVector<RealT>> dzpde
       = ROL::makePtr<PDE_PrimalOptVector<RealT,DeviceT>>(dz_ptr,pde,assembler,*parlist);
     ROL::Ptr<ROL::TpetraMultiVector<RealT>> yzpde
       = ROL::makePtr<PDE_PrimalOptVector<RealT,DeviceT>>(yz_ptr,pde,assembler,*parlist);
