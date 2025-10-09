@@ -30,9 +30,9 @@ public:
   using ROL::TeuchosBatchManager<Real,GO>::sumAll;
   void sumAll(ROL::Vector<Real> &input, ROL::Vector<Real> &output) {
     // Sum all field components across processors
-    ROL::Ptr<ROL::TpetraMultVector<Real,LO,GO,Node>> input_field_ptr
+    ROL::Ptr<ROL::TpetraMultiVector<Real,LO,GO,Node>> input_field_ptr
       = dynamic_cast<OptVector&>(input).getField();
-    ROL::Ptr<ROL::TpetraMultVector<Real,LO,GO,Node>> output_field_ptr
+    ROL::Ptr<ROL::TpetraMultiVector<Real,LO,GO,Node>> output_field_ptr
       = dynamic_cast<OptVector&>(output).getField();
 
     if ( input_field_ptr != ROL::nullPtr ) {
