@@ -87,12 +87,12 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
     ADD_DIR_TO_NAME
   )
 
-  #  ROL_ADD_EXECUTABLE(
-  #    example_02
-  #    SOURCES example_02.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
+  ROL_ADD_EXECUTABLE(
+    example_02_Kokkos
+    SOURCES example_02K.cpp
+    ADD_DIR_TO_NAME
+  )
+
   #  ROL_ADD_EXECUTABLE(
   #    example_03
   #    SOURCES example_03.cpp
