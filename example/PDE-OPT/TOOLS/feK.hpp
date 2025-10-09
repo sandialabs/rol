@@ -296,7 +296,7 @@ public:
     ct::setJacobianDet(cellJacDet_, cellJac_);                      // compute determinants of cell Jacobians
 
     // Compute weighted cell measure.
-    scalar_view scratch("scratch", c_, p_, d_, d_);
+    scalar_view scratch("scratch", c_*p_*d_*d_);
     if (d_ == 2) {
       fst::computeEdgeMeasure(cellWeightedMeasure_, cellJac_, cubWeights_, sideId_, *cellTopo_, scratch);
     }
