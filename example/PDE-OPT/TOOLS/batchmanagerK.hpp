@@ -19,7 +19,9 @@ template<class Real,
          class Node=Tpetra::Map<>::node_type> 
 class PDE_OptVector_BatchManager : public ROL::TeuchosBatchManager<Real,GO> {
 private:
-  typedef PDE_OptVector<Real,LO,GO,Node> OptVector;
+  typedef Tpetra::MultiVector<Real,LO,GO,Node> FieldVector;
+  typedef std::vector<Real>                    ParamVector;
+  typedef PDE_OptVector<Real,LO,GO,Node>       OptVector;
 
 public:
   PDE_OptVector_BatchManager(const ROL::Ptr<const Teuchos::Comm<int> > &comm)
@@ -28,12 +30,14 @@ public:
   using ROL::TeuchosBatchManager<Real,GO>::sumAll;
   void sumAll(ROL::Vector<Real> &input, ROL::Vector<Real> &output) {
     // Sum all field components across processors
-    auto input_field_ptr  = dynamic_cast<OptVector&>(input).getField();
-    auto output_field_ptr = dynamic_cast<OptVector&>(output).getField();
+    ROL::Ptr<ROL::TpetraMultVector<Real,LO,GO,Node>> input_field_ptr
+      = dynamic_cast<OptVector&>(input).getField();
+    ROL::Ptr<ROL::TpetraMultVector<Real,LO,GO,Node>> output_field_ptr
+      = dynamic_cast<OptVector&>(output).getField();
 
     if ( input_field_ptr != ROL::nullPtr ) {
-      auto input_field   = input_field_ptr->getVector();
-      auto output_field  = output_field_ptr->getVector();
+      ROL::Ptr<FieldVector> input_field   = input_field_ptr->getVector();
+      ROL::Ptr<FieldVector> output_field  = output_field_ptr->getVector();
       size_t input_length  = input_field->getLocalLength();
       size_t output_length = output_field->getLocalLength();
       TEUCHOS_TEST_FOR_EXCEPTION(input_length != output_length, std::invalid_argument,
@@ -50,12 +54,14 @@ public:
                                                   input_length);
     }
     // Sum all parameter components across processors
-    auto input_param_ptr  = dynamic_cast<OptVector&>(input).getParameter();
-    auto output_param_ptr = dynamic_cast<OptVector&>(output).getParameter();
+    ROL::Ptr<ROL::StdVector<Real>> input_param_ptr
+      = dynamic_cast<OptVector&>(input).getParameter();
+    ROL::Ptr<ROL::StdVector<Real>> output_param_ptr
+      = dynamic_cast<OptVector&>(output).getParameter();
 
     if ( input_param_ptr != ROL::nullPtr ) {
-      auto input_param   = input_param_ptr->getVector();
-      auto output_param  = output_param_ptr->getVector();
+      ROL::Ptr<ParamVector> input_param   = input_param_ptr->getVector();
+      ROL::Ptr<ParamVector> output_param  = output_param_ptr->getVector();
       size_t input_size  = static_cast<size_t>(input_param->size());
       size_t output_size = static_cast<size_t>(output_param->size());
       TEUCHOS_TEST_FOR_EXCEPTION(input_size != output_size, std::invalid_argument,
