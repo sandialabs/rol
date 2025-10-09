@@ -36,8 +36,8 @@ public:
       = dynamic_cast<OptVector&>(output).getField();
 
     if ( input_field_ptr != ROL::nullPtr ) {
-      ROL::Ptr<FieldVector> input_field   = input_field_ptr->getVector();
-      ROL::Ptr<FieldVector> output_field  = output_field_ptr->getVector();
+      ROL::Ptr<FieldVector> input_field  = input_field_ptr->getVector();
+      ROL::Ptr<FieldVector> output_field = output_field_ptr->getVector();
       size_t input_length  = input_field->getLocalLength();
       size_t output_length = output_field->getLocalLength();
       TEUCHOS_TEST_FOR_EXCEPTION(input_length != output_length, std::invalid_argument,
@@ -60,8 +60,8 @@ public:
       = dynamic_cast<OptVector&>(output).getParameter();
 
     if ( input_param_ptr != ROL::nullPtr ) {
-      ROL::Ptr<ParamVector> input_param   = input_param_ptr->getVector();
-      ROL::Ptr<ParamVector> output_param  = output_param_ptr->getVector();
+      ROL::Ptr<ParamVector> input_param  = input_param_ptr->getVector();
+      ROL::Ptr<ParamVector> output_param = output_param_ptr->getVector();
       size_t input_size  = static_cast<size_t>(input_param->size());
       size_t output_size = static_cast<size_t>(output_param->size());
       TEUCHOS_TEST_FOR_EXCEPTION(input_size != output_size, std::invalid_argument,

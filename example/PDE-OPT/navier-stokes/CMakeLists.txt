@@ -87,29 +87,29 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
     ADD_DIR_TO_NAME
   )
 
-  ROL_ADD_EXECUTABLE(
-    example_02_Kokkos
-    SOURCES example_02K.cpp
-    ADD_DIR_TO_NAME
-  )
+  #  ROL_ADD_EXECUTABLE(
+  #    example_02_Kokkos
+  #    SOURCES example_02K.cpp
+  #    ADD_DIR_TO_NAME
+  #  )
 
   #  ROL_ADD_EXECUTABLE(
-  #    example_03
-  #    SOURCES example_03.cpp
+  #    example_03_Kokkos
+  #    SOURCES example_03K.cpp
   #    ADD_DIR_TO_NAME
   #  )
   #
   #  ROL_ADD_EXECUTABLE(
-  #    example_04
-  #    SOURCES example_04.cpp
+  #    example_04_Kokkos
+  #    SOURCES example_04K.cpp
   #    ADD_DIR_TO_NAME
   #  )
   #
-  #  ROL_ADD_EXECUTABLE(
-  #    example_05
-  #    SOURCES example_05.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
+  ROL_ADD_EXECUTABLE(
+    example_05_Kokkos
+    SOURCES example_05K.cpp
+    ADD_DIR_TO_NAME
+  )
 
   TRIBITS_ADD_TEST(
     example_01_Kokkos
