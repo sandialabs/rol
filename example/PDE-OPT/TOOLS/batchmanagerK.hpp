@@ -34,13 +34,13 @@ public:
     if ( input_field_ptr != ROL::nullPtr ) {
       auto input_field   = input_field_ptr->getVector();
       auto output_field  = output_field_ptr->getVector();
-      auto input_length  = input_field->getLocalLength();
-      auto output_length = output_field->getLocalLength();
+      size_t input_length  = input_field->getLocalLength();
+      size_t output_length = output_field->getLocalLength();
       TEUCHOS_TEST_FOR_EXCEPTION(input_length != output_length, std::invalid_argument,
         ">>> (PDE_OptVector_BatchManager::sumAll): Field dimension mismatch!");
 
-      auto input_nvec  = input_field->getNumVectors();
-      auto output_nvec = output_field->getNumVectors();
+      size_t input_nvec  = input_field->getNumVectors();
+      size_t output_nvec = output_field->getNumVectors();
       TEUCHOS_TEST_FOR_EXCEPTION(input_nvec != output_nvec, std::invalid_argument,
         ">>> (PDE_OptVector_BatchManager::sumAll): Field dimension mismatch!");
 
