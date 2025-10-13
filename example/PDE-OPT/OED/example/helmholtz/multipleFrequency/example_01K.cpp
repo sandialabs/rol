@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
     parlist->sublist("Step").sublist("Augmented Lagrangian").set("Print Intermediate Optimization History",alPrint);
 
     // Initialize PDE describing Helmholtz equation.
-    ROL::Ptr<PDE_Helmholtz_OCT<RealT>> pde;
+    ROL::Ptr<PDE_Helmholtz_OCT<RealT,DeviceT>> pde;
     std::vector<ROL::Ptr<Linear_PDE_Constraint<RealT,DeviceT>>> cons(5);
     auto meshMgr = ROL::makePtr<MeshReader<RealT,DeviceT>>(*parlist);
     for (int i = 0; i < 5; ++i) {
@@ -163,8 +163,8 @@ int main(int argc, char *argv[]) {
     auto up = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(u_ptr,pde,assembler,*parlist);
     auto rp = ROL::makePtr<PDE_DualSimVector<RealT,DeviceT>>(r_ptr,pde,assembler,*parlist);
     auto zp = ROL::makePtr<ROL::StdVector<RealT>>(numSpeakers);
-    theta = ROL::makePtr<ROL::StdVector<RealT>>(numSpeakers,1);
-    ovec  = ROL::makePtr<ROL::StdVector<RealT>>(5,0);
+    auto theta = ROL::makePtr<ROL::StdVector<RealT>>(numSpeakers,1);
+    auto ovec  = ROL::makePtr<ROL::StdVector<RealT>>(5,0);
 
     // Create observation function
     auto qoi = ROL::makePtr<QoI_Helmholtz_Observation<RealT,DeviceT>>(pde->getFE(),*parlist);
@@ -188,9 +188,9 @@ int main(int argc, char *argv[]) {
 
     // Run derivative checks
     if ( checkDeriv ) {
-      up->randomize();  zp->randomize();
-      auto dup = up->clone(); dup->randomize();
-      auto dzp = zp->clone(); dzp->randomize();
+      auto dzp = zp->clone();   dzp->randomize();
+      auto rop = ovec->clone(); rop->randomize();   
+      auto rzp = zp->clone();   rzp->randomize();
       std::vector<RealT> param(2,0);
       model->setParameter(param);
       *outStream << "\n\nCheck Jacobian of model\n";
