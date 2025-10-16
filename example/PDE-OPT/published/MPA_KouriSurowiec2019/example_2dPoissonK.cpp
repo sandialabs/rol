@@ -30,18 +30,20 @@
 #include "ROL_StochasticProblem.hpp"
 #include "ROL_PrimalDualRisk.hpp"
 
-#include "../../TOOLS/meshmanager.hpp"
-#include "../../TOOLS/pdeconstraint.hpp"
-#include "../../TOOLS/pdeobjective.hpp"
-#include "../../TOOLS/pdevector.hpp"
-#include "../../TOOLS/batchmanager.hpp"
-#include "pde_stoch_adv_diff.hpp"
-#include "obj_stoch_adv_diff.hpp"
-#include "mesh_stoch_adv_diff.hpp"
+#include "../../TOOLS/meshmanagerK.hpp"
+#include "../../TOOLS/pdeconstraintK.hpp"
+#include "../../TOOLS/pdeobjectiveK.hpp"
+#include "../../TOOLS/pdevectorK.hpp"
+#include "../../TOOLS/batchmanagerK.hpp"
+#include "pde_stoch_adv_diffK.hpp"
+#include "obj_stoch_adv_diffK.hpp"
+#include "mesh_stoch_adv_diffK.hpp"
+
+using RealT = double;
+using DeviceT = Kokkos::HostSpace;
 
 int main(int argc, char *argv[]) {
   //feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
-  using RealT = double;
 
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
   int iprint = argc - 1;
@@ -50,18 +52,14 @@ int main(int argc, char *argv[]) {
 
   /*** Initialize communicator. ***/
   ROL::GlobalMPISession mpiSession (&argc, &argv, &bhs);
-  ROL::Ptr<const Teuchos::Comm<int>> comm
-    = Tpetra::getDefaultComm();
-  ROL::Ptr<const Teuchos::Comm<int>> serial_comm
-    = ROL::makePtr<Teuchos::SerialComm<int>>();
-
+  Kokkos::ScopeGuard kokkosScope (argc, argv);
+  auto comm = Tpetra::getDefaultComm();
+  auto serial_comm = ROL::makePtr<Teuchos::SerialComm<int>>();
   const int myRank = comm->getRank();
-  if ((iprint > 0) && (myRank == 0)) {
+  if ((iprint > 0) && (myRank == 0))
     outStream = ROL::makePtrFromRef(std::cout);
-  }
-  else {
+  else
     outStream = ROL::makePtrFromRef(bhs);
-  }
   int errorFlag  = 0;
 
   // *** Example body.
@@ -78,54 +76,44 @@ int main(int argc, char *argv[]) {
     /***************** BUILD GOVERNING PDE ***********************************/
     /*************************************************************************/
     /*** Initialize main data structure. ***/
-    ROL::Ptr<MeshManager<RealT>> meshMgr
-      = ROL::makePtr<MeshManager_stoch_adv_diff<RealT>>(*parlist);
+    auto meshMgr = ROL::makePtr<MeshManager_stoch_adv_diff<RealT,DeviceT>>(*parlist);
     // Initialize PDE describing advection-diffusion equation
-    ROL::Ptr<PDE_stoch_adv_diff<RealT>> pde
-      = ROL::makePtr<PDE_stoch_adv_diff<RealT>>(*parlist);
-    ROL::Ptr<ROL::Constraint_SimOpt<RealT>> con
-      = ROL::makePtr<PDE_Constraint<RealT>>(pde,meshMgr,serial_comm,*parlist,*outStream);
-    ROL::Ptr<PDE_Constraint<RealT>> pdeCon
-      = ROL::dynamicPtrCast<PDE_Constraint<RealT>>(con);
-    pdeCon->getAssembler()->printMeshData(*outStream);
+    auto pde = ROL::makePtr<PDE_stoch_adv_diff<RealT,DeviceT>>(*parlist);
+    auto con = ROL::makePtr<PDE_Constraint<RealT,DeviceT>>(pde,meshMgr,serial_comm,*parlist,*outStream);
+    con->getAssembler()->printMeshData(*outStream);
     con->setSolveParameters(*parlist);
 
     /*************************************************************************/
     /***************** BUILD VECTORS *****************************************/
     /*************************************************************************/
-    ROL::Ptr<Tpetra::MultiVector<>> u_ptr = pdeCon->getAssembler()->createStateVector();
-    ROL::Ptr<Tpetra::MultiVector<>> p_ptr = pdeCon->getAssembler()->createStateVector();
-    ROL::Ptr<Tpetra::MultiVector<>> r_ptr = pdeCon->getAssembler()->createResidualVector();
-    ROL::Ptr<std::vector<RealT>>    z_ptr = ROL::makePtr<std::vector<RealT>>(controlDim);
-    ROL::Ptr<ROL::Vector<RealT>> u, p, r, z;
-    u = ROL::makePtr<PDE_PrimalSimVector<RealT>>(u_ptr,pde,pdeCon->getAssembler());
-    p = ROL::makePtr<PDE_PrimalSimVector<RealT>>(p_ptr,pde,pdeCon->getAssembler());
-    r = ROL::makePtr<PDE_DualSimVector<RealT>>(r_ptr,pde,pdeCon->getAssembler());
-    z = ROL::makePtr<PDE_OptVector<RealT>>(ROL::makePtr<ROL::StdVector<RealT>>(z_ptr));
+    auto u_ptr = con->getAssembler()->createStateVector();
+    auto p_ptr = con->getAssembler()->createStateVector();
+    auto r_ptr = con->getAssembler()->createResidualVector();
+    auto z_ptr = ROL::makePtr<std::vector<RealT>>(controlDim);
+    auto u = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(u_ptr,pde,con->getAssembler());
+    auto p = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(p_ptr,pde,con->getAssembler());
+    auto r = ROL::makePtr<PDE_DualSimVector<RealT,DeviceT>>(r_ptr,pde,con->getAssembler());
+    auto z = ROL::makePtr<PDE_OptVector<RealT>>(ROL::makePtr<ROL::StdVector<RealT>>(z_ptr));
 
     /*************************************************************************/
     /***************** BUILD COST FUNCTIONAL *********************************/
     /*************************************************************************/
-    std::vector<ROL::Ptr<QoI<RealT>>> qoi_vec(2,ROL::nullPtr);
-    qoi_vec[0] = ROL::makePtr<QoI_State_Cost_stoch_adv_diff<RealT>>(pde->getFE());
-    qoi_vec[1] = ROL::makePtr<QoI_Control_Cost_stoch_adv_diff<RealT>>();
+    std::vector<ROL::Ptr<QoI<RealT,DeviceT>>> qoi_vec(2,ROL::nullPtr);
+    qoi_vec[0] = ROL::makePtr<QoI_State_Cost_stoch_adv_diff<RealT,DeviceT>>(pde->getFE());
+    qoi_vec[1] = ROL::makePtr<QoI_Control_Cost_stoch_adv_diff<RealT,DeviceT>>();
     RealT stateCost   = parlist->sublist("Problem").get("State Cost",1.e5);
     RealT controlCost = parlist->sublist("Problem").get("Control Cost",1.e0);
     std::vector<RealT> wts = {stateCost, controlCost};
-    ROL::Ptr<ROL::Objective_SimOpt<RealT>> obj
-      = ROL::makePtr<PDE_Objective<RealT>>(qoi_vec,wts,pdeCon->getAssembler());
+    auto obj = ROL::makePtr<PDE_Objective<RealT,DeviceT>>(qoi_vec,wts,con->getAssembler());
     bool storage = parlist->sublist("Problem").get("Use State and Adjoint Storage",true);
-    ROL::Ptr<ROL::Reduced_Objective_SimOpt<RealT>> objReduced
-      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj, con, u, z, p, storage, false);
+    auto objReduced = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj, con, u, z, p, storage, false);
 
     /*************************************************************************/
     /***************** BUILD BOUND CONSTRAINT ********************************/
     /*************************************************************************/
-    ROL::Ptr<ROL::Vector<RealT>> zlo, zup;
-    zlo = ROL::makePtr<PDE_OptVector<RealT>>(ROL::makePtr<ROL::StdVector<RealT>>(controlDim, 0.0));
-    zup = ROL::makePtr<PDE_OptVector<RealT>>(ROL::makePtr<ROL::StdVector<RealT>>(controlDim, 1.0));
-    ROL::Ptr<ROL::BoundConstraint<RealT>> bnd
-      = ROL::makePtr<ROL::Bounds<RealT>>(zlo, zup);
+    auto zlo = ROL::makePtr<PDE_OptVector<RealT>>(ROL::makePtr<ROL::StdVector<RealT>>(controlDim, 0.0));
+    auto zup = ROL::makePtr<PDE_OptVector<RealT>>(ROL::makePtr<ROL::StdVector<RealT>>(controlDim, 1.0));
+    auto bnd = ROL::makePtr<ROL::Bounds<RealT>>(zlo, zup);
 
     /*************************************************************************/
     /***************** BUILD SAMPLER *****************************************/
@@ -133,10 +121,8 @@ int main(int argc, char *argv[]) {
     int nsamp = parlist->sublist("Problem").get("Number of Samples",100);
     std::vector<RealT> tmp = {-one,one};
     std::vector<std::vector<RealT>> bounds(stochDim,tmp);
-    ROL::Ptr<ROL::BatchManager<RealT>> bman
-      = ROL::makePtr<PDE_OptVector_BatchManager<RealT>>(comm);
-    ROL::Ptr<ROL::SampleGenerator<RealT>> sampler
-      = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp,bounds,bman);
+    auto bman = ROL::makePtr<PDE_OptVector_BatchManager<RealT>>(comm);
+    auto sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp,bounds,bman);
 
     /*************************************************************************/
     /***************** SOLVE STOCHASTIC PROBLEM ******************************/
@@ -158,7 +144,7 @@ int main(int argc, char *argv[]) {
       RealT rhos = parlist->sublist("SOL").sublist("Primal Dual Risk").get("Penalty Update Scale",1e1);
       int maxIt = static_cast<int>(std::floor(std::log(rho1/rho0)/std::log(rhos)));
 
-      ROL::Ptr<ROL::Vector<RealT>> zp = z->clone(); zp->set(*z);
+      auto zp = z->clone(); zp->set(*z);
       RealT eps = eps0, rho = rho0, tau = 1.0/rho, stat(1), statp(1), err(1);
       for (int i = 0; i < maxIt; ++i) {
         // Set tolerances
@@ -167,8 +153,7 @@ int main(int argc, char *argv[]) {
         // Set statistic
         list.sublist("SOL").sublist("Objective").set("Initial Statistic",stat);
         // Solver smoothed problem
-        ROL::Ptr<ROL::StochasticProblem<RealT>> problem
-          = ROL::makePtr<ROL::StochasticProblem<RealT>>(objReduced, z);
+        auto problem = ROL::makePtr<ROL::StochasticProblem<RealT>>(objReduced, z);
         problem->addBoundConstraint(bnd);
         problem->makeObjectiveStochastic(list, sampler);
         problem->finalize(false,true,*outStream);
@@ -196,8 +181,7 @@ int main(int argc, char *argv[]) {
       }
     }
     else {
-      ROL::Ptr<ROL::Problem<RealT>> problem
-        = ROL::makePtr<ROL::Problem<RealT>>(objReduced, z);
+      auto problem = ROL::makePtr<ROL::Problem<RealT>>(objReduced, z);
       problem->addBoundConstraint(bnd);
       problem->finalize(false,true,*outStream);
       ROL::PrimalDualRisk<RealT> solver(problem, sampler, *parlist);
@@ -226,7 +210,7 @@ int main(int argc, char *argv[]) {
 
     RealT tol(1e-12);
     Teuchos::Array<RealT> res(1,0);
-    pdeCon->solve(*r,*u,*z,tol);
+    con->solve(*r,*u,*z,tol);
     r_ptr->norm2(res.view(0,1));
 
     /*************************************************************************/

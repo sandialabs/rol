@@ -165,7 +165,7 @@ int main( int argc, char *argv[] ) {
       problem->finalize(false,true,*outStream);
       ROL::PrimalDualRisk<RealT> solver(problem, sampler, *parlist);
       if (parlist->sublist("Problem Data").get("Run Derivative Check",false)) {
-        problem->check(*outStream);
+        problem->check(true,*outStream);
         solver.check(*outStream);
       }
       solver.run(*outStream);
