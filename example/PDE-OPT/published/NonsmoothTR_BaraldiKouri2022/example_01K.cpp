@@ -29,17 +29,18 @@
 #include "ROL_ConstraintFromObjective.hpp"
 #include "ROL_LinearCombinationObjective.hpp"
 
-#include "../../TOOLS/pdevector.hpp"
-#include "../../TOOLS/pdeobjective.hpp"
-#include "../../TOOLS/meshreader.hpp"
+#include "../../TOOLS/pdevectorK.hpp"
+#include "../../TOOLS/pdeobjectiveK.hpp"
+#include "../../TOOLS/meshreaderK.hpp"
 
-#include "src/pde_elasticity.hpp"
-#include "src/pde_filter.hpp"
-#include "src/filtered_compliance_robj.hpp"
-#include "src/volume_con.hpp"
-#include "src/obj_volume.hpp"
+#include "src/pde_elasticityK.hpp"
+#include "src/pde_filterK.hpp"
+#include "src/filtered_compliance_robjK.hpp"
+#include "src/volume_conK.hpp"
+#include "src/obj_volumeK.hpp"
 
-typedef double RealT;
+using RealT = double;
+using DeviceT = Kokkos::HostSpace;
 
 int main(int argc, char *argv[]) {
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
@@ -49,15 +50,13 @@ int main(int argc, char *argv[]) {
 
   /*** Initialize communicator. ***/
   ROL::GlobalMPISession mpiSession (&argc, &argv, &bhs);
-  ROL::Ptr<const Teuchos::Comm<int>> comm
-    = Tpetra::getDefaultComm();
+  Kokkos::ScopeGuard kokkosScope (argc, argv);
+  auto comm = Tpetra::getDefaultComm();
   const int myRank = comm->getRank();
-  if ((iprint > 0) && (myRank == 0)) {
+  if ((iprint > 0) && (myRank == 0))
     outStream = ROL::makePtrFromRef(std::cout);
-  }
-  else {
+  else
     outStream = ROL::makePtrFromRef(bhs);
-  }
   int errorFlag  = 0;
 
   // *** Example body.
@@ -66,8 +65,7 @@ int main(int argc, char *argv[]) {
 
     /*** Read in XML input ***/
     std::string filename = "input_ex01.xml";
-    Teuchos::RCP<Teuchos::ParameterList> parlist = Teuchos::rcp( new Teuchos::ParameterList() );
-    Teuchos::updateParametersFromXmlFile( filename, parlist.ptr() );
+    auto parlist = ROL::getParametersFromXmlFile(filename);
 
     // Retrieve parameters.
     int probDim                = 3;
@@ -84,48 +82,38 @@ int main(int argc, char *argv[]) {
     /*** Initialize main data structure. ***/
     int nProcs = comm->getSize();
     if (nProcs == 1) nProcs = 0;
-    ROL::Ptr<MeshManager<RealT>>
-      meshMgr = ROL::makePtr<MeshReader<RealT>>(*parlist,nProcs);
+    auto meshMgr = ROL::makePtr<MeshReader<RealT,DeviceT>>(*parlist,nProcs);
     // Initialize PDE describing elasticity equations.
-    ROL::Ptr<PDE_Elasticity<RealT>>
-      pde = ROL::makePtr<PDE_Elasticity<RealT>>(*parlist);
+    auto pde = ROL::makePtr<PDE_Elasticity<RealT,DeviceT>>(*parlist);
 
     // Initialize the filter PDE.
-    ROL::Ptr<PDE_Filter<RealT>> 
-      pdeFilter = ROL::makePtr<PDE_Filter<RealT>>(*parlist);
+    auto pdeFilter = ROL::makePtr<PDE_Filter<RealT,DeviceT>>(*parlist);
     pde->setDensityFields(pdeFilter->getFields());
 
     // Initialize reduced compliance objective function.
-    ROL::Ptr<TopOptFilteredComplianceObjective<RealT>>
-      robj_com = ROL::makePtr<TopOptFilteredComplianceObjective<RealT>>(
-                 pde,pdeFilter,meshMgr,comm,*parlist,*outStream);
-    ROL::Ptr<Assembler<RealT>> assembler, assemblerFilter;
-    assembler = robj_com->getAssembler();
-    assemblerFilter = robj_com->getFilterAssembler();
+    auto robj_com = ROL::makePtr<TopOptFilteredComplianceObjective<RealT,DeviceT>>(
+                    pde,pdeFilter,meshMgr,comm,*parlist,*outStream);
+    auto assembler = robj_com->getAssembler();
+    auto assemblerFilter = robj_com->getFilterAssembler();
 
     // Create vectors.
-    ROL::Ptr<Tpetra::MultiVector<>> u_ptr, p_ptr, r_ptr, z_ptr;
-    u_ptr = assembler->createStateVector();         u_ptr->putScalar(0.0);
-    p_ptr = assembler->createStateVector();         p_ptr->putScalar(0.0);
-    r_ptr = assembler->createResidualVector();      r_ptr->putScalar(0.0);
-    z_ptr = assemblerFilter->createControlVector(); z_ptr->putScalar(1.0);
-    ROL::Ptr<ROL::Vector<RealT>> up, pp, rp, zp, imul;
-    up = ROL::makePtr<PDE_PrimalSimVector<RealT>>(u_ptr,pde,assembler,*parlist);
-    pp = ROL::makePtr<PDE_PrimalSimVector<RealT>>(p_ptr,pde,assembler,*parlist);
-    rp = ROL::makePtr<PDE_DualSimVector<RealT>>(r_ptr,pde,assembler,*parlist);
-    zp = ROL::makePtr<PDE_PrimalOptVector<RealT>>(z_ptr,pdeFilter,assemblerFilter,*parlist);
-    imul = ROL::makePtr<ROL::SingletonVector<RealT>>(0);
+    auto u_ptr = assembler->createStateVector();         u_ptr->putScalar(0.0);
+    auto p_ptr = assembler->createStateVector();         p_ptr->putScalar(0.0);
+    auto r_ptr = assembler->createResidualVector();      r_ptr->putScalar(0.0);
+    auto z_ptr = assemblerFilter->createControlVector(); z_ptr->putScalar(1.0);
+    auto up = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(u_ptr,pde,assembler,*parlist);
+    auto pp = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(p_ptr,pde,assembler,*parlist);
+    auto rp = ROL::makePtr<PDE_DualSimVector<RealT,DeviceT>>(r_ptr,pde,assembler,*parlist);
+    auto zp = ROL::makePtr<PDE_PrimalOptVector<RealT,DeviceT>>(z_ptr,pdeFilter,assemblerFilter,*parlist);
+    auto imul = ROL::makePtr<ROL::SingletonVector<RealT>>(0);
 
     // Build volume objective function.
-    ROL::Ptr<QoI<RealT>>
-      qoi_vol = ROL::makePtr<QoI_Volume_TopoOpt<RealT>>(pdeFilter->getDensityFE(),
-                                                        volFraction);
-    ROL::Ptr<TopOptVolumeConstraint<RealT>>
-      con_vol = ROL::makePtr<TopOptVolumeConstraint<RealT>>(qoi_vol,assemblerFilter,zp);
+    auto qoi_vol = ROL::makePtr<QoI_Volume_TopoOpt<RealT,DeviceT>>(pdeFilter->getDensityFE(),volFraction);
+    auto con_vol = ROL::makePtr<TopOptVolumeConstraint<RealT,DeviceT>>(qoi_vol,assemblerFilter,zp);
 
     // Normalize compliance objective function
     zp->setScalar(initDens);
-    RealT cs = ROL::dynamicPtrCast<TopOptFilteredComplianceObjective<RealT>>(robj_com)->normalize(*zp,tol);
+    RealT cs = ROL::dynamicPtrCast<TopOptFilteredComplianceObjective<RealT,DeviceT>>(robj_com)->normalize(*zp,tol);
 
     // Output problem details
     *outStream << std::endl;
@@ -142,14 +130,12 @@ int main(int argc, char *argv[]) {
 
     // Initialize bound constraints.
     RealT lval = 0.0, uval = 1.0;
-    ROL::Ptr<ROL::Vector<RealT>> lop = zp->clone(); lop->setScalar(lval);
-    ROL::Ptr<ROL::Vector<RealT>> hip = zp->clone(); hip->setScalar(uval);
-    ROL::Ptr<ROL::BoundConstraint<RealT>>
-      bnd = ROL::makePtr<ROL::Bounds<RealT>>(lop,hip);
+    auto lop = zp->clone(); lop->setScalar(lval);
+    auto hip = zp->clone(); hip->setScalar(uval);
+    auto bnd = ROL::makePtr<ROL::Bounds<RealT>>(lop,hip);
 
     // Set up optimization problem.
-    ROL::Ptr<ROL::Problem<RealT>>
-      prob = ROL::makePtr<ROL::Problem<RealT>>(robj_com,zp);
+    auto prob = ROL::makePtr<ROL::Problem<RealT>>(robj_com,zp);
     prob->addBoundConstraint(bnd);
     prob->addLinearConstraint("Volume",con_vol,imul);
     prob->setProjectionAlgorithm(*parlist);
