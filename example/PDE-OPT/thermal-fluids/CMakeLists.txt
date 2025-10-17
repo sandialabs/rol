@@ -71,5 +71,69 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
     DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
   )
 
+ENDIF()
+
+IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
+   ${PROJECT_NAME}_ENABLE_Ifpack2   AND
+   ${PROJECT_NAME}_ENABLE_MueLu     AND
+   ${PROJECT_NAME}_ENABLE_Amesos2   AND
+   ${PROJECT_NAME}_ENABLE_Tpetra )
+
+  TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/teuchos/src/sol)
+
+  # Need ROL_TpetraMultiVector.hpp
+  TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/vector)
+  TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/sol)
+
+  ROL_ADD_EXECUTABLE(
+    example_01_Kokkos
+    SOURCES example_01K.cpp
+    ADD_DIR_TO_NAME
+  )
+
+  ROL_ADD_EXECUTABLE(
+    example_02_Kokkos
+    SOURCES example_02K.cpp
+    ADD_DIR_TO_NAME
+  )
+
+  #  ROL_ADD_EXECUTABLE(
+  #    example_03
+  #    SOURCES example_03.cpp
+  #    ADD_DIR_TO_NAME
+  #  )
+  #
+  #  ROL_ADD_EXECUTABLE(
+  #    example_04
+  #    SOURCES example_04.cpp
+  #    ADD_DIR_TO_NAME
+  #  )
+  #
+  #  ROL_ADD_EXECUTABLE(
+  #    example_05
+  #    SOURCES example_05.cpp
+  #    ADD_DIR_TO_NAME
+  #  )
+  #
+  #  ROL_ADD_EXECUTABLE(
+  #    example_06
+  #    SOURCES example_06.cpp
+  #    ADD_DIR_TO_NAME
+  #  )
+  #
+  #  ROL_ADD_EXECUTABLE(
+  #    example_07
+  #    SOURCES example_07.cpp
+  #    ADD_DIR_TO_NAME
+  #  )
+  #
+
+  ROL_COPY_FILES_TO_BINARY_DIR(
+    ThermalFluidsDataCopyK
+    SOURCE_FILES
+      input.xml input_ex03.xml input_ex04.xml input_ex05.xml input_ex06.xml input_ex07.xml tf-cube-3x3x3.txt tf-cube-15x15x15.txt plotresults.m plotresults_ex03.m plotresults_ex04.m process3D.sh
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+    DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
+  )
 
 ENDIF()

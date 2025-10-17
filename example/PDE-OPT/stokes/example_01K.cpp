@@ -41,15 +41,12 @@ int main(int argc, char *argv[]) {
   /*** Initialize communicator. ***/
   ROL::GlobalMPISession mpiSession (&argc, &argv, &bhs);
   Kokkos::ScopeGuard kokkosScope (argc, argv);
-  ROL::Ptr<const Teuchos::Comm<int>> comm
-    = Tpetra::getDefaultComm();
+  auto comm = Tpetra::getDefaultComm();
   const int myRank = comm->getRank();
-  if ((iprint > 0) && (myRank == 0)) {
+  if ((iprint > 0) && (myRank == 0))
     outStream = ROL::makePtrFromRef(std::cout);
-  }
-  else {
+  else
     outStream = ROL::makePtrFromRef(bhs);
-  }
   int errorFlag  = 0;
 
   // *** Example body.
