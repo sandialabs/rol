@@ -11,15 +11,15 @@
     \brief Implements the local PDE interface for the Navier-Stokes control problem.
 */
 
-#ifndef PDE_THERMALFLUIDS_EX03K_HPP
-#define PDE_THERMALFLUIDS_EX03K_HPP
+#ifndef PDE_THERMALFLUIDS_EX07K_HPP
+#define PDE_THERMALFLUIDS_EX07K_HPP
 
 #include "../TOOLS/pdeK.hpp"
 #include "../TOOLS/feK.hpp"
 #include "../TOOLS/fieldhelperK.hpp"
 
-#include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
-#include "Intrepid2_HGRAD_QUAD_C2_FEM.hpp"
+#include "Intrepid2_HGRAD_HEX_C1_FEM.hpp"
+#include "Intrepid2_HGRAD_HEX_C2_FEM.hpp"
 #include "Intrepid2_DefaultCubatureFactory.hpp"
 #include "Intrepid2_FunctionSpaceTools.hpp"
 #include "Intrepid2_CellTools.hpp"
@@ -27,7 +27,7 @@
 #include "ROL_Ptr.hpp"
 
 template <class Real, class DeviceType>
-class PDE_ThermalFluids_ex03 : public PDE<Real,DeviceType> {
+class PDE_ThermalFluids_ex07 : public PDE<Real, DeviceType> {
 public:
   using scalar_view = Kokkos::DynRankView<Real, DeviceType>;
   using basis_ptr   = Intrepid2::BasisPtr<DeviceType, Real, Real>;
@@ -64,7 +64,7 @@ private:
   // Problem parameters.
   Real Re_, Pr_, Gr_, h_;
   const Real grav_;
-  int Nbottom_, Nleft_, Nright_;
+  int Nbottom_, N0_, N1_, N2_, N3_;
   Real ReScale_, PrScale_, GrScale_, hScale_, TScale_;
   bool pinPressure_;
 
@@ -72,35 +72,32 @@ private:
 
   Real velocityDirichletFunc(const std::vector<Real> & coords, int sideset, int locSideId, int dir) const {
     Real val(0);
-    if ((sideset==3) && (dir==1)) {
-      const Real one(1), two(2), three(3), four(4), x = coords[0];
-      if (x <= one/three) {
-        val = two*(one/three - x)*x;
-      }
-      else if (x > one/three && x < two/three) {
-        val = -four*(x-one/three)*(two/three-x);
-      }
-      else if (x >= two/three) {
-        val = two*(x-two/three)*(one-x);
-      }
-    }
+    const Real one(1), two(2), three(3), four(4), x = coords[0];
+    if (sideset==5 && dir==1)
+      val = two*(one/three - x)*x;
+    if (sideset==6 && dir==1)
+      val = -four*(x-one/three)*(two/three-x);
+    if (sideset==7 && dir==1)
+      val = two*(x-two/three)*(one-x);
     return val;
   }
 
   Real thermalDirichletFunc(const std::vector<Real> & coords, int sideset, int locSideId) const {
     const std::vector<Real> param = PDE<Real,DeviceType>::getParameter();
     Real val(0);
-    if (sideset==0) {
+    if (sideset==4) {
       val = static_cast<Real>(1);
       if (param.size()) {
         Real root2(std::sqrt(2.0)), pi(M_PI), ln2(std::log(2.0));
         for (int i = 0; i < Nbottom_; ++i) {
           Real di(i+1);
-          val += TScale_ * param[i]/ln2 * (root2 * std::sin(di * pi * coords[0]))/(di * pi);
+          Real xcomp = param[2*i  ]/ln2 * (root2 * std::sin(di * pi * coords[0]))/(di * pi);
+          Real zcomp = param[2*i+1]/ln2 * (root2 * std::sin(di * pi * coords[2]))/(di * pi);
+          val += TScale_*xcomp*zcomp;
         }
       }
     }
-    else if (sideset==5) {
+    else if (sideset==6) {
       val = static_cast<Real>(0);
     }
     return val;
@@ -122,8 +119,8 @@ private:
         int c = bdryCellLocIds_[i][j].size();
         bdryCellVDofValues_[i][j] = scalar_view("bdryCellVDofValues", c, fv, d);
         bdryCellTDofValues_[i][j] = scalar_view("bdryCellTDofValues", c, ft);
-        scalar_view Vcoords("Vcoords", c, fv, d);
-        scalar_view Tcoords("Tcoords", c, ft, d);
+        scalar_view Vcoords = scalar_view("Vcoords", c, fv, d);
+        scalar_view Tcoords = scalar_view("Tcoords", c, ft, d);
         if (c > 0) {
           feVel_->computeDofCoords(Vcoords, bdryCellNodes_[i][j]);
           feThr_->computeDofCoords(Tcoords, bdryCellNodes_[i][j]);
@@ -164,7 +161,7 @@ private:
     const std::vector<Real> param = PDE<Real,DeviceType>::getParameter();
     Real val = Re_;
     if (param.size()) {
-      int offset = Nbottom_ + Nright_ + Nleft_;
+      int offset = 2*(Nbottom_ + N0_ + N1_ + N2_ + N3_);
       Real one(1);
       val /= (one + ReScale_*param[offset]);
     }
@@ -175,7 +172,7 @@ private:
     const std::vector<Real> param = PDE<Real,DeviceType>::getParameter();
     Real val = Pr_;
     if (param.size()) {
-      int offset = Nbottom_ + Nright_ + Nleft_;
+      int offset = 2*(Nbottom_ + N0_ + N1_ + N2_ + N3_);
       Real one(1);
       val *= (one + ReScale_*param[offset])/(one + PrScale_*param[offset+1]);
     }
@@ -186,7 +183,7 @@ private:
     const std::vector<Real> param = PDE<Real,DeviceType>::getParameter();
     Real val = Gr_;
     if (param.size()) {
-      int offset = Nbottom_ + Nright_ + Nleft_;
+      int offset = 2*(Nbottom_ + N0_ + N1_ + N2_ + N3_);
       Real one(1), muscale = one + ReScale_*param[offset];
       val *= (one + GrScale_*param[offset+2])/(muscale*muscale);
     }
@@ -195,23 +192,39 @@ private:
   
   Real ThicknessNumber(const std::vector<Real> &x, const int sideset) const {
     const std::vector<Real> param = PDE<Real,DeviceType>::getParameter();
-    Real val = h_;
+    Real val = h_, x1(0), x2(0);
     if ( param.size()) {
-      if ( sideset == 2 ) {
-        int offset = Nbottom_;
-        Real root2(std::sqrt(2.0)), pi(M_PI), ln2(std::log(2.0));
-        for (int i = 0; i < Nleft_; ++i) {
-          Real di(i+1);
-          val += hScale_ * param[offset + i]/ln2 * (root2 * std::sin(di * pi * x[1]))/(di * pi);
-        }
+      const Real root2(std::sqrt(2.0)), pi(M_PI), ln2(std::log(2.0));
+      int offset = 0, N = 0;
+      if ( sideset == 0 ) {
+        offset = 2*Nbottom_;
+        N      = N0_;
+        x1     = x[1];
+        x2     = x[2];
       }
       else if ( sideset == 1 ) {
-        int offset = Nbottom_ + Nleft_;
-        Real root2(std::sqrt(2.0)), pi(M_PI), ln2(std::log(2.0));
-        for (int i = 0; i < Nright_; ++i) {
-          Real di(i+1);
-          val += hScale_ * param[offset + i]/ln2 * (root2 * std::sin(di * pi * x[1]))/(di * pi);
-        }
+        offset = 2*(Nbottom_+N0_);
+        N      = N1_;
+        x1     = x[0];
+        x2     = x[1];
+      }
+      else if ( sideset == 2 ) {
+        offset = 2*(Nbottom_+N0_+N1_);
+        N      = N2_;
+        x1     = x[1];
+        x2     = x[2];
+      }
+      else if ( sideset == 3 ) {
+        offset = 2*(Nbottom_+N0_+N1_+N2_);
+        N      = N3_;
+        x1     = x[0];
+        x2     = x[1];
+      }
+      for (int i = 0; i < N; ++i) {
+        Real di(i+1);
+        Real xcomp = param[offset + 2*i  ]/ln2 * (root2 * std::sin(di * pi * x1))/(di * pi);
+        Real ycomp = param[offset + 2*i+1]/ln2 * (root2 * std::sin(di * pi * x2))/(di * pi);
+        val += hScale_*xcomp*ycomp;
       }
     }
     return val;
@@ -245,9 +258,8 @@ private:
     std::vector<Real> pt(d);
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
-        for ( int k = 0; k < d; ++k) {
+        for ( int k = 0; k < d; ++k)
           pt[k] = (feVel_->cubPts())(i,j,k);
-        }
         // Compute spatially dependent coefficients
         nu(i,j)    = viscosityFunc(pt);
         grav(i,j)  = gravityFunc(pt);
@@ -270,16 +282,16 @@ private:
     Real h(0);
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
-        for (int k = 0; k < d; ++k) {
+        for (int k = 0; k < d; ++k)
           x[k] = (feThrBdry_[sideset][locSideId]->cubPts())(i,j,k);
-        }
         h = thermalRobinFunc(x, sideset);
         if ( deriv == 0 )
           robin(i,j) = h * (u(i,j) - z(i,j));
         else if ( deriv == 1 )
           robin(i,j) = ((component==0) ? h : -h);
-        else
+        else {
           robin(i,j) = static_cast<Real>(0);
+        }
       }
     }
   }
@@ -298,11 +310,11 @@ private:
   }
 
 public:
-  PDE_ThermalFluids_ex03(ROL::ParameterList &parlist) : grav_(-1) {
+  PDE_ThermalFluids_ex07(ROL::ParameterList &parlist) : grav_(-1) {
     // Finite element fields -- NOT DIMENSION INDEPENDENT!
-    basisPtrVel_ = ROL::makePtr<Intrepid2::Basis_HGRAD_QUAD_C2_FEM<DeviceType,Real,Real>>();
-    basisPtrPrs_ = ROL::makePtr<Intrepid2::Basis_HGRAD_QUAD_C1_FEM<DeviceType,Real,Real>>();
-    basisPtrThr_ = ROL::makePtr<Intrepid2::Basis_HGRAD_QUAD_C2_FEM<DeviceType,Real,Real>>();
+    basisPtrVel_ = ROL::makePtr<Intrepid2::Basis_HGRAD_HEX_C2_FEM<DeviceType,Real,Real>>();
+    basisPtrPrs_ = ROL::makePtr<Intrepid2::Basis_HGRAD_HEX_C1_FEM<DeviceType,Real,Real>>();
+    basisPtrThr_ = ROL::makePtr<Intrepid2::Basis_HGRAD_HEX_C2_FEM<DeviceType,Real,Real>>();
     // Volume quadrature rules.
     shards::CellTopology cellType = basisPtrVel_->getBaseCellTopology();     // get the cell type from any basis
     Intrepid2::DefaultCubatureFactory cubFactory;                            // create cubature factory
@@ -315,7 +327,7 @@ public:
     bdryCub_ = cubFactory.create<DeviceType,Real,Real>(bdryCellType, bdryCubDegree);
     // Fill finite element basis container
     basisPtrs_.clear();
-    basisPtrs_.resize(d, basisPtrVel_); // Velocity
+    basisPtrs_.resize(d,basisPtrVel_);  // Velocity
     basisPtrs_.push_back(basisPtrPrs_); // Pressure
     basisPtrs_.push_back(basisPtrThr_); // Heat
 
@@ -326,8 +338,10 @@ public:
     h_       = parlist.sublist("Problem").get("Robin Coefficient",  1.0);
     // Stochastic Expansion Information.
     Nbottom_ = parlist.sublist("Problem").get("Bottom KL Truncation Order",5);
-    Nleft_   = parlist.sublist("Problem").get("Left KL Truncation Order",5);
-    Nright_  = parlist.sublist("Problem").get("Right KL Truncation Order",5);
+    N0_      = parlist.sublist("Problem").get("Side 0 KL Truncation Order",5);
+    N1_      = parlist.sublist("Problem").get("Side 1 KL Truncation Order",5);
+    N2_      = parlist.sublist("Problem").get("Side 2 KL Truncation Order",5);
+    N3_      = parlist.sublist("Problem").get("Side 3 KL Truncation Order",5);
     // Stochastic scales
     ReScale_ = parlist.sublist("Problem").get("Reynolds Number Noise Scale",0.05);
     PrScale_ = parlist.sublist("Problem").get("Prandtl Number Noise Scale",0.05);
@@ -335,7 +349,7 @@ public:
     hScale_  = parlist.sublist("Problem").get("Robin Noise Scale",0.2);
     TScale_  = parlist.sublist("Problem").get("Bottom Temperature Noise Scale",0.2);
     // Pin pressure
-    pinPressure_ = parlist.sublist("Problem").get("Pin Pressure",true);
+    pinPressure_ = parlist.sublist("Problem").get("Pin Pressure",false);
 
     numDofs_ = 0;
     numFields_ = basisPtrs_.size();
@@ -462,17 +476,24 @@ public:
     /**************************************************************************/
     /*** APPLY BOUNDARY CONDITIONS ********************************************/
     /**************************************************************************/
-    // -->        Control boundaries: i=1,2
-    // -->        No slip boundaries: i=0,1,2
-    // --> Outflow/Inflow boundaries: i=3
-    // -->              Pressure Pin: i=4
+    // THERMAL BOUNDARIES
+    // -->        Control boundaries: i=0,1,2,3
+    // -->        Substrate boundary: i=4
+    // -->        Inflow boundary:    i=6
+    // -->        Outflow boundaries: i=5,7
+    // VELOCITY BOUNDARIES
+    // -->        No slip boundaries: i=0,1,2,3,4
+    // -->        Inflow Boundary:    i=6
+    // -->        Outflow Boundaries: i=5,7
+    // PRESSURE BOUNDARIES
+    // -->              Pressure Pin: i=?
     int numSideSets = bdryCellLocIds_.size();
     const int numCubPerSide = bdryCub_->getNumPoints();
     if (numSideSets > 0) {
       // ROBIN CONDITIONS
       for (int i = 0; i < numSideSets; ++i) {
         // Control boundaries
-        if (i==1 || i==2) {
+        if (i==0 || i==1 || i==2 || i==3) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -494,8 +515,9 @@ public:
               for (int k = 0; k < numCellsSide; ++k) {
                 int cidx = bdryCellLocIds_[i][j][k];
                 // Thermal boundary conditions.
-                for (int l = 0; l < fh; ++l)
-                  (R[d+1])(cidx,l) += robinRes(k,l);
+                for (int l = 0; l < fh; ++l) {
+                  R[d+1](cidx,l) += robinRes(k,l);
+                }
               }
             }
           }
@@ -505,7 +527,7 @@ public:
       computeDirichlet();
       // Velocity Boundary Conditions
       for (int i = 0; i < numSideSets; ++i) {
-        if (i<4) {
+        if (i==0 || i==1 || i==2 || i==3 || i==4 || i==5 || i==6 || i==7) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -521,7 +543,7 @@ public:
           }
         }
         // Thermal Boundary Conditions
-        if ( (i==0) || (i==5) ) {
+        if ( (i==4) || (i==6) ) {
           int numLocalSideIds = bdryCellLocIds_[i].size();   // Number of sides per cell
           for (int j = 0; j < numLocalSideIds; ++j) {        // Loop over sides of cell: Quad = {0, 1, 2, 3}
             int numCellsSide = bdryCellLocIds_[i][j].size(); // Number of cells with side j
@@ -535,7 +557,7 @@ public:
           }
         }
         // Pressure pinning
-        if (i==7 && pinPressure_) {
+        if (i==8 && pinPressure_) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -625,7 +647,7 @@ public:
       for (int i = 0; i < c; ++i) {
         for (int j = 0; j < p; ++j) {
           valVel_eval(i,j,k)  = (valVel_vec[k])(i,j);
-          (gradHeat_vec[k])(i,j) = gradHeat_eval(i,j,k);
+          (gradHeat_vec[k])(i,j) = (gradHeat_eval)(i,j,k);
         }
       }
     }
@@ -646,7 +668,7 @@ public:
     scalar_view nuGradPhi_eval("nuGradPhi_eval", c, fv, p, d);
     fst::tensorMultiplyDataField(nuGradPhi_eval, nu, feVel_->gradN());
     // Compute nonlinear terms in the Navier-Stokes equations.
-    scalar_view valVelDotgradPhi_eval("valVelDotgradPhi_eval", c, fv, p);
+    scalar_view valVelDotgradPhi_eval("vaVelDotgradPhi_eval", c, fv, p);
     fst::dotMultiplyDataField(valVelDotgradPhi_eval, valVel_eval, feVel_->gradN());
     // Negative pressure basis.
     scalar_view negPrsPhi("negPrsPhi", c, fp, p);
@@ -694,13 +716,24 @@ public:
     fst::integrate(J[d+1][d+1],feThr_->NdetJ(),VelPhi,true);
 
     // APPLY BOUNDARY CONDITIONS
+    // THERMAL BOUNDARIES
+    // -->        Control boundaries: i=0,1,2,3
+    // -->        Substrate boundary: i=4
+    // -->        Inflow boundary:    i=6
+    // -->        Outflow boundaries: i=5,7
+    // VELOCITY BOUNDARIES
+    // -->        No slip boundaries: i=0,1,2,3,4
+    // -->        Inflow Boundary:    i=6
+    // -->        Outflow Boundaries: i=5,7
+    // PRESSURE BOUNDARIES
+    // -->              Pressure Pin: i=?
     int numSideSets = bdryCellLocIds_.size();
     const int numCubPerSide = bdryCub_->getNumPoints();
     if (numSideSets > 0) {
       // ROBIN CONDITIONS
       for (int i = 0; i < numSideSets; ++i) {
         // Control boundaries
-        if (i==1 || i==2) {
+        if (i==0 || i==1 || i==2 || i==3) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -719,13 +752,14 @@ public:
               computeThermalRobin(robinVal1,valU_eval_bdry,valZ_eval_bdry,i,j,1,0);
               fst::scalarMultiplyDataField(robinVal,robinVal1,feThrBdry_[i][j]->N());
               // Evaluate boundary integral
-              scalar_view robinJac = scalar_view("robinJac", numCellsSide, fh, fh);
+              scalar_view robinJac("robinJac", numCellsSide, fh, fh);
               fst::integrate(robinJac,robinVal,feThrBdry_[i][j]->NdetJ(),false);
               for (int k = 0; k < numCellsSide; ++k) {
                 int cidx = bdryCellLocIds_[i][j][k];
                 for (int l = 0; l < fh; ++l) {
-                  for (int m = 0; m < fh; ++m)
+                  for (int m = 0; m < fh; ++m) {
                     (J[d+1][d+1])(cidx,l,m) += robinJac(k,l,m);
+                  }
                 }
               }
             }
@@ -735,7 +769,7 @@ public:
       // DIRICHLET CONDITIONS
       for (int i = 0; i < numSideSets; ++i) {
         // Velocity Boundary Conditions
-        if (i<4) {
+        if (i==0 || i==1 || i==2 || i==3 || i==4 || i==5 || i==6 || i==7) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -764,7 +798,7 @@ public:
           }
         }
         // Thermal boundary conditions
-        if ( (i==0) || (i==5) ) {
+        if ( (i==4) || (i==6) ) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -789,7 +823,7 @@ public:
           }
         }
         // Pressure pinning
-        if (i==7 && pinPressure_) {
+        if (i==8 && pinPressure_) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -851,13 +885,24 @@ public:
     fieldHelper_->splitFieldCoeff(U, u_coeff);
     fieldHelper_->splitFieldCoeff(Z, z_coeff);
 
-    // APPLY DIRICHLET CONDITIONS
+    // APPLY BOUNDARY CONDITIONS
+    // THERMAL BOUNDARIES
+    // -->        Control boundaries: i=0,1,2,3
+    // -->        Substrate boundary: i=4
+    // -->        Inflow boundary:    i=6
+    // -->        Outflow boundaries: i=5,7
+    // VELOCITY BOUNDARIES
+    // -->        No slip boundaries: i=0,1,2,3,4
+    // -->        Inflow Boundary:    i=6
+    // -->        Outflow Boundaries: i=5,7
+    // PRESSURE BOUNDARIES
+    // -->              Pressure Pin: i=?
     int numSideSets = bdryCellLocIds_.size();
     const int numCubPerSide = bdryCub_->getNumPoints();
     if (numSideSets > 0) {
       for (int i = 0; i < numSideSets; ++i) {
         // Control boundaries
-        if (i==1 || i==2) {
+        if (i==0 || i==1 || i==2 || i==3) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -893,7 +938,7 @@ public:
       // DIRICHLET CONDITIONS
       for (int i = 0; i < numSideSets; ++i) {
         // Velocity Boundary Conditions
-        if (i<4) {
+        if (i==0 || i==1 || i==2 || i==3 || i==4 || i==5 || i==6 || i==7) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -921,7 +966,7 @@ public:
           }
         }
         // Thermal boundary conditions
-        if ( (i==0) || (i==5) ) {
+        if ( (i==4) || (i==6) ) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -945,7 +990,7 @@ public:
           }
         }
         // Pressure pinning
-        if (i==7 && pinPressure_) {
+        if (i==8 && pinPressure_) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -1010,12 +1055,23 @@ public:
     fieldHelper_->splitFieldCoeff(L, l_coeff);
 
     // APPLY DIRICHLET CONDITIONS
+    // THERMAL BOUNDARIES
+    // -->        Control boundaries: i=0,1,2,3
+    // -->        Substrate boundary: i=4
+    // -->        Inflow boundary:    i=6
+    // -->        Outflow boundaries: i=5,7
+    // VELOCITY BOUNDARIES
+    // -->        No slip boundaries: i=0,1,2,3,4
+    // -->        Inflow Boundary:    i=6
+    // -->        Outflow Boundaries: i=5,7
+    // PRESSURE BOUNDARIES
+    // -->              Pressure Pin: i=?
     int numSideSets = bdryCellLocIds_.size();
     if (numSideSets > 0) {
       // DIRICHLET CONDITIONS
       for (int i = 0; i < numSideSets; ++i) {
         // Velocity boundary conditions
-        if (i<4) {
+        if (i==0 || i==1 || i==2 || i==3 || i==4 || i==5 || i==6 || i==7) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -1031,7 +1087,7 @@ public:
           }
         }
         // Thermal boundaries
-        if ( (i==0) || (i==5) ) {
+        if ( (i==4) || (i==6) ) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -1045,7 +1101,7 @@ public:
           }
         }
         // Pressure pinning
-        if (i==7 && pinPressure_) {
+        if (i==8 && pinPressure_) {
           int numLocalSideIds = bdryCellLocIds_[i].size();
           for (int j = 0; j < numLocalSideIds; ++j) {
             int numCellsSide = bdryCellLocIds_[i][j].size();
@@ -1065,7 +1121,7 @@ public:
       feVel_->evaluateValue(valVel_vec[i], L[i]);
     }
     scalar_view valHeat_eval("valHeat_eval", c, p);
-    feThr_->evaluateValue(valHeat_eval, L[3]);
+    feThr_->evaluateValue(valHeat_eval, L[d+1]);
 
     // Compute nonlinear terms in the Navier-Stokes equations.
     std::vector<scalar_view> valVelPhi_vec(d);
@@ -1182,9 +1238,9 @@ public:
 
 
     for (int i = 0; i < d; ++i)
-      Kokkos::deep_copy(J[i][i],feVel_->massMat());
-    Kokkos::deep_copy(J[d][d],fePrs_->massMat());
-    Kokkos::deep_copy(J[d+1][d+1],feThr_->massMat());
+      Kokkos::deep_copy(J[i][i], feVel_->massMat());
+    Kokkos::deep_copy(J[d][d], fePrs_->massMat());
+    Kokkos::deep_copy(J[d+1][d+1], feThr_->massMat());
 
     // Combine the jacobians.
     fieldHelper_->combineFieldCoeff(riesz, J);

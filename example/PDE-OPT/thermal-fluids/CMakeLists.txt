@@ -103,30 +103,29 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
     ADD_DIR_TO_NAME
   )
 
-  #  ROL_ADD_EXECUTABLE(
-  #    example_04
-  #    SOURCES example_04.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
-  #  ROL_ADD_EXECUTABLE(
-  #    example_05
-  #    SOURCES example_05.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
-  #  ROL_ADD_EXECUTABLE(
-  #    example_06
-  #    SOURCES example_06.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
-  #  ROL_ADD_EXECUTABLE(
-  #    example_07
-  #    SOURCES example_07.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
+  ROL_ADD_EXECUTABLE(
+    example_04_Kokkos
+    SOURCES example_04K.cpp
+    ADD_DIR_TO_NAME
+  )
+
+  ROL_ADD_EXECUTABLE(
+    example_05_Kokkos
+    SOURCES example_05K.cpp
+    ADD_DIR_TO_NAME
+  )
+
+  ROL_ADD_EXECUTABLE(
+    example_06_Kokkos
+    SOURCES example_06K.cpp
+    ADD_DIR_TO_NAME
+  )
+
+  ROL_ADD_EXECUTABLE(
+    example_07_Kokkos
+    SOURCES example_07K.cpp
+    ADD_DIR_TO_NAME
+  )
 
   ROL_COPY_FILES_TO_BINARY_DIR(
     ThermalFluidsDataCopyK
