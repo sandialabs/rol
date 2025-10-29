@@ -939,11 +939,12 @@ public:
     }
     if ( vec1_ != ROL::nullPtr && vec2_ == ROL::nullPtr ) {
       int n1 = vec1_->dimension();
-      ROL::Ptr<ROL::Vector<Real> > e1;
+      ROL::Ptr<ROL::Vector<Real>> e1;
       if ( i < n1 ) {
         e1 = vec1_->basis(i);
       }
       else {
+        e1 = vec1_->clone();
         e1->zero();
       }
       e = ROL::makePtr<PDE_OptVector>(
@@ -956,6 +957,7 @@ public:
         e2 = vec2_->basis(i);
       }
       else {
+        e2 = vec2_->clone();
         e2->zero();
       }
       e = ROL::makePtr<PDE_OptVector>(

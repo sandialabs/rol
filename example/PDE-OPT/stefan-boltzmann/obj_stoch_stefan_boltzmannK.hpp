@@ -558,7 +558,7 @@ public:
     throw Exception::Zero(">>> QoI_AdvectionCost::HessVec_12 is zero.");
   }
 
-  void HessVec_13(std::vector<scalar_view> & hess,
+  void HessVec_13(scalar_view & hess,
                   const ROL::Ptr<const std::vector<Real>> & v_param,
                   const scalar_view u_coeff,
                   const scalar_view z_coeff = scalar_view(),
@@ -582,7 +582,7 @@ public:
     throw Exception::Zero(">>> QoI_AdvectionCost::HessVec_22 is zero.");
   }
 
-  void HessVec_23(std::vector<scalar_view> & hess,
+  void HessVec_23(scalar_view & hess,
                   const ROL::Ptr<const std::vector<Real>> & v_param,
                   const scalar_view u_coeff,
                   const scalar_view z_coeff = scalar_view(),

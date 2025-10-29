@@ -897,9 +897,8 @@ private:
     }
   }
 
-  void computeCoefficients(scalar_view &V,
-                           scalar_view &rhs,
-                           const ROL::Ptr<const std::vector<Real>> &z_param = ROL::nullPtr) const {
+  void computeCoefficients(scalar_view &V, scalar_view &rhs,
+       const ROL::Ptr<const std::vector<Real>> &z_param = ROL::nullPtr) const {
     // GET DIMENSIONS
     int c = fe_vol_->gradN().extent_int(0);
     int p = fe_vol_->gradN().extent_int(2);
