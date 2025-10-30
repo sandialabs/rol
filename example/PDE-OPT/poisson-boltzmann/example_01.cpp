@@ -116,8 +116,11 @@ int main(int argc, char *argv[]) {
       problem = ROL::makePtr<ROL::Problem<RealT>>(obj,x);
     problem->addConstraint("PDE",con,pp);
     problem->finalize(false,true,*outStream);
+    Teuchos::Time algoTimer("Algorithm Time", true);
     ROL::Solver<RealT> solver(problem,*parlist);
     solver.solve(*outStream);
+    algoTimer.stop();
+    *outStream << "Total optimization time = " << algoTimer.totalElapsedTime() << " seconds.\n";
 
     // Output.
     con->getAssembler()->printMeshData(*outStream);
