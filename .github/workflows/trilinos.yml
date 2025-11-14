@@ -39,6 +39,7 @@ jobs:
               -D Trilinos_ENABLE_ROL:BOOL=ON \
               -D Trilinos_ENABLE_TESTS:BOOL=OFF \
               -D Trilinos_ENABLE_Intrepid:BOOL=ON \
+              -D Trilinos_ENABLE_Epetra:BOOL=ON \
               -B ../trilinos/build \
               ../trilinos
         cmake --build ../trilinos/build
