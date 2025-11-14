@@ -13,7 +13,7 @@
 
 #include "ROL_Stream.hpp"
 #include "ROL_GlobalMPISession.hpp"
-#include "ROL_XMLReader.hpp"
+#include "Teuchos_XMLParameterListHelpers.hpp"
 
 #include "Intrepid_HGRAD_HEX_C1_FEM.hpp"
 #include "Intrepid_HGRAD_HEX_C2_FEM.hpp"
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     ROL::Ptr<Intrepid::FieldContainer<int> >   cellToNodeMapPtr = meshmgr.getCellToNodeMap();
     ROL::Ptr<Intrepid::FieldContainer<int> >   cellToEdgeMapPtr = meshmgr.getCellToEdgeMap();
     ROL::Ptr<Intrepid::FieldContainer<int> >   cellToFaceMapPtr = meshmgr.getCellToFaceMap();
-    ROL::Ptr<std::vector<std::vector<std::vector<int> > > > sideSetsPtr = meshmgr.getSideSets(); 
+    ROL::Ptr<std::vector<std::vector<std::vector<int> > > > sideSetsPtr = meshmgr.getSideSets();
 
     Intrepid::FieldContainer<RealT> &nodes = *nodesPtr;
     Intrepid::FieldContainer<int>   &cellToNodeMap = *cellToNodeMapPtr;
