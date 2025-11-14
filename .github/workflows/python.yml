@@ -70,9 +70,6 @@ jobs:
               ../trilinos
     - name: Create reduced tarball (ROL + Binder files + Teuchos)
       run: |
-        #pushd ../trilinos-build
-        #make package_source
-        #popd
         cmake --build ../trilinos-build --target package_source
     - name: Unpack reduced tarball
       run: |
@@ -103,7 +100,7 @@ jobs:
         name: sdist
     - name: Store source distribution name
       run: |
-        SDIST_NAME=$(find . -name "pyrol-*.tar.gz" -print -quit)
+        SDIST_NAME=$(find . -name "rol_python-*.tar.gz" -print -quit)
         echo $SDIST_NAME
         echo "SDIST_NAME=${SDIST_NAME}" >> $GITHUB_ENV
     - name: Set up Python
@@ -116,11 +113,13 @@ jobs:
         output-dir: dist
         package-dir: ${{ env.SDIST_NAME }}
       env:
-        CIBW_BUILD: "cp311* cp312*"
+        CIBW_BUILD: "cp3*"
         CIBW_SKIP: "*i686 *musllinux*"
         CIBW_BUILD_VERBOSITY: 1
         CIBW_BEFORE_ALL_LINUX: |
-            yum install -y openblas-devel ninja-build
+          yum install -y openblas-devel ninja-build
+        CIBW_TEST_COMMAND: 
+          cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest test_typeU.py
     - name: Set artifact name
       run: |
         if [[ "${{ runner.os }}" == "Linux" ]]; then
@@ -134,15 +133,15 @@ jobs:
         name: ${{ env.ARTIFACT_NAME }}
         path: dist/*
   
-  publish-testpypi:
+  publish-pypi:
     if: github.event_name == 'release' && github.event.action == 'published'
     needs:
     - build-sdist
     - build-wheels
     runs-on: ubuntu-latest
     environment:
-      name: testpypi
-      url: https://test.pypi.org/p/pyrol
+      name: pypi
+      url: https://pypi.org/p/rol-python
     permissions:
       id-token: write
     steps:
@@ -161,10 +160,7 @@ jobs:
       with:
         name: wheels-macos
         path: dist/
-    - name: Debug
-      run: ls dist
-    - name: Publish distribution to TestPyPI
+    - name: Publish distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         verbose: true
-        repository-url: https://test.pypi.org/legacy/

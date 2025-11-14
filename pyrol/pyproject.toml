@@ -3,9 +3,9 @@ requires = ["scikit-build-core>=0.3.3","pybind11 @ git+https://github.com/pybind
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "pyrol"
+name = "rol-python"
 version = "VERSION"
-description="A Python interface to the Rapid Optimization Library (ROL)"
+description="Python interface to the Rapid Optimization Library (ROL)"
 readme = "packages/rol/README.md"
 license = "BSD-3-Clause"
 authors = [
