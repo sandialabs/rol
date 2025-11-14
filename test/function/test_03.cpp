@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
   typedef ROL::DyadicOperator<RealT>    DyadOp;
   typedef ROL::NullOperator<RealT>      NullOp;
 
-  typedef typename vector::size_type    uint;
+  typedef typename vector::size_type    luint;
 
   ROL::GlobalMPISession mpiSession(&argc, &argv);
 
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
   try {
 
-    uint dim   = 3;  // Number of elements in each subvector (could be different)
+    luint dim   = 3;  // Number of elements in each subvector (could be different)
  
     ROL::Ptr<vector> x1_ptr = ROL::makePtr<vector>(dim,1.0);
     ROL::Ptr<vector> x2_ptr = ROL::makePtr<vector>(dim,2.0);

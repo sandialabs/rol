@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
       problem->makeObjectiveStochastic(*parlist, sampler);
       problem->finalize(false,true,*outStream);
       if (parlist->sublist("Problem").get("Run Derivative Check",false)) {
-        problem->check(*outStream);
+        problem->check(true,*outStream);
       }
       parlist->sublist("Step").set("Type","Bundle");
       parlist->sublist("Step").sublist("Bundle").set("Distance Measure Coefficient",0.0);
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
       if (parlist->sublist("Problem").get("Run Derivative Check",false)) {
         std::vector<RealT> param(4,0);
         robj->setParameter(param);
-        problem->check(*outStream);
+        problem->check(true,*outStream);
         solver.check(*outStream);
       }
       solver.run(*outStream);

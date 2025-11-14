@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
       ROL::PrimalDualRisk<RealT> solver(problem, sampler, *parlist);
       bool checkDeriv = parlist->sublist("Problem").get("Check Derivatives",false);
       if ( checkDeriv ) {
-        problem->check(*outStream);
+        problem->check(true,*outStream);
         solver.check(*outStream);
       }
       solver.run(*outStream);
