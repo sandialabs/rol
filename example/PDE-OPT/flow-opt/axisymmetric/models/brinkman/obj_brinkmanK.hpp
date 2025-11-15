@@ -387,11 +387,11 @@ public:
     }
     dir_ = ROL::getArrayFromStringParameter<Real>(list, "Direction");
     Real norm(0);
-    for (const auto d : dir_) norm += d*d;
+    for (const auto e : dir_) norm += e*e;
     norm = std::sqrt(norm);
-    for (const auto d : dir_) std::cout << d << std::endl;
-    for (auto & d : dir_) d /= norm;
-    for (const auto d : dir_) std::cout << d << std::endl;
+    for (const auto e : dir_) std::cout << e << std::endl;
+    for (auto & e : dir_) e /= norm;
+    for (const auto e : dir_) std::cout << e << std::endl;
     //for (int i = 0; i < d; ++i) dir_[i] /= norm;
   }
 
