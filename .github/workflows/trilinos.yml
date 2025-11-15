@@ -38,8 +38,9 @@ jobs:
               -D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
               -D Trilinos_ENABLE_ROL:BOOL=ON \
               -D Trilinos_ENABLE_TESTS:BOOL=OFF \
-              -D Trilinos_ENABLE_Intrepid:BOOL=ON \
+              -D Trilinos_ENABLE_Intrepid2:BOOL=ON \
               -D Trilinos_ENABLE_Epetra:BOOL=ON \
+              -D Trilinos_WARNINGS_MODE=WARN \
               -B ../trilinos/build \
               ../trilinos
         cmake --build ../trilinos/build
