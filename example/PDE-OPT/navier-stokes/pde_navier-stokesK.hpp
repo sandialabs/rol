@@ -570,8 +570,8 @@ public:
                 for (int l = 0; l < numBdryDofs; ++l) {
                   for (int m=0; m < fv; ++m) {
                     for (int n=0; n < d; ++n) {
-                      for (int p=0; p < d; ++p) {
-                        (J[n][p])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
+                      for (int q=0; q < d; ++q) {
+                        (J[n][q])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
                       }
                       (J[n][n])(cidx,fvidx_[j][l],fvidx_[j][l]) = static_cast<Real>(1);
                     }
@@ -596,8 +596,8 @@ public:
               for (int l = 0; l < numBdryDofs; ++l) {
                 for (int m=0; m < fv; ++m) {
                   for (int n=0; n < d; ++n) {
-                    for (int p=0; p < d; ++p) {
-                      (J[n][p])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
+                    for (int q=0; q < d; ++q) {
+                      (J[n][q])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
                     }
                     (J[n][n])(cidx,fvidx_[j][l],fvidx_[j][l]) = static_cast<Real>(1);
                   }
@@ -618,8 +618,8 @@ public:
             int cidx = bdryCellLocIds_[i][0][0];
             for (int m=0; m < fv; ++m) {
               for (int n=0; n < d; ++n) {
-                for (int p=0; p < d; ++p) {
-                  (J[n][p])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
+                for (int q=0; q < d; ++q) {
+                  (J[n][q])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
                 }
                 (J[n][n])(cidx,fvidx_[j][l],fvidx_[j][l]) = static_cast<Real>(1);
               }
