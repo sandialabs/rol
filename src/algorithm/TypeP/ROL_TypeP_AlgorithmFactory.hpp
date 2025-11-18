@@ -16,6 +16,7 @@
 #include "ROL_TypeP_QuasiNewtonAlgorithm.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_InexactNewtonAlgorithm.hpp"
+#include "ROL_TypeP_STORMAlgorithm.hpp"
 #include "ROL_Types.hpp"
 
 namespace ROL {
@@ -32,6 +33,7 @@ namespace TypeP {
 enum EAlgorithmP{
   ALGORITHM_P_LINESEARCH = 0,
   ALGORITHM_P_TRUSTREGION,
+  ALGORITHM_P_STORM,
   ALGORITHM_P_SPECTRALGRADIENT,
   ALGORITHM_P_IPIANO,
   ALGORITHM_P_LAST
@@ -42,6 +44,7 @@ inline std::string EAlgorithmPToString(EAlgorithmP alg) {
   switch(alg) {
     case ALGORITHM_P_LINESEARCH:          retString = "Line Search";            break;
     case ALGORITHM_P_TRUSTREGION:         retString = "Trust Region";           break;
+    case ALGORITHM_P_STORM:               retString = "STORM";                  break;
     case ALGORITHM_P_SPECTRALGRADIENT:    retString = "Spectral Gradient";      break;
     case ALGORITHM_P_IPIANO:              retString = "iPiano";                 break;
     case ALGORITHM_P_LAST:                retString = "Last Type (Dummy)";      break;
@@ -58,6 +61,7 @@ inline std::string EAlgorithmPToString(EAlgorithmP alg) {
 inline int isValidAlgorithmP(EAlgorithmP alg){
   return( (alg == ALGORITHM_P_LINESEARCH)          ||
           (alg == ALGORITHM_P_TRUSTREGION)         ||
+          (alg == ALGORITHM_P_STORM)               ||
           (alg == ALGORITHM_P_SPECTRALGRADIENT)    ||
           (alg == ALGORITHM_P_IPIANO)              ||
           (alg == ALGORITHM_P_LAST)

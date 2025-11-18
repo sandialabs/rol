@@ -7,7 +7,7 @@
 // *****************************************************************************
 // @HEADER
 
-/*! \file  test_03.cpp
+/*! \file  test_04.cpp
     \brief Validate Trust Region algorithm.
 */
 
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
     sobj->checkHessVec(*xd,*yd,true,*outStream);
     sobj->checkHessSym(*xd,*yd,*zd,true,*outStream);
 
-    list.sublist("Step").sublist("Trust Region").sublist("TRN").sublist("Solver").set("Subproblem Solver", "SPG");  
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");  
     sol->zero();
     algo = ROL::makePtr<ROL::TypeP::TrustRegionAlgorithm<RealT>>(list);
     auto begin = std::chrono::high_resolution_clock::now();
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
     *outStream << "  Max Relative Error = " << err/xmax << std::endl;
     errorFlag += (err > tol ? 1 : 0);
 
-    list.sublist("Step").sublist("Trust Region").sublist("TRN").sublist("Solver").set("Subproblem Solver", "Simplified SPG");  
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "Simplified SPG");  
     sol->zero();
     algo = ROL::makePtr<ROL::TypeP::TrustRegionAlgorithm<RealT>>(list);
     begin = std::chrono::high_resolution_clock::now();
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
     *outStream << "  Max Relative Error = " << err/xmax << std::endl;
     errorFlag += (err > tol ? 1 : 0);
 
-    list.sublist("Step").sublist("Trust Region").sublist("TRN").sublist("Solver").set("Subproblem Solver", "NCG");  
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "NCG");  
     sol->zero();
     algo = ROL::makePtr<ROL::TypeP::TrustRegionAlgorithm<RealT>>(list);
     begin = std::chrono::high_resolution_clock::now();

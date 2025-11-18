@@ -51,7 +51,6 @@
 #include "ROL_Solver.hpp"
 #include "ROL_Problem.hpp"
 #include "ROL_Stream.hpp"
-#include "ROL_GlobalMPISession.hpp"
 #include <random>
 #include <chrono>
 
@@ -93,16 +92,14 @@ public:
   }
 
   void getSolution(std::vector<Real> &x, const std::vector<Real> &wts, const std::vector<Real> &y) const {
-    for (int i = 0; i < dim_; ++i)
+    for (int i = 0; i < dim_; ++i){
       x[i] = (std::min(wts[i], std::max(-wts[i], a_[i]*y[i] + b_[i])) - b_[i]) / a_[i];
-  }
+  }}
 };
 
 typedef double RealT;
 
 int main(int argc, char *argv[]) {
-
-  ROL::GlobalMPISession mpiSession(&argc, &argv);
 
   // This little trick lets us print to std::cout only if a
   // (dummy) command-line argument is provided.
@@ -122,10 +119,11 @@ int main(int argc, char *argv[]) {
     ROL::ParameterList list;
     list.sublist("General").set("Output Level",iprint);
     list.sublist("Step").set("Type","Trust Region");
+    list.sublist("Step").sublist("Trust Region").set("Initial Radius", 50.0); 
     list.sublist("Status Test").set("Gradient Tolerance",1e-1*tol);
     list.sublist("Status Test").set("Constraint Tolerance",1e-1*tol);
     list.sublist("Status Test").set("Step Tolerance",1e-3*tol);
-    list.sublist("Status Test").set("Iteration Limit", 50);
+    list.sublist("Status Test").set("Iteration Limit", 100);
     int dim = 5;
     ROL::Ptr<ROL::StdVector<RealT>>        sol, wts, y;
     ROL::Ptr<QuadraticTypeP_Test01<RealT>> sobj;
@@ -151,9 +149,9 @@ int main(int argc, char *argv[]) {
     std::vector<RealT> xstar(dim);
     sobj->getSolution(xstar, *wtsP, *yP);
     RealT xmax(0);
-    for (int i = 0; i < dim; ++i)
+    for (int i = 0; i < dim; ++i){
       xmax = std::max(xmax,std::abs(xstar[i]));
-
+    }
     // Check derivatives of smooth function
     ROL::Ptr<ROL::Vector<RealT>> xd = sol->clone();
     xd->randomize(-1.0,1.0);
@@ -165,15 +163,15 @@ int main(int argc, char *argv[]) {
     sobj->checkHessVec(*xd,*yd,true,*outStream);
     sobj->checkHessSym(*xd,*yd,*zd,true,*outStream);
 
-    list.sublist("Step").sublist("Trust Region").sublist("TRN").sublist("Solver").set("Subproblem Solver", "SPG");  
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "Cauchy Point");  
     sol->zero();
     auto problem = ROL::makePtr<ROL::Problem<RealT>>(sobj, sol); // check 
     problem->addProximableObjective(nobj);
     problem->finalize(false, true, *outStream); 
-    ROL::Solver<RealT> solverspg(problem, list); 	
+    ROL::Solver<RealT> solvercp(problem, list); 	
 
     auto begin = std::chrono::high_resolution_clock::now();
-    solverspg.solve(*outStream); 
+    solvercp.solve(*outStream); 
     auto end   = std::chrono::high_resolution_clock::now();
     *outStream << "  Optimization Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count() << " microseconds" << std::endl;
 
@@ -193,7 +191,31 @@ int main(int argc, char *argv[]) {
     *outStream << "  Max Relative Error = " << err/xmax << std::endl;
     errorFlag += (err > tol ? 1 : 0);
 
-    list.sublist("Step").sublist("Trust Region").sublist("TRN").sublist("Solver").set("Subproblem Solver", "Simplified SPG");  
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");  
+    sol->zero();
+    ROL::Solver<RealT> solverspg(problem, list); 	
+    begin = std::chrono::high_resolution_clock::now();
+    solverspg.solve(*outStream);
+    end   = std::chrono::high_resolution_clock::now();
+    *outStream << "  Optimization Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count() << " microseconds" << std::endl;
+
+    err = static_cast<RealT>(0);
+    data = *ROL::staticPtrCast<ROL::StdVector<RealT>>(sol)->getVector();
+    *outStream << "  Result:   ";
+    for (int i = 0; i < dim; ++i) {
+      *outStream << "  x" << i+1 << " = " << data[i];
+      err = std::max(err,std::abs(data[i]-xstar[i]));
+    }
+    *outStream << std::endl;
+    *outStream << "  Truth:    ";
+    for (int i = 0; i < dim; ++i) {
+      *outStream << "  x" << i+1 << " = " << xstar[i];
+    }
+    *outStream << std::endl;
+    *outStream << "  Max Relative Error = " << err/xmax << std::endl;
+    errorFlag += (err > tol ? 1 : 0);
+    
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG2");  
     sol->zero();
     ROL::Solver<RealT> solverspg2(problem, list); 	
     begin = std::chrono::high_resolution_clock::now();
@@ -217,7 +239,7 @@ int main(int argc, char *argv[]) {
     *outStream << "  Max Relative Error = " << err/xmax << std::endl;
     errorFlag += (err > tol ? 1 : 0);
 
-    list.sublist("Step").sublist("Trust Region").sublist("TRN").sublist("Solver").set("Subproblem Solver", "NCG");  
+    list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "NCG");  
     sol->zero();
     ROL::Solver<RealT> solverncg(problem, list); 	
     begin = std::chrono::high_resolution_clock::now();

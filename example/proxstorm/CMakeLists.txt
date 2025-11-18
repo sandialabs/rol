@@ -1,0 +1,2 @@
+ADD_SUBDIRECTORY(dualsvm)
+ADD_SUBDIRECTORY(logistic)
