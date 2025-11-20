@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     list.sublist("Status Test").set("Gradient Tolerance",1e-1*tol);
     list.sublist("Status Test").set("Constraint Tolerance",1e-1*tol);
     list.sublist("Status Test").set("Step Tolerance",1e-3*tol);
-    list.sublist("Status Test").set("Iteration Limit", 50);
+    list.sublist("Status Test").set("Iteration Limit", 100);
     int dim = 5;
     ROL::Ptr<ROL::StdVector<RealT>>        sol, wts, y;
     ROL::Ptr<QuadraticTypeP_Test01<RealT>> sobj;
