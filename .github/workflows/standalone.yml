@@ -21,7 +21,7 @@ jobs:
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
-              -D ENABLE_EXAMPLES=ON \
+              -D ENABLE_EXAMPLES:BOOL=ON \
               -D ENABLE_TESTS:BOOL=ON \
               -B build \
                .
