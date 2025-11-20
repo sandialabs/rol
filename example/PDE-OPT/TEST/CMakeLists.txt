@@ -94,6 +94,26 @@ ENDIF()
 IF(${PROJECT_NAME}_ENABLE_Intrepid2)
 
   ROL_ADD_EXECUTABLE_AND_TEST(
+    test_01_Kokkos
+    SOURCES test_01K.cpp
+    ARGS PrintItAll
+    NUM_MPI_PROCS 1
+    NUM_TOTAL_CORES_USED 1
+    PASS_REGULAR_EXPRESSION "TEST PASSED"
+    ADD_DIR_TO_NAME
+  )
+
+  ROL_ADD_EXECUTABLE_AND_TEST(
+    test_02_Kokkos
+    SOURCES test_02K.cpp
+    ARGS PrintItAll
+    NUM_MPI_PROCS 1
+    NUM_TOTAL_CORES_USED 1
+    PASS_REGULAR_EXPRESSION "TEST PASSED"
+    ADD_DIR_TO_NAME
+  )
+
+  ROL_ADD_EXECUTABLE_AND_TEST(
     test_03_Kokkos
     SOURCES test_03K.cpp
     ARGS PrintItAll
@@ -175,36 +195,3 @@ ENDIF()
 #    ADD_DIR_TO_NAME
 #  )
 #ENDIF()
-
-
-IF(${PROJECT_NAME}_ENABLE_Intrepid2)
-
-  ROL_ADD_EXECUTABLE_AND_TEST(
-    test_01_Kokkos
-    SOURCES test_01K.cpp
-    ARGS PrintItAll
-    NUM_MPI_PROCS 1
-    NUM_TOTAL_CORES_USED 1
-    PASS_REGULAR_EXPRESSION "TEST PASSED"
-    ADD_DIR_TO_NAME
-  )
-
-  ROL_ADD_EXECUTABLE_AND_TEST(
-    test_02_Kokkos
-    SOURCES test_02K.cpp
-    ARGS PrintItAll
-    NUM_MPI_PROCS 1
-    NUM_TOTAL_CORES_USED 1
-    PASS_REGULAR_EXPRESSION "TEST PASSED"
-    ADD_DIR_TO_NAME
-  )
-
-  ROL_COPY_FILES_TO_BINARY_DIR(
-    TestDataCopyK
-    SOURCE_FILES
-      input_01.xml input_02.xml input_03.xml input_04.xml input_05.xml input_07.xml input_08.xml input_09.xml cube.txt L-cubes.txt
-    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
-    DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-  )
-
-ENDIF()
