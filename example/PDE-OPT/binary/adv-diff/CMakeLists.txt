@@ -1,10 +1,10 @@
-INCLUDE(TribitsAddExecutableAndTest)
+#INCLUDE(TribitsAddExecutableAndTest)
 
 IF(${PROJECT_NAME}_ENABLE_Intrepid AND 
    ${PROJECT_NAME}_ENABLE_Ifpack2  AND
    ${PROJECT_NAME}_ENABLE_MueLu    AND
    ${PROJECT_NAME}_ENABLE_Amesos2  AND
-   ${PROJECT_NAME}_ENABLE_pebbl    AND
+   ${PACKAGE_NAME}_ENABLE_pebbl    AND
    ${PROJECT_NAME}_ENABLE_Tpetra )
 
   # Need ROL_TpetraMultiVector.hpp

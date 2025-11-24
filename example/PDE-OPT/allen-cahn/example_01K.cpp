@@ -24,7 +24,7 @@
 #include "ROL_Solver.hpp"
 #include "ROL_Reduced_Objective_SimOpt.hpp"
 #include "ROL_BoundConstraint_SimOpt.hpp"
-#include "ROL_Bounds.hpp"
+#include "ROL_TpetraBoundConstraint.hpp"
 
 #include "../TOOLS/meshmanagerK.hpp"
 #include "../TOOLS/pdeconstraintK.hpp"
@@ -117,18 +117,14 @@ int main(int argc, char *argv[]) {
     RealT lo = parlist->sublist("Problem").get("Lower Bound",0.0);
     RealT hi = parlist->sublist("Problem").get("Upper Bound",1.0);
     zlo_ptr->putScalar(lo); zhi_ptr->putScalar(hi);
-    auto zlop = ROL::makePtr<PDE_PrimalOptVector<RealT,DeviceT>>(zlo_ptr,pde,assembler);
-    auto zhip = ROL::makePtr<PDE_PrimalOptVector<RealT,DeviceT>>(zhi_ptr,pde,assembler);
-    auto zbnd = ROL::makePtr<ROL::Bounds<RealT>>(zlop,zhip);
+    auto zbnd = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(zlo_ptr,zhi_ptr);
     bool deactivate = parlist->sublist("Problem").get("Deactivate Bound Constraints",false);
     if (deactivate) zbnd->deactivate();
     // State bounds
     auto ulo_ptr = assembler->createStateVector();
     auto uhi_ptr = assembler->createStateVector();
     ulo_ptr->putScalar(ROL::ROL_NINF<RealT>()); uhi_ptr->putScalar(ROL::ROL_INF<RealT>());
-    auto ulop = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(ulo_ptr,pde,assembler);
-    auto uhip = ROL::makePtr<PDE_PrimalSimVector<RealT,DeviceT>>(uhi_ptr,pde,assembler);
-    auto ubnd = ROL::makePtr<ROL::Bounds<RealT>>(ulop,uhip);
+    auto ubnd = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(ulo_ptr,uhi_ptr);
     ubnd->deactivate();
 
     // SimOpt bounds

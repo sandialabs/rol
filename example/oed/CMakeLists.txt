@@ -5,6 +5,18 @@ ROL_ADD_EXECUTABLE(
   ADD_DIR_TO_NAME
   )
 
+ROL_ADD_EXECUTABLE(
+  PolynomialRegression1D_MO
+  SOURCES example_02.cpp
+  ADD_DIR_TO_NAME
+  )
+
+ROL_ADD_EXECUTABLE(
+  PolynomialRegression1D_NBI
+  SOURCES example_03.cpp
+  ADD_DIR_TO_NAME
+  )
+
 ROL_COPY_FILES_TO_BINARY_DIR(
   OEDExampleDataCopy
   SOURCE_FILES
