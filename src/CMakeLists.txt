@@ -303,6 +303,14 @@ APPEND_GLOB(HEADERS ${DIR}/*.hpp
                     ${DIR}/utilities/*.hpp)
 
 #
+# mol headers
+#
+
+TRIBITS_SET_AND_INC_DIRS(DIR ${CMAKE_CURRENT_SOURCE_DIR}/mol)
+TRIBITS_INCLUDE_DIRECTORIES(${DIR})
+APPEND_GLOB(HEADERS ${DIR}/*.hpp)
+
+#
 # All sources
 #
 
