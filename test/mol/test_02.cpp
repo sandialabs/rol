@@ -152,6 +152,9 @@ int main(int argc, char *argv[]) {
     ps->run(mof,parlist,*outStream);
     ps->print("output_01.txt");
 
+    // Pareto front is given by f1 in [0.01,0.16] or [0.36,0.81]
+    // and f2 = (sqrt(f1)-1)^2.  The optimal solutions are
+    // given by x1 in [0.1,0.4] or [0.6,0.9] and x2 = 0.
     auto sol = ps->getParetoData();
     for (const auto& pd : sol) {
       bool feas1 = (pd.val[0] <= static_cast<RealT>(0.16)+errtol && pd.val[0] >= static_cast<RealT>(0.01)-errtol);
