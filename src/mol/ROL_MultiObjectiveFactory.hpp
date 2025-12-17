@@ -16,60 +16,9 @@
 
 #include "ROL_ParameterList.hpp"
 #include "ROL_Problem.hpp"
+#include "ROL_MOL_Types.hpp"
 
 namespace ROL {
-
-enum EMOType{
-  MOTYPE_CC = 0,
-  MOTYPE_NBI,
-  MOTYPE_LAST
-};
-
-inline std::string EMOTypeToString(EMOType tr) {
-  std::string retString;
-  switch(tr) {
-    case MOTYPE_CC:   retString = "Convex Combination";           break;
-    case MOTYPE_NBI:  retString = "Normal Boundary Intersection"; break;
-    case MOTYPE_LAST: retString = "Last Type (Dummy)";            break;
-    default:          retString = "INVALID EMOType";
-  }
-  return retString;
-}
-
-inline int isValidMOType(EMOType ls) {
-  return( (ls == MOTYPE_CC) ||
-          (ls == MOTYPE_NBI) );
-}
-
-inline EMOType & operator++(EMOType &type) {
-  return type = static_cast<EMOType>(type+1);
-}
-
-inline EMOType operator++(EMOType &type, int) {
-  EMOType oldval = type;
-  ++type;
-  return oldval;
-}
-
-inline EMOType & operator--(EMOType &type) {
-  return type = static_cast<EMOType>(type-1);
-}
-
-inline EMOType operator--(EMOType &type, int) {
-  EMOType oldval = type;
-  --type;
-  return oldval;
-}
-
-inline EMOType StringToEMOType(std::string s) {
-  s = removeStringFormat(s);
-  for ( EMOType st = MOTYPE_CC; st < MOTYPE_LAST; ++st ) {
-    if ( !s.compare(removeStringFormat(EMOTypeToString(st))) ) {
-      return st;
-    }
-  }
-  return MOTYPE_LAST;
-}
 
 template<typename Real>
 class MultiObjectiveFactory {
@@ -89,7 +38,7 @@ private:
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_linear_con_;
 
   std::vector<Ptr<Objective<Real>>> obj_;
-  std::vector<Ptr<Vector<Real>>> solution_vec_;
+  std::vector<ParetoData<Real>> solution_vec_;
   std::vector<Real> scale_vec_, shift_vec_;
   std::vector<std::vector<Real>> values_, nvalues_;
   bool isObjInit_;
@@ -103,7 +52,6 @@ public:
 
   /** \brief Default constructor for MultiObjectiveFactory.
 
-      @param[in] obj  objective function object
       @param[in] x    primal optimization space vector
       @param[in] g    dual optimization space vector
   */
@@ -227,29 +175,58 @@ public:
   /*** Accessor methods ******************************************************/
   /***************************************************************************/
 
-  /** Get a scalarized optimization problem
+  /** \brief Get optimization problem corresponding to a single objective.
+
+      @param[in] ind        index of objective function
+      @param[in] parlist    parameter list (contains bool to normalize objective)
+      @param[in] outStream  out stream for printing diagnostic information
+      @param[in] initGuess  boolean whether or not to use provided initial guess
+      @param[in] x0         initial guess (optimization space vector)
   */
   Ptr<Problem<Real>> getScalarProblem(unsigned ind, ParameterList& parlist,
                                       std::ostream& outStream=std::cout,
-                                      bool initGuess=false, Ptr<Vector<Real>>& x0=nullPtr);
+                                      bool initGuess=false, const Ptr<Vector<Real>>& x0=nullPtr);
+
+  /** \brief Get optimization problem corresponding to a single objective.
+
+      @param[in] name       name of objective function
+      @param[in] parlist    parameter list (contains bool to normalize objective)
+      @param[in] outStream  out stream for printing diagnostic information
+      @param[in] initGuess  boolean whether or not to use provided initial guess
+      @param[in] x0         initial guess (optimization space vector)
+  */
   Ptr<Problem<Real>> getScalarProblem(std::string name, ParameterList& parlist,
                                       std::ostream& outStream=std::cout,
-                                      bool initGuess=false, Ptr<Vector<Real>>& x0=nullPtr);
-  Ptr<Problem<Real>> getScalarProblem(const std::vector<Real>& lam, ParameterList& parlist,
-                                      std::ostream& outStream=std::cout,
-                                      bool initGuess=false, Ptr<Vector<Real>>& x0=nullPtr);
-  Ptr<Problem<Real>> getScalarProblem(ParameterList& parlist,
-                                      std::ostream& outStream=std::cout,
-                                      bool initGuess=false, Ptr<Vector<Real>>& x0=nullPtr);
+                                      bool initGuess=false, const Ptr<Vector<Real>>& x0=nullPtr);
 
+  /** \brief Make optimization problem corresponding to a scalarization method.
+
+      @param[in] lam        vector of convex combination coefficients (nonnegative and sum to one)
+      @param[in] parlist    parameter list (contains bool to normalize objective and scalarization method)
+      @param[in] outStream  out stream for printing diagnostic information
+      @param[in] initGuess  boolean whether or not to use provided initial guess
+      @param[in] x0         initial guess (optimization space vector)
+  */
+  Ptr<Problem<Real>> makeScalarProblem(const std::vector<Real>& lam, ParameterList& parlist,
+                                       std::ostream& outStream=std::cout,
+                                       bool initGuess=false, const Ptr<Vector<Real>>& x0=nullPtr);
+
+  /** \brief Return number of objective functions.
+  */
   unsigned getNumObjectives() { return cnt_obj_; }
 
-  Ptr<Vector<Real>> getSolution() {
+  /** \brief Return a copy of the optimization vector.
+  */
+  Ptr<Vector<Real>> getOptimizationVector() {
     auto x = INPUT_xprim_->clone();
     x->set(*INPUT_xprim_);
     return x;
   }
 
+  /** \brief Get value of objective function vector.
+
+      @param[in] x         evaluation point (optimization space vector)
+  */
   std::vector<Real> evaluateObjectiveVector(const Vector<Real> &x) const {
     const Real tol = 1e-2*std::sqrt(ROL_EPSILON<Real>());
     std::vector<Real> val;
@@ -261,11 +238,14 @@ public:
     return val;
   }
 
-  void getEndPoints(std::vector<Ptr<Vector<Real>>>& sol, std::vector<std::vector<Real>>& val,
-                    ParameterList& parlist, std::ostream& outStream = std::cout) {
+  /** \brief Get the individual minimizer information stored as a vector of ParetoData.
+
+      @param[in] parlist    parameter list (contains bool to normalize objective)
+      @param[in] outStream  out stream for printing diagnostic information
+  */
+  const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist,std::ostream& outStream = std::cout) {
     computeUtopia(parlist,outStream);
-    sol.assign(solution_vec_.begin(),solution_vec_.end());
-    val.assign(values_.begin(),values_.end());
+    return solution_vec_;
   }
 
 }; // class MultiObjectiveFactory

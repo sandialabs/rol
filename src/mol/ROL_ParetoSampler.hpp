@@ -15,17 +15,8 @@ namespace ROL {
 template<typename Real>
 class ParetoSampler {
 private:
-  struct ParetoData {
-  public:
-    const Ptr<Vector<Real>> sol;
-    const std::vector<Real> lam;
-    const std::vector<Real> val;
-    ParetoData(const Ptr<Vector<Real>>& x, const std::vector<Real>& l, const std::vector<Real>& v)
-      : sol(x), lam(l), val(v) {}
-  };
-
   const Ptr<BatchManager<Real>> bman_;
-  std::vector<ParetoData> samples_;
+  std::vector<ParetoData<Real>> samples_;
 
 public:
   ParetoSampler(const Ptr<BatchManager<Real>>& bman = nullPtr)
@@ -41,38 +32,30 @@ public:
     const int batchid = bman_->batchID();
     const int nbatch = bman_->numBatches();
     // Compute endpoints
-    std::vector<Real> lam(nobj);
-    std::vector<Ptr<Vector<Real>>> sol;
-    std::vector<std::vector<Real>> val;
-    factory->getEndPoints(sol,val,parlist,outStream);
+    auto pdsol = factory->getEndPoints(parlist,outStream);
     int frac   = nobj / nbatch;
     int rem    = nobj % nbatch;
     int N      = frac + ((batchid < rem) ? 1 : 0);
     int offset = 0;
     for (int i = 0; i < batchid; ++i) offset += frac + ((i < rem) ? 1 : 0);
-    for (int i = 0; i < N; ++i) {
-      lam.assign(nobj,zero);
-      lam[offset+i] = one;
-      ParetoData pd(sol[offset+i],lam,val[offset+i]);
-      samples_.push_back(pd);
-    }
+    for (int i = 0; i < N; ++i) samples_.push_back(pdsol[offset+i]);
     // Compute random samples
     const int nsamp = parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Number of Points",10);
     const bool initGuess = parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Warm Start",false);
     const bool useTrig = parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Use Trigonometric Spacing",false);
-    if (nobj > 1u) {
+    if (nobj > 1u && nsamp > 0) {
       Ptr<SampleGenerator<Real>> sampler;
       if (nobj == 2u) sampler = makePtr<Equispaced2dGenerator<Real>>(nsamp,bman_,useTrig);
       else            sampler = makePtr<UniformSimplexGenerator<Real>>(nsamp,nobj,bman_);
-      auto x0 = factory->getSolution()->clone();
-      x0->set(*factory->getSolution());
-      std::vector<Real> fail(sampler->numMySamples(),zero);
+      auto x0 = factory->getOptimizationVector()->clone();
+      x0->set(*factory->getOptimizationVector());
+      std::vector<Real> fail(sampler->numMySamples(),zero), lam(nobj);
       Real tottime(0);
       for (int i = 0; i < sampler->numMySamples(); ++i) {
         // Generate simplex sample
         lam = sampler->getMyPoint(i);
         // Solve scalarized problem
-        auto problem = factory->getScalarProblem(lam,parlist,outStream,initGuess&&(i!=0),x0);
+        auto problem = factory->makeScalarProblem(lam,parlist,outStream,initGuess&&(i!=0),x0);
         //x0->randomize(1.0,2.0);
         problem->finalize(false,true,outStream);
         //problem->check(true,outStream,x0,0.1);
@@ -84,9 +67,9 @@ public:
         tottime += time;
         fail[i] = solver->getAlgorithmState()->statusFlag==EXITSTATUS_CONVERGED ? zero : one;
         // Store Pareto data
-        auto x = factory->getSolution();
+        auto x = factory->getOptimizationVector();
         auto val = factory->evaluateObjectiveVector(*x);
-        ParetoData pd(x,lam,val);
+        ParetoData<Real> pd(x,lam,val,fail[i]==zero);
         samples_.push_back(pd);
         x0->set(*x);
       }
@@ -108,7 +91,7 @@ public:
   }
 
   void print(std::string file) const {
-    // Broadcast data to root batch
+    // Gather data to root batch
     const unsigned nobj = samples_[0].val.size();
     const unsigned nsamp = samples_.size();
     const unsigned lsize = nobj*nsamp;
@@ -133,6 +116,10 @@ public:
       }
       os.close();
     }
+  }
+
+  const std::vector<ParetoData<Real>>& getParetoData() const {
+    return samples_;
   }
 
 };

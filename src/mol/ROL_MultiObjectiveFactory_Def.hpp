@@ -225,30 +225,28 @@ void MultiObjectiveFactory<Real>::addConstraintsToProblem(Ptr<Problem<Real>> &pr
 template<typename Real>
 void MultiObjectiveFactory<Real>::computeUtopia(ParameterList &parlist, std::ostream &outStream) {
   if (values_.size() != cnt_obj_) {
-    const Real tol = 1e-2*std::sqrt(ROL_EPSILON<Real>());
-    solution_vec_.resize(cnt_obj_,nullPtr);
+    solution_vec_.clear();
     scale_vec_.resize(cnt_obj_,static_cast<Real>(1));
     shift_vec_.resize(cnt_obj_,static_cast<Real>(0));
     values_.resize(cnt_obj_);
     unsigned cnt = 0u;
     for (auto it = INPUT_obj_.begin(); it != INPUT_obj_.end(); ++it) {
       // Build single-objective optimization problem
-      solution_vec_[cnt] = INPUT_xprim_->clone();
-      if (cnt == 0u) solution_vec_[cnt]->set(*INPUT_xprim_);
-      else           solution_vec_[cnt]->set(*solution_vec_[cnt-1]);
-      auto problem = makePtr<Problem<Real>>(it->second,solution_vec_[cnt],INPUT_xdual_);
-      addConstraintsToProblem(problem);
+      auto problem = getScalarProblem(it->first,parlist,outStream);
+      problem->finalize(false,true,outStream);
       // Solve single-objective optimization problem
       auto solver = makePtr<Solver<Real>>(problem,parlist);
       solver->solve(outStream);
-      // Compute objective function values
-      values_[cnt].clear();
-      for (auto it1 = INPUT_obj_.begin(); it1 != INPUT_obj_.end(); ++it1) {
-        it1->second->update(*solution_vec_[cnt],UpdateType::Temp);
-        Real tol0 = tol;
-        Real val  = it1->second->value(*solution_vec_[cnt],tol0);
-        values_[cnt].push_back(val);
-      }
+      // Store Pareto data
+      auto x = INPUT_xprim_->clone();
+      x->set(*INPUT_xprim_);
+      std::vector<Real> lam(cnt_obj_,static_cast<Real>(0));
+      lam[cnt] = static_cast<Real>(1);
+      values_[cnt] = evaluateObjectiveVector(*x);
+      bool success = solver->getAlgorithmState()->statusFlag==EXITSTATUS_CONVERGED;
+      ParetoData<Real> pd(x,lam,values_[cnt],success);
+      solution_vec_.push_back(pd);
+      // Update shift values
       shift_vec_[cnt] = -values_[cnt][cnt];
       cnt++;
     }
@@ -290,7 +288,7 @@ void MultiObjectiveFactory<Real>::initializeObjectives(ParameterList &parlist, s
 template<typename Real>
 Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(unsigned ind, ParameterList &parlist,
                                                                  std::ostream &outStream,
-                                                                 bool initGuess, Ptr<Vector<Real>>& x0) {
+                                                                 bool initGuess, const Ptr<Vector<Real>>& x0) {
   auto it = INPUT_obj_.begin(); //+static_cast<int>(ind);
   for (unsigned i = 0; i < ind; ++i) ++it;
   ROL_TEST_FOR_EXCEPTION(it == INPUT_obj_.end(),std::invalid_argument,
@@ -301,21 +299,21 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(unsigned ind, P
 template<typename Real>
 Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(std::string name, ParameterList &parlist,
                                                                  std::ostream &outStream,
-                                                                 bool initGuess, Ptr<Vector<Real>>& x0) {
+                                                                 bool initGuess, const Ptr<Vector<Real>>& x0) {
   auto it = INPUT_obj_.find(name);
   ROL_TEST_FOR_EXCEPTION(it == INPUT_obj_.end(),std::invalid_argument,
     ">>> ROL::MultiObjectiveFactory: Objective does not exist!");
 
-  if (initGuess) INPUT_xprim_->set(*x0);
+  if (initGuess && x0 != nullPtr) INPUT_xprim_->set(*x0);
   auto problem = makePtr<Problem<Real>>(it->second,INPUT_xprim_,INPUT_xdual_);
   addConstraintsToProblem(problem);
   return problem;
 }
 
 template<typename Real>
-Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(const std::vector<Real> &lam, ParameterList &parlist,
-                                                                 std::ostream &outStream,
-                                                                 bool initGuess, Ptr<Vector<Real>>& x0) {
+Ptr<Problem<Real>> MultiObjectiveFactory<Real>::makeScalarProblem(const std::vector<Real> &lam, ParameterList &parlist,
+                                                                  std::ostream &outStream,
+                                                                  bool initGuess, const Ptr<Vector<Real>>& x0) {
   Ptr<Objective<Real>>  obj;
   Ptr<Vector<Real>>     x;
   Ptr<Constraint<Real>> nbicon;
@@ -329,12 +327,12 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(const std::vect
     initializeObjectives(parlist,outStream);
     // Set initial guess
     x = INPUT_xprim_;
-    if (initGuess) {
+    if (initGuess && x0 != nullPtr) {
       x->set(*x0);
     }
     else {
       x->zero();
-      for (unsigned i = 0u; i < cnt_obj_; ++i) x->axpy(lam[i],*solution_vec_[i]);
+      for (unsigned i = 0u; i < cnt_obj_; ++i) x->axpy(lam[i],*solution_vec_[i].sol);
     }
     // Set up objective functions and constraints
     auto name = parlist.sublist("Multi-Objective").get("Scalarization Type","Convex Combination");
@@ -363,14 +361,6 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(const std::vect
   if (nbicon != nullPtr && nbimul != nullPtr)
     problem->addConstraint("NBI",nbicon,nbimul);
   return problem;
-}
-
-template<typename Real>
-Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(ParameterList &parlist,
-                                                                 std::ostream &outStream,
-                                                                 bool initGuess, Ptr<Vector<Real>>& x0) {
-  auto lam = ROL::getArrayFromStringParameter<Real>(parlist.sublist("Multi-Objective"),"Scalarization Parameters");
-  return getScalarProblem(lam,parlist,outStream,initGuess,x0);
 }
 
 }  // namespace ROL
