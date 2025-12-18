@@ -243,8 +243,7 @@ void MultiObjectiveFactory<Real>::computeUtopia(ParameterList &parlist, std::ost
       std::vector<Real> lam(cnt_obj_,static_cast<Real>(0));
       lam[cnt] = static_cast<Real>(1);
       values_[cnt] = evaluateObjectiveVector(*x);
-      bool success = solver->getAlgorithmState()->statusFlag==EXITSTATUS_CONVERGED;
-      ParetoData<Real> pd(x,lam,values_[cnt],success);
+      ParetoData<Real> pd(x,lam,values_[cnt],solver->getAlgorithmState()->statusFlag);
       solution_vec_.push_back(pd);
       // Update shift values
       shift_vec_[cnt] = -values_[cnt][cnt];
@@ -332,7 +331,7 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::makeScalarProblem(const std::vec
     }
     else {
       x->zero();
-      for (unsigned i = 0u; i < cnt_obj_; ++i) x->axpy(lam[i],*solution_vec_[i].sol);
+      for (unsigned i = 0u; i < cnt_obj_; ++i) x->axpy(lam[i],*solution_vec_[i].solution);
     }
     // Set up objective functions and constraints
     auto name = parlist.sublist("Multi-Objective").get("Scalarization Type","Convex Combination");

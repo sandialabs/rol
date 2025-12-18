@@ -69,7 +69,7 @@ public:
         // Store Pareto data
         auto x = factory->getOptimizationVector();
         auto val = factory->evaluateObjectiveVector(*x);
-        ParetoData<Real> pd(x,lam,val,fail[i]==zero);
+        ParetoData<Real> pd(x,lam,val,solver->getAlgorithmState()->statusFlag);
         samples_.push_back(pd);
         x0->set(*x);
       }
@@ -92,12 +92,12 @@ public:
 
   void print(std::string file) const {
     // Gather data to root batch
-    const unsigned nobj = samples_[0].val.size();
+    const unsigned nobj = samples_[0].values.size();
     const unsigned nsamp = samples_.size();
     const unsigned lsize = nobj*nsamp;
     std::vector<Real> val(lsize);
     for (unsigned i=0; i<nsamp; ++i) {
-      for (unsigned j=0; j<nobj; ++j) val[i*nobj+j] = samples_[i].val[j];
+      for (unsigned j=0; j<nobj; ++j) val[i*nobj+j] = samples_[i].values[j];
     }
     Real lcnt(nsamp), gcnt(0);
     bman_->sumAll(&lcnt,&gcnt,1);

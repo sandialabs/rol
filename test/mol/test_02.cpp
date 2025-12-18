@@ -157,9 +157,9 @@ int main(int argc, char *argv[]) {
     // given by x1 in [0.1,0.4] or [0.6,0.9] and x2 = 0.
     auto sol = ps->getParetoData();
     for (const auto& pd : sol) {
-      bool feas1 = (pd.val[0] <= static_cast<RealT>(0.16)+errtol && pd.val[0] >= static_cast<RealT>(0.01)-errtol);
-      bool feas2 = (pd.val[0] <= static_cast<RealT>(0.81)+errtol && pd.val[0] >= static_cast<RealT>(0.36)-errtol);
-      bool paret = (std::abs(pd.val[1]-std::pow(std::sqrt(pd.val[0])-static_cast<RealT>(1),2))<=errtol);
+      bool feas1 = (pd.values[0] <= static_cast<RealT>(0.16)+errtol && pd.values[0] >= static_cast<RealT>(0.01)-errtol);
+      bool feas2 = (pd.values[0] <= static_cast<RealT>(0.81)+errtol && pd.values[0] >= static_cast<RealT>(0.36)-errtol);
+      bool paret = (std::abs(pd.values[1]-std::pow(std::sqrt(pd.values[0])-static_cast<RealT>(1),2))<=errtol);
       if ((!feas1&&!feas2)||!paret) errorFlag++;
     }
   }

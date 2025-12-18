@@ -73,12 +73,12 @@ inline EMOType StringToEMOType(std::string s) {
 template<typename Real>
 struct ParetoData {
 public:
-  const Ptr<Vector<Real>> sol;
-  const std::vector<Real> lam;
-  const std::vector<Real> val;
-  const bool success;
-  ParetoData(const Ptr<Vector<Real>>& x, const std::vector<Real>& l, const std::vector<Real>& v, bool s = true)
-    : sol(x), lam(l), val(v), success(s) {}
+  const Ptr<Vector<Real>> solution; // Solution vector
+  const std::vector<Real> lambda;   // Weight vector
+  const std::vector<Real> values;   // Objective function values
+  const EExitStatus exitstatus;     // Reason algorithm stopped
+  ParetoData(const Ptr<Vector<Real>>& x, const std::vector<Real>& l, const std::vector<Real>& v, EExitStatus s)
+    : solution(x), lambda(l), values(v), exitstatus(s) {}
 };
 
 }
