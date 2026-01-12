@@ -11,12 +11,12 @@
     \brief Implements the local PDE interface for the Navier-Stokes control problem.
 */
 
-#ifndef PDE_THERMALFLUIDS_EX03_HPP
-#define PDE_THERMALFLUIDS_EX03_HPP
+#ifndef DYNAMIC_PDEOPT_PDE_DATA_HPP
+#define DYNAMIC_PDEOPT_PDE_DATA_HPP
 
-#include "../TOOLS/pde.hpp"
-#include "../TOOLS/fe.hpp"
-#include "../TOOLS/fieldhelper.hpp"
+#include "../../TOOLS/pde.hpp"
+#include "../../TOOLS/fe.hpp"
+#include "../../TOOLS/fieldhelper.hpp"
 
 #include "Intrepid_HGRAD_QUAD_C1_FEM.hpp"
 #include "Intrepid_HGRAD_QUAD_C2_FEM.hpp"
@@ -27,7 +27,7 @@
 #include "ROL_Ptr.hpp"
 
 template <class Real>
-class PDE_ThermalFluids_ex03 : public PDE<Real> {
+class PDE_ThermalFluids : public PDE<Real> {
 private:
   // Finite element basis information
   ROL::Ptr<Intrepid::Basis<Real, Intrepid::FieldContainer<Real> > > basisPtrVel_;
@@ -68,100 +68,8 @@ private:
   const Real grav_;
   int Nbottom_, Nleft_, Nright_;
   Real ReScale_, PrScale_, GrScale_, hScale_, TScale_;
-  bool pinPressure_;
 
   ROL::Ptr<FieldHelper<Real> > fieldHelper_;
-
-  Real velocityDirichletFunc(const std::vector<Real> & coords, int sideset, int locSideId, int dir) const {
-    Real val(0);
-    if ((sideset==3) && (dir==1)) {
-      const Real one(1), two(2), three(3), four(4), x = coords[0];
-      if (x <= one/three) {
-        val = two*(one/three - x)*x;
-      }
-      else if (x > one/three && x < two/three) {
-        val = -four*(x-one/three)*(two/three-x);
-      }
-      else if (x >= two/three) {
-        val = two*(x-two/three)*(one-x);
-      }
-    }
-    return val;
-  }
-
-  Real thermalDirichletFunc(const std::vector<Real> & coords, int sideset, int locSideId) const {
-    const std::vector<Real> param = PDE<Real>::getParameter();
-    Real val(0);
-    if (sideset==0) {
-      val = static_cast<Real>(1);
-      if (param.size()) {
-        Real root2(std::sqrt(2.0)), pi(M_PI), ln2(std::log(2.0));
-        for (int i = 0; i < Nbottom_; ++i) {
-          Real di(i+1);
-          val += TScale_ * param[i]/ln2 * (root2 * std::sin(di * pi * coords[0]))/(di * pi);
-        }
-      }
-    }
-    else if (sideset==5) {
-      val = static_cast<Real>(0);
-    }
-    return val;
-  }
-
-  void computeDirichlet(void) {
-    // Compute Dirichlet values at DOFs.
-    int d  = basisPtrVel_->getBaseCellTopology().getDimension();
-    int fv = basisPtrVel_->getCardinality();
-    int ft = basisPtrThr_->getCardinality();
-    int numSidesets = bdryCellLocIds_.size();
-    bdryCellVDofValues_.resize(numSidesets);
-    bdryCellTDofValues_.resize(numSidesets);
-    for (int i=0; i<numSidesets; ++i) {
-      int numLocSides = bdryCellLocIds_[i].size();
-      bdryCellVDofValues_[i].resize(numLocSides);
-      bdryCellTDofValues_[i].resize(numLocSides);
-      for (int j=0; j<numLocSides; ++j) {
-        int c = bdryCellLocIds_[i][j].size();
-        bdryCellVDofValues_[i][j] = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, fv, d);
-        bdryCellTDofValues_[i][j] = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, ft);
-        ROL::Ptr<Intrepid::FieldContainer<Real> > Vcoords, Tcoords;
-        Vcoords = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, fv, d);
-        Tcoords = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, ft, d);
-        if (c > 0) {
-          feVel_->computeDofCoords(Vcoords, bdryCellNodes_[i][j]);
-          feThr_->computeDofCoords(Tcoords, bdryCellNodes_[i][j]);
-        }
-        for (int k=0; k<c; ++k) {
-          for (int l=0; l<fv; ++l) {
-            std::vector<Real> dofpoint(d);
-            //std::cout << "Sideset " << i << " LocalSide " << j << "  Cell " << k << "  Field " << l << "  Coord ";
-            for (int m=0; m<d; ++m) {
-              dofpoint[m] = (*Vcoords)(k, l, m);
-              //std::cout << dofpoint[m] << "  ";
-            }
-
-            for (int m=0; m<d; ++m) {
-              (*bdryCellVDofValues_[i][j])(k, l, m) = velocityDirichletFunc(dofpoint, i, j, m);
-              //std::cout << "  " << m << "-Value " << DirichletFunc(dofpoint, i, j, m);
-            }
-            //std::cout << std::endl;
-          }
-          for (int l=0; l<ft; ++l) {
-            std::vector<Real> dofpoint(d);
-            //std::cout << "Sideset " << i << " LocalSide " << j << "  Cell " << k << "  Field " << l << "  Coord ";
-            for (int m=0; m<d; ++m) {
-              dofpoint[m] = (*Tcoords)(k, l, m);
-              //std::cout << dofpoint[m] << "  ";
-            }
-
-            (*bdryCellTDofValues_[i][j])(k, l) = thermalDirichletFunc(dofpoint, i, j);
-            //std::cout << "    Value " << DirichletFunc(dofpoint, i, j);
-            //std::cout << std::endl;
-          }
-        }
-      }
-    }
-  }
 
   Real ReynoldsNumber(void) const {
     const std::vector<Real> param = PDE<Real>::getParameter();
@@ -310,7 +218,7 @@ private:
   }
 
 public:
-  PDE_ThermalFluids_ex03(Teuchos::ParameterList &parlist) : grav_(-1) {
+  PDE_ThermalFluids(Teuchos::ParameterList &parlist) : grav_(-1) {
     // Finite element fields -- NOT DIMENSION INDEPENDENT!
     basisPtrVel_ = ROL::makePtr<Intrepid::Basis_HGRAD_QUAD_C2_FEM<Real, Intrepid::FieldContainer<Real> >>();
     basisPtrPrs_ = ROL::makePtr<Intrepid::Basis_HGRAD_QUAD_C1_FEM<Real, Intrepid::FieldContainer<Real> >>();
@@ -347,9 +255,6 @@ public:
     PrScale_ = parlist.sublist("Problem").get("Prandtl Number Noise Scale",0.05);
     GrScale_ = parlist.sublist("Problem").get("Grashof Number Noise Scale",0.05);
     hScale_  = parlist.sublist("Problem").get("Robin Noise Scale",0.2);
-    TScale_  = parlist.sublist("Problem").get("Bottom Temperature Noise Scale",0.2);
-    // Pin pressure
-    pinPressure_ = parlist.sublist("Problem").get("Pin Pressure",true);
 
     numDofs_ = 0;
     numFields_ = basisPtrs_.size();
@@ -556,51 +461,6 @@ public:
                   (*R[d+1])(cidx,l) += (*robinRes)(k,l);
                 }
               }
-            }
-          }
-        }
-      }
-      // DIRICHLET CONDITIONS
-      computeDirichlet();
-      // Velocity Boundary Conditions
-      for (int i = 0; i < numSideSets; ++i) {
-        if (i<4) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numVBdryDofs = fvidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numVBdryDofs; ++l) {
-                for (int m = 0; m < d; ++m) {
-                  (*R[m])(cidx,fvidx_[j][l]) = (*U[m])(cidx,fvidx_[j][l]) - (*bdryCellVDofValues_[i][j])(k,fvidx_[j][l],m);
-                }
-              }
-            }
-          }
-        }
-        // Thermal Boundary Conditions
-        if ( (i==0) || (i==5) ) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();   // Number of sides per cell
-          for (int j = 0; j < numLocalSideIds; ++j) {        // Loop over sides of cell: Quad = {0, 1, 2, 3}
-            int numCellsSide = bdryCellLocIds_[i][j].size(); // Number of cells with side j
-            int numHBdryDofs = fhidx_[j].size();             // Number of thermal boundary DOFs
-            for (int k = 0; k < numCellsSide; ++k) {         // Loop over cells with side j
-              int cidx = bdryCellLocIds_[i][j][k];           // Cell index
-              for (int l = 0; l < numHBdryDofs; ++l) {       // Loop over all fields of cell k on side j
-                (*R[d+1])(cidx,fhidx_[j][l]) = (*U[d+1])(cidx,fhidx_[j][l]) - (*bdryCellTDofValues_[i][j])(k,fhidx_[j][l]);
-              }
-            }
-          }
-        }
-        // Pressure pinning
-        if (i==7 && pinPressure_) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int l = 0, cidx = bdryCellLocIds_[i][j][k];
-              (*R[d])(cidx,fpidx_[j][l]) = (*U[d])(cidx,fpidx_[j][l]) - static_cast<Real>(0);
             }
           }
         }
@@ -846,85 +706,6 @@ public:
           }
         }
       }
-      // DIRICHLET CONDITIONS
-      for (int i = 0; i < numSideSets; ++i) {
-        // Velocity Boundary Conditions
-        if (i<4) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numVBdryDofs = fvidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numVBdryDofs; ++l) {
-                for (int m = 0; m < fv; ++m) {
-                  for (int n = 0; n < d; ++n) {
-                    for (int q = 0; q < d; ++q) {
-                      (*J[n][q])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
-                    }
-                    (*J[n][n])(cidx,fvidx_[j][l],fvidx_[j][l]) = static_cast<Real>(1);
-                  }
-                }
-                for (int m = 0; m < d; ++m) {
-                  for (int n = 0; n < fp; ++n) {
-                    (*J[m][d])(cidx,fvidx_[j][l],n) = static_cast<Real>(0);
-                  }
-                  for (int nn = 0; nn < fh; ++nn) {
-                    (*J[m][d+1])(cidx,fvidx_[j][l],nn) = static_cast<Real>(0);
-                  }
-                }
-              }
-            }
-          }
-        }
-        // Thermal boundary conditions
-        if ( (i==0) || (i==5) ) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numHBdryDofs = fhidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numHBdryDofs; ++l) {
-                for (int m = 0; m < fv; ++m) {
-                  for (int n = 0; n < d; ++n) {
-                    (*J[d+1][n])(cidx,fhidx_[j][l],m) = static_cast<Real>(0);
-                  }
-                }
-                for (int m = 0; m < fp; ++m) {
-                  (*J[d+1][d])(cidx,fhidx_[j][l],m) = static_cast<Real>(0);
-                }
-                for (int m = 0; m < fh; ++m) {
-                  (*J[d+1][d+1])(cidx,fhidx_[j][l],m) = static_cast<Real>(0);
-                }
-                (*J[d+1][d+1])(cidx,fhidx_[j][l],fhidx_[j][l]) = static_cast<Real>(1);
-              }
-            }
-          }
-        }
-        // Pressure pinning
-        if (i==7 && pinPressure_) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int l = 0, cidx = bdryCellLocIds_[i][j][k];
-              for (int m = 0; m < fv; ++m) {
-                for (int n = 0; n < d; ++n) {
-                  (*J[d][n])(cidx,fpidx_[j][l],m) = static_cast<Real>(0);
-                }
-              }
-              for (int m = 0; m < fp; ++m) {
-                (*J[d][d])(cidx,fpidx_[j][l],m) = static_cast<Real>(0);
-              }
-              (*J[d][d])(cidx,fpidx_[j][l],fpidx_[j][l]) = static_cast<Real>(1);
-              for (int m = 0; m < fh; ++m) {
-                (*J[d][d+1])(cidx,fpidx_[j][l],m) = static_cast<Real>(0);
-              }
-            }
-          }
-        }
-      }
     }
 
     // Combine the jacobians.
@@ -968,7 +749,7 @@ public:
     fieldHelper_->splitFieldCoeff(U, u_coeff);
     fieldHelper_->splitFieldCoeff(Z, z_coeff);
 
-    // APPLY DIRICHLET CONDITIONS
+    // APPLY BOUNDARY CONDITIONS
     int numSideSets = bdryCellLocIds_.size();
     const int numCubPerSide = bdryCub_->getNumPoints();
     if (numSideSets > 0) {
@@ -1012,82 +793,6 @@ public:
                     (*J[d+1][d+1])(cidx,l,m) += robinJac(k,l,m);
                   }
                 }
-              }
-            }
-          }
-        }
-      }
-      // DIRICHLET CONDITIONS
-      for (int i = 0; i < numSideSets; ++i) {
-        // Velocity Boundary Conditions
-        if (i<4) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numVBdryDofs = fvidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numVBdryDofs; ++l) {
-                for (int m = 0; m < fv; ++m) {
-                  for (int n = 0; n < d; ++n) {
-                    for (int p = 0; p < d; ++p) {
-                      (*J[n][p])(cidx,fvidx_[j][l],m) = static_cast<Real>(0);
-                    }
-                  }
-                }
-                for (int m = 0; m < d; ++m) {
-                  for (int n = 0; n < fp; ++n) {
-                    (*J[m][d])(cidx,fvidx_[j][l],n) = static_cast<Real>(0);
-                  }
-                  for (int n = 0; n < fh; ++n) {
-                    (*J[m][d+1])(cidx,fvidx_[j][l],n) = static_cast<Real>(0);
-                  }
-                }
-              }
-            }
-          }
-        }
-        // Thermal boundary conditions
-        if ( (i==0) || (i==5) ) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numHBdryDofs = fhidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numHBdryDofs; ++l) {
-                for (int m = 0; m < fv; ++m) {
-                  for (int n = 0; n < d; ++n) {
-                    (*J[d+1][n])(cidx,fhidx_[j][l],m) = static_cast<Real>(0);
-                  }
-                }
-                for (int m = 0; m < fp; ++m) {
-                  (*J[d+1][d])(cidx,fhidx_[j][l],m) = static_cast<Real>(0);
-                }
-                for (int m = 0; m < fh; ++m) {
-                  (*J[d+1][d+1])(cidx,fhidx_[j][l],m) = static_cast<Real>(0);
-                }
-              }
-            }
-          }
-        }
-        // Pressure pinning
-        if (i==7 && pinPressure_) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int l = 0, cidx = bdryCellLocIds_[i][j][k];
-              for (int m = 0; m < fv; ++m) {
-                for (int n = 0; n < d; ++n) {
-                  (*J[d][n])(cidx,fpidx_[j][l],m) = static_cast<Real>(0);
-                }
-              }
-              for (int m = 0; m < fp; ++m) {
-                (*J[d][d])(cidx,fpidx_[j][l],m) = static_cast<Real>(0);
-              }
-              for (int m = 0; m < fh; ++m) {
-                (*J[d][d+1])(cidx,fpidx_[j][l],m) = static_cast<Real>(0);
               }
             }
           }
@@ -1138,55 +843,6 @@ public:
     // Split l_coeff into components.
     std::vector<ROL::Ptr<Intrepid::FieldContainer<Real> > > L;
     fieldHelper_->splitFieldCoeff(L, l_coeff);
-
-    // APPLY DIRICHLET CONDITIONS
-    int numSideSets = bdryCellLocIds_.size();
-    if (numSideSets > 0) {
-      // DIRICHLET CONDITIONS
-      for (int i = 0; i < numSideSets; ++i) {
-        // Velocity boundary conditions
-        if (i<4) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numVBdryDofs = fvidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numVBdryDofs; ++l) {
-                for (int m = 0; m < d; ++m) {
-                  (*L[m])(cidx,fvidx_[j][l]) = static_cast<Real>(0);
-                }
-              }
-            }
-          }
-        }
-        // Thermal boundaries
-        if ( (i==0) || (i==5) ) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            int numHBdryDofs = fhidx_[j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int cidx = bdryCellLocIds_[i][j][k];
-              for (int l = 0; l < numHBdryDofs; ++l) {
-                (*L[d+1])(cidx,fhidx_[j][l]) = static_cast<Real>(0);
-              }
-            }
-          }
-        }
-        // Pressure pinning
-        if (i==7 && pinPressure_) {
-          int numLocalSideIds = bdryCellLocIds_[i].size();
-          for (int j = 0; j < numLocalSideIds; ++j) {
-            int numCellsSide = bdryCellLocIds_[i][j].size();
-            for (int k = 0; k < numCellsSide; ++k) {
-              int l = 0, cidx = bdryCellLocIds_[i][j][k];
-              (*L[d])(cidx,fpidx_[j][l]) = static_cast<Real>(0);
-            }
-          }
-        }
-      }
-    }
 
     // Evaluate/interpolate finite element fields on cells.
     std::vector<ROL::Ptr<Intrepid::FieldContainer<Real> > > valVel_vec(d);
@@ -1385,6 +1041,10 @@ public:
   void setFieldPattern(const std::vector<std::vector<int> > & fieldPattern) {
     fieldPattern_ = fieldPattern;
     fieldHelper_ = ROL::makePtr<FieldHelper<Real>>(numFields_, numDofs_, numFieldDofs_, fieldPattern_);
+  }
+
+  const ROL::Ptr<Intrepid::FieldContainer<Real> > getCellNodes(void) const {
+    return volCellNodes_;
   }
 
   const ROL::Ptr<FE<Real> > getVelocityFE(void) const {
