@@ -1,11 +1,25 @@
 <ParameterList name="Inputs">
   <!-- ===========  PROBLEM INPUT PARAMETER SUBLIST  =========== -->
   <ParameterList name="Problem">
-    <Parameter name="Check Derivatives"           type="bool"    value="true"       />
+    <Parameter name="Check Derivatives"           type="bool"    value="false"       />
     <Parameter name="Print Uncontrolled State"    type="bool"    value="true"        />
     <!-- PROBLEM INFORMATION -->
     <Parameter name="State Cost"                  type="double"  value="1e0"         />
     <Parameter name="Control Cost"                type="double"  value="0e0"         />
+    <Parameter name="Full space"                  type="bool"    value="true"        />
+    <Parameter name="Solve state for full space"  type="bool"    value="true"        />
+    <!-- OUTPUT -->
+    <Parameter name="Number of output samples"    type="int"     value="4"           />
+    <!-- STOCHASTIC INFORMATION -->
+    <Parameter name="Number of samples"           type="int"     value="4"           />
+    <!-- PROBLEM INFORMATION -->
+    <Parameter name="Objective type"              type="string"  value="Vorticity"   />
+    <Parameter name="Control penalty parameter"   type="double"  value="1e-2"        />
+    <Parameter name="Reynolds Number"             type="double"  value="100.0"       />
+    <Parameter name="Prandtl Number"              type="double"  value="0.72"        />
+    <Parameter name="Grashof Number"              type="double"  value="10000.0"     />
+    <Parameter name="Robin Coefficient"           type="double"  value="1.0"         />
+    <Parameter name="Pin Pressure"                type="bool"    value="true"        />
     <!-- FINITE ELEMENT INFORMATION -->
     <Parameter name="Cubature Degree"             type="int"     value="4"           />
   </ParameterList>
@@ -25,21 +39,21 @@
   <!--================================================================================--> 
   <!-- Time Discretization                                                            --> 
   <ParameterList name="Time Discretization">
-    <Parameter name="End Time"                type="double"   value="0.1"  />
-    <Parameter name="Number of Time Steps"    type="int"      value="4"   />
+    <Parameter name="End Time"                type="double"   value="40.0"  />
+    <Parameter name="Number of Time Steps"    type="int"      value="1600"   />
     <Parameter name="Theta"                   type="double"   value="1.0"   />
   </ParameterList>
   <!--================================================================================-->
 
-  <!-- ===========  MESH INPUT PARAMETER SUBLIST  =========== -->
-  <ParameterList name="Mesh">
-    <Parameter name="File Name"         type="string"  value="channel.txt"  />
-  </ParameterList>
-
   <!-- ===========  GEOMETRY INPUT PARAMETER SUBLIST  =========== -->
   <ParameterList name="Geometry">
-    <Parameter name="Partition type"     type="int"     value="1"    />
-    <Parameter name="Element Shape"      type="string"  value="quad" />
+    <Parameter name="Width"             type="double"  value="1.0"  />
+    <Parameter name="Height"            type="double"  value="1.0"  />
+    <Parameter name="X0"                type="double"  value="0.0"  />
+    <Parameter name="Y0"                type="double"  value="0.0"  />
+    <Parameter name="NX"                type="int"     value="15"   />
+    <Parameter name="NY"                type="int"     value="15"   />
+    <Parameter name="Partition type"    type="int"     value="1"    />
   </ParameterList>
 
   <!-- VECTOR INFORMATION -->
