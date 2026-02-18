@@ -16,8 +16,8 @@ template <class Real>
 class AugmentedLagrangianPenalty : public Objective<Real> {
 private:
   // Required for Augmented Lagrangian definition
-  const Ptr<Constraint<Real>>           con_;
-  const Ptr<PolyhedralProjection<Real>> proj_;
+  const Ptr<Constraint<Real>> con_;
+  const Ptr<Projection<Real>> proj_;
 
   Real penaltyParameter_;
   Ptr<Vector<Real>> multiplier_;
@@ -43,7 +43,7 @@ private:
 public:
 
   AugmentedLagrangianPenalty(const Ptr<Constraint<Real>> &con,
-                             const Ptr<PolyhedralProjection<Real>> &proj,
+                             const Ptr<Projection<Real>> &proj,
                              const Real penaltyParameter,
                              const Vector<Real> &dualOptVec,
                              const Vector<Real> &primConVec,
@@ -66,7 +66,7 @@ public:
   }
 
   AugmentedLagrangianPenalty(const Ptr<Constraint<Real>> &con,
-                             const Ptr<PolyhedralProjection<Real>> &proj,
+                             const Ptr<Projection<Real>> &proj,
                              const Real penaltyParameter,
                              const Vector<Real> &dualOptVec,
                              const Vector<Real> &primConVec,
@@ -117,12 +117,10 @@ public:
       return;
     }
     con_->applyAdjointHessian(hv,*getDualVec(x,tol),v,x,tol);
-    if (proj_ != nullPtr) {
-      con_->applyJacobian(*primConVector_,v,x,tol);
-      proj_->applyJacobian(*primConVector_,x,tol);
-      con_->applyAdjointJacobian(*dualOptVector_,primConVector_->dual(),x,tol);
-      hv.plus(*dualOptVector_);
-    }
+    con_->applyJacobian(*primConVector_,v,x,tol);
+    proj_->applyJacobian(*primConVector_,x,tol);
+    con_->applyAdjointJacobian(*dualOptVector_,primConVector_->dual(),x,tol);
+    hv.plus(*dualOptVector_);
     hv.scale(cscale_);
   }
 
@@ -143,8 +141,12 @@ public:
     return primConVector_->norm();
   }
 
-  void updatePenaltyParameter( const penaltyParameter ) {
+  void setPenaltyParameter( const penaltyParameter ) {
     penaltyParameter_ = penaltyParameter;
+  }
+
+  void setMultiplier( const Vector<Real> &multiplier ) {
+    multiplier_->set(multiplier);
   }
 
   void updateMultiplier( const Vector<Real> &x ) {
@@ -169,10 +171,8 @@ public:
       primConVector_->set(*getConstraintVec(x));
       primConVector_->axpy(Real(1)/penaltyParameter_,multiplier->dual());
       dualValue_->set(key)->set(primConVector_->dual());
-      if (proj_ != nullPtr) {
-        proj_->project(*primConVector_,nullptr);
-        dualValue_->set(key)->axpy(Real(-1),primConVector_->dual());
-      }
+      proj_->project(*primConVector_,nullptr);
+      dualValue_->set(key)->axpy(Real(-1),primConVector_->dual());
       dualValue_->set(key)->scale(penaltyParameter_);
     }
     return dualValue_->get(key);

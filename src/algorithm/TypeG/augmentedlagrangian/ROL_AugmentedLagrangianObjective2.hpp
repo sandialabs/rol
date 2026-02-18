@@ -80,6 +80,10 @@ public:
     fscale_ = fscale;
   }
 
+  void setScaling(const Real cscale = 1.0, const int k) {
+    pvec_[k]->setScaling(cscale);
+  }
+
   virtual Real value( const Vector<Real> &x, Real &tol ) {
     // Compute objective function value
     Real val = getObjectiveValue(x,tol);
@@ -121,8 +125,12 @@ public:
     return pen_[k]->feasibility(x,tol);
   }
 
-  void updatePenaltyParameter( const penaltyParameter, const int k ) {
-    pen_[k]->updatePenaltyParameter(penaltyParameter);
+  void setPenaltyParameter( const penaltyParameter, const int k ) {
+    pen_[k]->setPenaltyParameter(penaltyParameter);
+  }
+
+  void setMultiplier( const Vector<Real> &multiplier, const int k ) {
+    pen_[k]->setMultiplier(multiplier);
   }
 
   void updateMultiplier( const Vector<Real> &x, const int k ) {

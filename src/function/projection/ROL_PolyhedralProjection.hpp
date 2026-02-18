@@ -17,7 +17,7 @@
 namespace ROL {
 
 template<typename Real>
-class PolyhedralProjection {
+class PolyhedralProjection : Projection<Real> {
 protected:
   const Ptr<BoundConstraint<Real>> bnd_;
   const Ptr<Constraint<Real>>      con_;
@@ -36,6 +36,8 @@ public:
                        const Vector<Real>               &res);
 
   virtual void project(Vector<Real> &x, std::ostream &stream = std::cout);
+
+  virtual void applyJacobian(Vector<Real> &v, const Vector<Real> &x);
 
   const Ptr<Constraint<Real>> getLinearConstraint(void) const;
 

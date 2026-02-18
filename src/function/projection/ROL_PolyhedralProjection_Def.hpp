@@ -41,6 +41,16 @@ void PolyhedralProjection<Real>::project(Vector<Real> &x, std::ostream &stream) 
 }
 
 template<typename Real>
+void PolyhedralProjection<Real>::applyJacobian(Vector<Real> &v, const Vector<Real> &x) {
+  if (con_ == nullPtr) {
+    bnd_->pruneActive(v,x);
+  }
+  else {
+    throw Exception::NotImplemented(">>> ROL::PolyhedralProjection::applyJacobian : No projection Jacobian implemented!");
+  }
+}
+
+template<typename Real>
 const Ptr<Constraint<Real>> PolyhedralProjection<Real>::getLinearConstraint(void) const {
   return con_;
 }
