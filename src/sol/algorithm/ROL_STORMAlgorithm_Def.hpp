@@ -7,10 +7,10 @@
 // *****************************************************************************
 // @HEADER
 
-#ifndef ROL_STORMALGORITHM_DEF_OLD_HPP
-#define ROL_STORMALGORITHM_DEF_OLD_HPP
+#ifndef ROL_STORMALGORITHM_DEF_HPP
+#define ROL_STORMALGORITHM_DEF_HPP
 
-#include "ROL_TypeP_STORMAlgorithm.hpp"
+#include "ROL_STORMAlgorithm.hpp"
 #include "ROL_TrustRegion_P_Factory.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm_Def.hpp"
@@ -20,12 +20,12 @@
 #include <deque>
 
 namespace ROL {
-namespace TypeP {
 
 template<typename Real>
-STORMAlgorithm<Real>::STORMAlgorithm(ParameterList &parlist, 
-                                     const Ptr<Secant<Real>> &secant )
-    : TrustRegionAlgorithm<Real>(parlist, secant) {
+STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                                     const Ptr<SampleGenerator<Real>> &sampler,
+                                     ParameterList &parlist)
+    : TypeP::TrustRegionAlgorithm<Real>(parlist), input_(input), sampler_(sampler), parlist_(parlist) {
   // Set status test
   status_->reset();
   status_->add(makePtr<StatusTest<Real>>(parlist));
@@ -84,12 +84,11 @@ STORMAlgorithm<Real>::STORMAlgorithm(ParameterList &parlist,
   // Secant Information
   useSecantPrecond_ = glist.sublist("Secant").get("Use as Preconditioner", false);
   useSecantHessVec_ = glist.sublist("Secant").get("Use as Hessian",        false);
-  if (secant == nullPtr) {
-    std::string secantType = glist.sublist("Secant").get("Type","Limited-Memory BFGS");
-    esec_ = StringToESecant(secantType);
-  }
+  std::string secantType = glist.sublist("Secant").get("Type","Limited-Memory BFGS");
+  esec_ = StringToESecant(secantType);
+
   // Initialize trust region model
-  model_ = makePtr<TrustRegionModel_U<Real>>(parlist,secant);
+  model_ = makePtr<TrustRegionModel_U<Real>>(parlist);
   writeHeader_ = verbosity_ > 2;
 }
 
@@ -221,9 +220,15 @@ void STORMAlgorithm<Real>::stepUpdate(Vector<Real>               &x,
       model_->update(x,*state_->stepVec,dwa1,*state_->gradientVec,
                      state_->snorm,state_->iter);
     } // Step Accepted
-} // stepUpdate function
+}
 
-} // namespace TypeP
+template<typename Real>
+void STORMAlgorithm<Real>::run(std::ostream &outStream) {
+  TypeP::TrustRegionAlgorithm<Real>::run(
+    *input_, outStream
+  );
+} // run function
+
 } // namespace ROL
 
 #endif

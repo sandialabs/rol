@@ -7,9 +7,10 @@
 // *****************************************************************************
 // @HEADER
 
-#ifndef ROL_STORMALGORITHM_OLD_HPP
-#define ROL_STORMALGORITHM_OLD_HPP
+#ifndef ROL_STORMALGORITHM_HPP
+#define ROL_STORMALGORITHM_HPP
 
+#include "ROL_SampleGenerator.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_Algorithm.hpp"
 #include "ROL_TrustRegion_P_Types.hpp"
@@ -23,10 +24,9 @@
 */
 
 namespace ROL {
-namespace TypeP {
 
 template<typename Real>
-class STORMAlgorithm : public TrustRegionAlgorithm<Real> {
+class STORMAlgorithm : public TypeP::TrustRegionAlgorithm<Real> {
 private:
   // TRUST REGION INFORMATION
   Ptr<TrustRegion_P<Real>>      solver_; ///< Container for trust-region solver object 
@@ -86,16 +86,27 @@ private:
   unsigned verbosity_; ///< Output level (default: 0)
   bool writeHeader_;   ///< Flag to write header at every iteration
 
-public:
-  STORMAlgorithm(ParameterList &list, const Ptr<Secant<Real>> &secant = nullPtr);
+  // Problem information
+  const Ptr<Problem<Real>> input_;
+  const Ptr<SampleGenerator<Real>> sampler_;
+  ParameterList parlist_;
 
-  using TrustRegionAlgorithm<Real>::initialize;  
-  using TrustRegionAlgorithm<Real>::writeHeader;  
-  using TrustRegionAlgorithm<Real>::writeOutput;  
-  using Algorithm<Real>::state_;
-  using Algorithm<Real>::status_;
-  using Algorithm<Real>::pgstep;
-  using Algorithm<Real>::run;
+public:
+  STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                 const Ptr<SampleGenerator<Real>> &sampler,
+                 ParameterList &parlist);
+
+  using TypeP::TrustRegionAlgorithm<Real>::initialize;  
+  using TypeP::TrustRegionAlgorithm<Real>::writeHeader;  
+  using TypeP::TrustRegionAlgorithm<Real>::writeOutput;  
+  using TypeP::Algorithm<Real>::state_;
+  using TypeP::Algorithm<Real>::status_;
+  using TypeP::Algorithm<Real>::pgstep;
+
+  // Q: Should we keep this? The other run options allow for 
+  // using TypeP::Algorithm<Real>::run;
+
+  virtual void run(std::ostream &outStream = std::cout);
 
 protected:
 
@@ -158,9 +169,8 @@ protected:
 
 }; // class ROL::TypeP::TrustRegionAlgorithm
 
-} // namespace TypeP
 } // namespace ROL
 
-#include "ROL_TypeP_STORMAlgorithm_Def.hpp"
+#include "ROL_STORMAlgorithm_Def.hpp"
 
 #endif

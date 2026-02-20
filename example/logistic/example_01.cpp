@@ -13,8 +13,8 @@
 #include "ROL_GlobalMPISession.hpp"
 
 #include "ROL_TypeB_Algorithm.hpp"
-#include "ROL_TypeP_STORMAlgorithm.hpp"
-#include "ROL_TypeP_STORMAlgorithm_Def.hpp"
+#include "ROL_STORMAlgorithm.hpp"
+#include "ROL_STORMAlgorithm_Def.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm_Def.hpp"
 #include "ROL_ScalarLinearConstraint.hpp"
@@ -189,8 +189,7 @@ int main(int argc, char *argv[]) {
     xy->randomize(); 
     nobj = ROL::makePtr<ROL::l1Objective<RealT>>(wts); 
 
-    ROL::Ptr<ROL::TypeP::STORMAlgorithm<RealT>> algo = ROL::makePtr<ROL::TypeP::STORMAlgorithm<RealT>>(*parlist);
-    ROL::Ptr<ROL::TypeP::TrustRegionAlgorithm<RealT>> algo2 = ROL::makePtr<ROL::TypeP::TrustRegionAlgorithm<RealT>>(*parlist);
+    ROL::Ptr<ROL::TypeP::TrustRegionAlgorithm<RealT>> algo_nonsmooth_tr = ROL::makePtr<ROL::TypeP::TrustRegionAlgorithm<RealT>>(*parlist);
     bool checkDeriv = parlist->sublist("Problem").get("Check Derivatives",true);
     if ( checkDeriv ) {
       ROL::Ptr<ROL::StdVector<RealT>> dx = ROL::makePtr<ROL::StdVector<RealT>>(dim,0);
@@ -204,9 +203,21 @@ int main(int argc, char *argv[]) {
     }
     
     //std::clock_t timer = std::clock(); 
-    algo2->run(*xy, *obj, *nobj, *outStream); // nonsmooth tr 
-    algo->run(*x, *obj, *nobj, *outStream); // storm
+    algo_nonsmooth_tr->run(*xy, *obj, *nobj, *outStream); // nonsmooth tr 
 
+    // Set up and run proxstorm
+    ROL::Ptr<ROL::Problem<RealT>> problem = ROL::makePtr<ROL::Problem<RealT>>(
+        obj, x
+    );
+    problem->addProximableObjective(nobj);
+    problem->finalize(false, true, *outStream);
+
+    ROL::Ptr<ROL::STORMAlgorithm<RealT>> algo_storm = ROL::makePtr<ROL::STORMAlgorithm<RealT>>(
+      problem,
+      nullptr,
+      *parlist
+    );
+    algo_storm->run(*outStream); // storm
   }
   catch (std::logic_error& err) {
     *outStream << err.what() << "\n";
