@@ -31,7 +31,7 @@ private:
   bool hasInequality_;
   bool hasLinearEquality_;
   bool hasLinearInequality_;
-  bool hasProximableObjective_; 
+  bool hasProximableObjective_;
   unsigned cnt_econ_;
   unsigned cnt_icon_;
   unsigned cnt_linear_econ_;
@@ -40,7 +40,7 @@ private:
   ParameterList ppa_list_;
 
   Ptr<Objective<Real>>            obj_;
-  Ptr<Objective<Real>>            nobj_; 
+  Ptr<Objective<Real>>            nobj_;
   Ptr<Vector<Real>>               xprim_;
   Ptr<Vector<Real>>               xdual_;
   Ptr<BoundConstraint<Real>>      bnd_;
@@ -57,12 +57,16 @@ private:
 protected:
 
   Ptr<Objective<Real>>                                 INPUT_obj_;
-  Ptr<Objective<Real>>                                 INPUT_nobj_; 
+  Ptr<Objective<Real>>                                 INPUT_nobj_;
   Ptr<Vector<Real>>                                    INPUT_xprim_;
   Ptr<Vector<Real>>                                    INPUT_xdual_;
   Ptr<BoundConstraint<Real>>                           INPUT_bnd_;
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_con_;
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_linear_con_;
+
+  std::unordered_map<std::string,std::pair<ConstraintData<Real>>,Ptr<PolyhedralProjection<Real>>>> INPUT_proj_;
+  std::unordered_map<std::string,std::vector<std::string>> al_groups_;
+  std::unordered_set<std::string> al_constraints_;
 
 public:
   virtual ~Problem() {}
@@ -88,7 +92,7 @@ public:
        hasInequality_(problem.hasInequality_),
        hasLinearEquality_(problem.hasLinearEquality_),
        hasLinearInequality_(problem.hasLinearInequality_),
-       hasProximableObjective_(problem.hasProximableObjective_), 
+       hasProximableObjective_(problem.hasProximableObjective_),
        cnt_econ_(problem.cnt_econ_),
        cnt_icon_(problem.cnt_icon_),
        cnt_linear_econ_(problem.cnt_linear_econ_),
@@ -100,7 +104,10 @@ public:
        INPUT_xdual_(problem.INPUT_xdual_),
        INPUT_bnd_(problem.INPUT_bnd_),
        INPUT_con_(problem.INPUT_con_),
-       INPUT_linear_con_(problem.INPUT_linear_con_) {}
+       INPUT_linear_con_(problem.INPUT_linear_con_),
+       INPUT_proj_(problem.INPUT_proj_),
+       al_groups_(problem.al_groups_),
+       al_constraints_(problem.al_constraints_) {}
 
   /***************************************************************************/
   /*** Set and remove methods for constraints ********************************/
@@ -145,6 +152,22 @@ public:
                      const Ptr<BoundConstraint<Real>> &ibnd,
                      const Ptr<Vector<Real>>          &ires = nullPtr,
                      bool                              reset = false);
+
+  /** \brief Add a projection constraint.
+
+      @param[in] name   the unique constraint identifier
+      @param[in] pcon   constraint object
+      @param[in] pmul   dual constraint space vector
+      @param[in] proj   projection
+      @param[in] pres   primal constraint space vector
+      @param[in] reset  whether or not to clear constraint container
+  */
+  void addConstraint(std::string                  name,
+                     const Ptr<Constraint<Real>> &pcon,
+                     const Ptr<Vector<Real>>     &pmul,
+                     const Ptr<Projection<Real>> &proj,
+                     const Ptr<Vector<Real>>     &pres = nullPtr,
+                     bool                         reset = false);
 
   /** \brief Remove an existing constraint.
 
@@ -193,15 +216,21 @@ public:
       @param[in] ppa  polyhedral projection algorithm
   */
   void setProjectionAlgorithm(ParameterList &parlist);
-  
+
   /** Set Proximable objective function
   */
-  void addProximableObjective(const Ptr<Objective<Real>> &nobj); 
-  
+  void addProximableObjective(const Ptr<Objective<Real>> &nobj);
+
   /** Remove Proximable objective function
   */
-  void removeProximableObjective(); 
+  void removeProximableObjective();
 
+  void addAugmentedLagrangianGroup(std::string                     name,
+                                   const std::vector<std::string> &con_names);
+
+  void removeAugmentedLagrangianGroup(std::string name);
+
+  Ptr<Problem<Real>> getAugmentedLagrangianSubproblem();
 
   /***************************************************************************/
   /*** Accessor methods ******************************************************/
@@ -210,10 +239,10 @@ public:
   /** \brief Get the objective function.
   */
   const Ptr<Objective<Real>>&            getObjective();
-  
+
   /** \brief Get proximable objective
   */
-  const Ptr<Objective<Real>>&            getProximableObjective();   
+  const Ptr<Objective<Real>>&            getProximableObjective();
 
   /** \brief Get the primal optimization space vector.
   */
