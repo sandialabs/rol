@@ -95,6 +95,10 @@ public:
     cscale_ = cscale;
   }
 
+  Real getScaling() {
+    return cscale_;
+  }
+
   virtual Real value( const Vector<Real> &x, Real &tol ) {
     // Compute penalty function value
     Real val = getDualVec(x,tol)->norm();
@@ -143,6 +147,10 @@ public:
 
   void setPenaltyParameter( const penaltyParameter ) {
     penaltyParameter_ = penaltyParameter;
+  }
+
+  Real getPenaltyParameter() {
+    return penaltyParameter_;
   }
 
   void setMultiplier( const Vector<Real> &multiplier ) {

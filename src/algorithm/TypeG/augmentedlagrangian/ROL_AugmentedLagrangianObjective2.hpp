@@ -84,6 +84,10 @@ public:
     pvec_[k]->setScaling(cscale);
   }
 
+  void getScaling(const int k) {
+    pvec_[k]->getScaling();
+  }
+
   virtual Real value( const Vector<Real> &x, Real &tol ) {
     // Compute objective function value
     Real val = getObjectiveValue(x,tol);
@@ -129,6 +133,9 @@ public:
     pen_[k]->setPenaltyParameter(penaltyParameter);
   }
 
+  Real getPenaltyParameter( const int k ) {
+    return pen[k]->getPenaltyParameter();
+  }
   void setMultiplier( const Vector<Real> &multiplier, const int k ) {
     pen_[k]->setMultiplier(multiplier);
   }
