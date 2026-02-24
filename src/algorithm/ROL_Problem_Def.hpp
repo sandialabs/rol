@@ -275,7 +275,7 @@ void Problem<Real>::addAugmentedLagrangianGroup(std::string                     
   }
   for (const auto& str : con_names) {
     al_constraints_.insert(str);
-    al_groups_.insert({name,str});
+    al_groups_[name] = str;
   }
 }
 
