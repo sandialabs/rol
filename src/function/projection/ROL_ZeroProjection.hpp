@@ -19,13 +19,13 @@ template<typename Real>
 class ZeroProjection : public PolyhedralProjection<Real> {
 public:
 
-  ZeroProjection() : ZeroProjection<Real>(nullPtr) {}
+  ZeroProjection() : PolyhedralProjection<Real>(nullPtr) {}
 
   virtual void project(Vector<Real> &x, std::ostream &stream = std::cout) override {
     x.zero();
   }
 
-  virtual void applyJacobian(Vector<Real> &v, const Vector<Real> &x) {
+  virtual void applyJacobian(Vector<Real> &v, const Vector<Real> &x) override {
     v.zero();
   }
 

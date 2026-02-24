@@ -10,6 +10,9 @@
 #ifndef ROL_AUGMENTEDLAGRANGIANOBJECTIVE2_H
 #define ROL_AUGMENTEDLAGRANGIANOBJECTIVE2_H
 
+#include "ROL_AugmentedLagrangianPenalty.hpp"
+#include "ROL_ScalarController.hpp"
+
 namespace ROL {
 
 template <class Real>
@@ -19,7 +22,7 @@ private:
 
   // Required for Augmented Lagrangian definition
   const Ptr<Objective<Real>>  obj_;
-  const std::vector<Ptr<AugmentedLagrangianPenalty<Real>>> pen_;
+  const std::vector<Ptr<AugmentedLagrangianPenalty<Real>>> pvec_;
 
   // Auxiliary storage
   Ptr<Vector<Real>> dualOptVector_;
@@ -45,7 +48,7 @@ public:
                                 const std::vector<Ptr<AugmentedLagrangianPenalty<Real>>> &pen,
                                 const Vector<Real> &dualOptVec,
                                 ParameterList &parlist)
-    : obj_(obj), pen_(pen), fscale_(1), nfval_(0), ngval_(0) {
+    : obj_(obj), pvec_(pen), fscale_(1), nfval_(0), ngval_(0) {
 
     fval_     = makePtr<ScalarController<Real,int>>();
     gradient_ = makePtr<VectorController<Real,int>>();
@@ -57,10 +60,10 @@ public:
   }
 
   AugmentedLagrangianObjective2(const Ptr<Objective<Real>> &obj,
-                                const std::vector<Ptr<AugmentedLagrangianPenalty<Real>> &pen,
+                                const std::vector<Ptr<AugmentedLagrangianPenalty<Real>>> &pen,
                                 const Vector<Real> &dualOptVec,
                                 const bool scaleLagrangian)
-    : obj_(obj), con_(con), fscale_(1), nfval_(0), ngval_(0),
+    : obj_(obj), pvec_(pen), fscale_(1), nfval_(0), ngval_(0),
       scaleLagrangian_(scaleLagrangian) {
 
     fval_     = makePtr<ScalarController<Real,int>>();
@@ -71,7 +74,7 @@ public:
 
   virtual void update( const Vector<Real> &x, UpdateType type, int iter = -1 ) {
     obj_->update(x,type,iter);
-    for (unsigned i = 0; i < getNumberConstraints(), ++i) pen_[i]->update(x,type,iter);
+    for (unsigned i = 0; i < getNumberConstraints(); ++i) pvec_[i]->update(x,type,iter);
     fval_->objectiveUpdate(type);
     gradient_->objectiveUpdate(type);
   }
@@ -80,12 +83,12 @@ public:
     fscale_ = fscale;
   }
 
-  void setScaling(const Real cscale = 1.0, const int k) {
+  void setScaling(const Real cscale, const int k) {
     pvec_[k]->setScaling(cscale);
   }
 
-  void getScaling(const int k) {
-    pvec_[k]->getScaling();
+  Real getScaling(const int k) {
+    return pvec_[k]->getScaling();
   }
 
   virtual Real value( const Vector<Real> &x, Real &tol ) {
@@ -93,7 +96,7 @@ public:
     Real val = getObjectiveValue(x,tol);
     val *= fscale_;
     // Compute penalty term
-    for (unsigned i = 0; i < getNumberConstraints(), ++i) val += pen_[i]->value(x,tol);
+    for (unsigned i = 0; i < getNumberConstraints(); ++i) val += pvec_[i]->value(x,tol);
     return val;
   }
 
@@ -101,9 +104,9 @@ public:
     // Compute objective function gradient
     g.set(*getObjectiveGradient(x,tol));
     g.scale(fscale_);
-    for (unsigned i = 0; i < getNumberConstraints(), ++i) {
-      pen_[i]->gradient(*dualOptVector,x,tol);
-      g.plus(*dualOptVector);
+    for (unsigned i = 0; i < getNumberConstraints(); ++i) {
+      pvec_[i]->gradient(*dualOptVector_,x,tol);
+      g.plus(*dualOptVector_);
     }
   }
 
@@ -111,37 +114,37 @@ public:
     // Apply objective Hessian to a vector
     obj_->hessVec(hv,v,x,tol);
     hv.scale(fscale_);
-    for (unsigned i = 0; i < getNumberConstraints(), ++i) {
-      pen_[i]->hessVec(*dualOptVector,v,x,tol);
-      hv.plus(*dualOptVector);
+    for (unsigned i = 0; i < getNumberConstraints(); ++i) {
+      pvec_[i]->hessVec(*dualOptVector_,v,x,tol);
+      hv.plus(*dualOptVector_);
     }
   }
 
   Real dualNorm( const Vector<Real> &x, Real &tol, const int k ) {
-    return pen_[k]->dualNorm(x,tol);
+    return pvec_[k]->dualNorm(x,tol);
   }
 
   Real dualResidual( const Vector<Real> &x, Real &tol, const int k ) {
-    return pen_[k]->dualResidual(x,tol);
+    return pvec_[k]->dualResidual(x,tol);
   }
 
   Real feasibility( const Vector<Real> &x, Real &tol, const int k ) {
-    return pen_[k]->feasibility(x,tol);
+    return pvec_[k]->feasibility(x,tol);
   }
 
-  void setPenaltyParameter( const penaltyParameter, const int k ) {
-    pen_[k]->setPenaltyParameter(penaltyParameter);
+  void setPenaltyParameter( const Real penaltyParameter, const int k ) {
+    pvec_[k]->setPenaltyParameter(penaltyParameter);
   }
 
   Real getPenaltyParameter( const int k ) {
-    return pen[k]->getPenaltyParameter();
+    return pvec_[k]->getPenaltyParameter();
   }
   void setMultiplier( const Vector<Real> &multiplier, const int k ) {
-    pen_[k]->setMultiplier(multiplier);
+    pvec_[k]->setMultiplier(multiplier);
   }
 
-  void updateMultiplier( const Vector<Real> &x, const int k ) {
-    pen_[k]->updateMultiplier(x);
+  void updateMultiplier( const Vector<Real> &x, Real &tol, const int k ) {
+    pvec_[k]->updateMultiplier(x,tol);
   }
 
   // Return objective function value
@@ -168,18 +171,18 @@ public:
 
   // Return constraint value
   const Ptr<const Vector<Real>> getConstraintVec( const Vector<Real> &x, Real &tol, const int k ) {
-    return pen_[k]->getConstraintVec(x,tol);
+    return pvec_[k]->getConstraintVec(x,tol);
   }
 
   int getNumberConstraints(void) const {
-    return pen_.size();
+    return pvec_.size();
   }
 
   // Return total number of constraint evaluations
   int getNumberConstraintEvaluations(void) const {
     int ncval;
-    for (unsigned i = 0; i < getNumberConstraints(), ++i)
-      ncval += pen_[i]->getNumberConstraintEvaluations();
+    for (unsigned i = 0; i < getNumberConstraints(); ++i)
+      ncval += pvec_[i]->getNumberConstraintEvaluations();
     return ncval;
   }
 
@@ -196,7 +199,7 @@ public:
   // Reset counters
   void reset(void) {
     nfval_ = 0; ngval_ = 0;
-    for (unsigned i = 0; i < getNumberConstraints(), ++i) pen_[i]->reset();
+    for (unsigned i = 0; i < getNumberConstraints(); ++i) pvec_[i]->reset();
   }
 
 }; // class AugmentedLagrangianObjective2

@@ -12,6 +12,14 @@
 
 #include <iostream>
 
+#include "ROL_AugmentedLagrangianObjective2.hpp"
+#include "ROL_AugmentedLagrangianPenalty.hpp"
+#include "ROL_IdentityOperator.hpp"
+#include "ROL_PartitionedVector.hpp"
+#include "ROL_PolyhedralProjection.hpp"
+#include "ROL_Projection_Partitioned.hpp"
+#include "ROL_ZeroProjection.hpp"
+
 namespace ROL {
 
 template<typename Real>
@@ -71,8 +79,8 @@ void Problem<Real>::addConstraint( std::string                  name,
   it = INPUT_linear_con_.find(name);
   ROL_TEST_FOR_EXCEPTION(it != INPUT_linear_con_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
-  it = INPUT_proj_.find(name);
-  ROL_TEST_FOR_EXCEPTION(it != INPUT_proj_.end(),std::invalid_argument,
+  auto itp = INPUT_proj_.find(name);
+  ROL_TEST_FOR_EXCEPTION(itp != INPUT_proj_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
 
   INPUT_con_.insert({name,ConstraintData<Real>(econ,emul,eres)});
@@ -98,8 +106,8 @@ void Problem<Real>::addConstraint( std::string                       name,
   it = INPUT_linear_con_.find(name);
   ROL_TEST_FOR_EXCEPTION(it != INPUT_linear_con_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
-  it = INPUT_proj_.find(name);
-  ROL_TEST_FOR_EXCEPTION(it != INPUT_proj_.end(),std::invalid_argument,
+  auto itp = INPUT_proj_.find(name);
+  ROL_TEST_FOR_EXCEPTION(itp != INPUT_proj_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
 
   INPUT_con_.insert({name,ConstraintData<Real>(icon,imul,ires,ibnd)});
@@ -125,8 +133,8 @@ void Problem<Real>::addConstraint( std::string                  name,
   it = INPUT_linear_con_.find(name);
   ROL_TEST_FOR_EXCEPTION(it != INPUT_linear_con_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
-  it = INPUT_proj_.find(name);
-  ROL_TEST_FOR_EXCEPTION(it != INPUT_proj_.end(),std::invalid_argument,
+  auto itp = INPUT_proj_.find(name);
+  ROL_TEST_FOR_EXCEPTION(itp != INPUT_proj_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
 
   if (proj == nullPtr) {
@@ -152,9 +160,9 @@ void Problem<Real>::removeConstraint(std::string name) {
   }
   if (cnt_econ_==0) hasEquality_   = false;
   if (cnt_icon_==0) hasInequality_ = false;
-  it = INPUT_proj_.find(name);
-  if (itc!=INPUT_proj_.end()) {
-    INPUT_proj_.erase(it);
+  auto itp = INPUT_proj_.find(name);
+  if (itp!=INPUT_proj_.end()) {
+    INPUT_proj_.erase(itp);
   }
 }
 
@@ -175,8 +183,8 @@ void Problem<Real>::addLinearConstraint( std::string                  name,
   it = INPUT_linear_con_.find(name);
   ROL_TEST_FOR_EXCEPTION(it != INPUT_linear_con_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
-  it = INPUT_proj_.find(name);
-  ROL_TEST_FOR_EXCEPTION(it != INPUT_proj_.end(),std::invalid_argument,
+  auto itp = INPUT_proj_.find(name);
+  ROL_TEST_FOR_EXCEPTION(itp != INPUT_proj_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
 
   INPUT_linear_con_.insert({name,ConstraintData<Real>(linear_econ,linear_emul,linear_eres)});
@@ -202,8 +210,8 @@ void Problem<Real>::addLinearConstraint( std::string                       name,
   it = INPUT_linear_con_.find(name);
   ROL_TEST_FOR_EXCEPTION(it != INPUT_linear_con_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
-  it = INPUT_proj_.find(name);
-  ROL_TEST_FOR_EXCEPTION(it != INPUT_proj_.end(),std::invalid_argument,
+  auto itp = INPUT_proj_.find(name);
+  ROL_TEST_FOR_EXCEPTION(itp != INPUT_proj_.end(),std::invalid_argument,
     ">>> ROL::Problem: Constraint names must be distinct!");
 
   INPUT_linear_con_.insert({name,ConstraintData<Real>(linear_icon,linear_imul,linear_ires,linear_ibnd)});
@@ -253,8 +261,8 @@ void Problem<Real>::removeProximableObjective() {
 }
 
 template<typename Real>
-void addAugmentedLagrangianGroup(std::string                     name,
-                                 const std::vector<std::string> &con_names) {
+void Problem<Real>::addAugmentedLagrangianGroup(std::string                     name,
+                                                const std::vector<std::string> &con_names) {
   ROL_TEST_FOR_EXCEPTION(isFinalized_,std::invalid_argument,
     ">>> ROL::Problem: Cannot add augmented Lagrangian group after problem is finalized!");
   bool isFound;
@@ -272,7 +280,7 @@ void addAugmentedLagrangianGroup(std::string                     name,
 }
 
 template<typename Real>
-void removeAugmentedLagrangianGroup(std::string name) {
+void Problem<Real>::removeAugmentedLagrangianGroup(std::string name) {
   ROL_TEST_FOR_EXCEPTION(isFinalized_,std::invalid_argument,
     ">>> ROL::Problem: Cannot remove augmented Lagrangian group after problem is finalized!");
   auto it = al_groups_.find(name);
@@ -286,7 +294,7 @@ void removeAugmentedLagrangianGroup(std::string name) {
 }
 
 template<typename Real>
-Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
+Ptr<Problem<Real>> Problem<Real>::getAugmentedLagrangianSubproblem() {
 
   ROL_TEST_FOR_EXCEPTION(isFinalized_,std::invalid_argument,
     ">>> ROL::Problem: Cannot build augmented Lagrangian subproblem after problem is finalized!");
@@ -298,32 +306,32 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
 
   Ptr<Projection<Real>> projection;
 
-  auto makePenalty[&] (const ConstraintData<Real> &constraint_data,
-                       const Projection<Real>     &projection)
-                      -> Ptr<AugmentedLagrangianPenalty<Real>> {
-    Ptr<AugmentedLagrangianPenalty<Real> penalty = makePtr<AugmentedLagrangianPenalty<Real>>(
-                                                     constraint_data.constraint,
-                                                     projection,
-                                                     Real(1.0),
-                                                     *INPUT_xdual_,
-                                                     *constraint_data.residual,
-                                                     constraint_data.residual->dual(),
-                                                     0);
+  auto makePenalty = [&] (const ConstraintData<Real>  &constraint_data,
+                          const Ptr<Projection<Real>> &projection)
+                         -> Ptr<AugmentedLagrangianPenalty<Real>> {
+    Ptr<AugmentedLagrangianPenalty<Real>> penalty = makePtr<AugmentedLagrangianPenalty<Real>>(
+                                                      constraint_data.constraint,
+                                                      projection,
+                                                      Real(1.0),
+                                                      *INPUT_xdual_,
+                                                      *constraint_data.residual,
+                                                      constraint_data.residual->dual(),
+                                                      0);
     penalty->setMultiplier(*constraint_data.multiplier);
     return penalty;
-  }
+  };
 
-  Ptr<AugmentedLagrangianPenalty<Real>> penalty
-  std::vector<Ptr<AugmentedLagrangianPenalty<Real>> penalties;
+  Ptr<AugmentedLagrangianPenalty<Real>> penalty;
+  std::vector<Ptr<AugmentedLagrangianPenalty<Real>>> penalties;
 
   // ========================================================================
   // STEP 1: Process user-defined groups.
   // ========================================================================
 
-  std::vector<Ptr<Constraint<Real>> constraints;
-  std::vector<Ptr<Projection<Real>> projections;
-  std::vector<Ptr<Vector<Real>>     con_vectors;
-  std::vector<Ptr<Vector<Real>>     mul_vectors;
+  std::vector<Ptr<Constraint<Real>>> constraints;
+  std::vector<Ptr<Projection<Real>>> projections;
+  std::vector<Ptr<Vector<Real>>>     con_vectors;
+  std::vector<Ptr<Vector<Real>>>     mul_vectors;
 
   Ptr<Constraint_Partitioned<Real>> partitioned_constraint;
   Ptr<Projection_Partitioned<Real>> partitioned_projection;
@@ -347,9 +355,9 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
         con_vectors.push_back(constraint_data.residual);
         mul_vectors.push_back(constraint_data.multiplier);
         if (constraint_data.bounds != nullPtr)
-          projection = makePtr<PolyheralProjection<Real>>(constraint_data.bounds)
+          projection = staticPtrCast<Projection<Real>>(makePtr<PolyhedralProjection<Real>>(constraint_data.bounds));
         else 
-          projection = makePtr<ZeroProjection<Real>>();
+          projection = staticPtrCast<Projection<Real>>(makePtr<ZeroProjection<Real>>());
         projections.push_back(projection);
         unprocessed_constraints.erase(constraint_name);
       }
@@ -359,7 +367,7 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
         con_vectors.push_back(constraint_data.residual);
         mul_vectors.push_back(constraint_data.multiplier);
         if (constraint_data.bounds != nullPtr)
-          projection = makePtr<PolyheralProjection<Real>>(constraint_data.bounds);
+          projection = makePtr<PolyhedralProjection<Real>>(constraint_data.bounds);
         else
           projection = makePtr<ZeroProjection<Real>>();
         projections.push_back(projection);
@@ -369,8 +377,8 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
 
     partitioned_constraint = makePtr<Constraint_Partitioned<Real>>(constraints);
     partitioned_projection = makePtr<Projection_Partitioned<Real>>(projections);
-    partitioned_con_vector = makePtr<ParitionedVector<Real>>(con_vectors);
-    partitioned_mul_vector = makePtr<ParitionedVector<Real>>(mul_vectors);
+    partitioned_con_vector = makePtr<PartitionedVector<Real>>(con_vectors);
+    partitioned_mul_vector = makePtr<PartitionedVector<Real>>(mul_vectors);
     ConstraintData<Real> constraint_data(partitioned_constraint,
                                          partitioned_mul_vector,
                                          partitioned_con_vector);
@@ -382,7 +390,7 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
   // STEP 2: Process remaining constraints.
   // ========================================================================
 
-  Ptr<Problem<Real>> subproblem = makePtr<Problem<Real>>(INPUT_obj,INPUT_xprim_,INPUT_xdual);
+  Ptr<Problem<Real>> subproblem = makePtr<Problem<Real>>(INPUT_obj_,INPUT_xprim_,INPUT_xdual_);
   bool isSubproblemTypeE = false;
 
   for (const auto& constraint_name : unprocessed_constraints) {
@@ -394,7 +402,7 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
     else if (INPUT_con_.count(constraint_name)) {
       auto& constraint_data = INPUT_con_.at(constraint_name);
       if (constraint_data.bounds != nullPtr) {
-        projection = makePtr<PolyheralProjection<Real>>(constraint_data.bounds);
+        projection = staticPtrCast<Projection<Real>>(makePtr<PolyhedralProjection<Real>>(constraint_data.bounds));
         penalty = makePenalty(constraint_data,projection);
         penalties.push_back(penalty);
       }
@@ -409,7 +417,7 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
     else if (INPUT_linear_con_.count(constraint_name)) {
       auto& constraint_data = INPUT_linear_con_.at(constraint_name);
       if (constraint_data.bounds != nullPtr) {
-        projection = makePtr<PolyheralProjection<Real>>(constraint_data.bounds);
+        projection = makePtr<PolyhedralProjection<Real>>(constraint_data.bounds);
         penalty = makePenalty(constraint_data,projection);
         penalties.push_back(penalty);
       }
@@ -428,8 +436,8 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
 
   if (hasBounds_) {
     if (isSubproblemTypeE) {
-      projection = makePtr<PolyheralProjection<Real>>(INPUT_bnd_);
-      Ptr<Vector<Real>> b = INPUT_xprim_.clone();
+      projection = staticPtrCast<Projection<Real>>(makePtr<PolyhedralProjection<Real>>(INPUT_bnd_));
+      Ptr<Vector<Real>> b = INPUT_xprim_->clone();
       b->zero();
       Ptr<LinearOperator<Real>> A = makePtr<IdentityOperator<Real>>();
       Ptr<Constraint<Real>> constraint = makePtr<LinearConstraint<Real>>(A,b);
@@ -440,8 +448,7 @@ Ptr<Problem<Real>> getAugmentedLagrangianSubproblem() {
     else subproblem->addBoundConstraint(INPUT_bnd_);
   }
 
-  subproblem.INPUT_obj_ = makePtr<AugmentedLagrangianObjective2<Real>>(
-                            subproblem.INPUT_obj_,penalties,*INPUT_xdual_,false);
+  subproblem->INPUT_obj_ = makePtr<AugmentedLagrangianObjective2<Real>>(subproblem->INPUT_obj_,penalties,*INPUT_xdual_,false);
 
   return subproblem;
 }

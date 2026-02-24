@@ -15,7 +15,7 @@
 namespace ROL {
 
 template<typename Real>
-class Projection : Projection<Real> {
+class Projection {
 public:
   virtual void project(Vector<Real> &x, std::ostream &stream = std::cout) = 0;
 

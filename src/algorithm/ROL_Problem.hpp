@@ -12,6 +12,7 @@
 
 #include <utility>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "ROL_Ptr.hpp"
 #include "ROL_Types.hpp"
@@ -64,7 +65,7 @@ protected:
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_con_;
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_linear_con_;
 
-  std::unordered_map<std::string,std::pair<ConstraintData<Real>>,Ptr<PolyhedralProjection<Real>>>> INPUT_proj_;
+  std::unordered_map<std::string,std::pair<ConstraintData<Real>,Ptr<Projection<Real>>>> INPUT_proj_;
   std::unordered_map<std::string,std::vector<std::string>> al_groups_;
   std::unordered_set<std::string> al_constraints_;
 

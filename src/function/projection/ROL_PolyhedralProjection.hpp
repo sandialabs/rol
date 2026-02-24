@@ -12,12 +12,13 @@
 
 #include "ROL_BoundConstraint.hpp"
 #include "ROL_Constraint.hpp"
+#include "ROL_Projection.hpp"
 #include <iostream>
 
 namespace ROL {
 
 template<typename Real>
-class PolyhedralProjection : Projection<Real> {
+class PolyhedralProjection : public Projection<Real> {
 protected:
   const Ptr<BoundConstraint<Real>> bnd_;
   const Ptr<Constraint<Real>>      con_;

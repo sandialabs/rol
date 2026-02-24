@@ -12,6 +12,9 @@
 
 #include <cmath>
 
+#include "ROL_AugmentedLagrangianObjective2.hpp" 
+#include "ROL_Solver.hpp" 
+
 namespace ROL {
 namespace TypeG {
 
@@ -50,7 +53,7 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
   list_.sublist("Status Test").set("Use Relative Tolerances",false);
   // Verbosity setting
   verbosity_          = list.sublist("General").get("Output Level", 0);
-  printHeader_        = verbosity_ > 2;
+  printHeader_        = verbosity_ > 0;
   print_              = (verbosity_ > 2 ? true : print_);
   list_.sublist("General").set("Output Level",(print_ ? verbosity_ : 0));
   // Outer iteration tolerances
@@ -138,36 +141,37 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
   // Compute problem scaling
   std::vector<Real> constraintScalings(numberPenalties);
   Ptr<Vector<Real>> constraintVec;
-  if (useDefaultScaling_) {
-    Ptr<Vector<Real>> ji = x.clone();
-    // Helper function
-    auto getConstraintScale = [&] (const Vector<Real> &c) -> Real {
-      Real cscale(1);
-      try {
-        Real maxji(0), normji(0);
-        for (int i = 0; i < c.dimension(); ++i) {
-          c.applyAdjointJacobian(*ji,*c.basis(i),x,tol);
-          normji = ji->norm();
-          maxji  = std::max(normji,maxji);
-        }
-        cscale = one/std::max(one,maxji);
-      }
-      catch (std::exception &e) {}
-      return cscale;
-    };
-    for (unsigned k = 0; k < n; ++k) {
-      constraintVec = alobj.getConstraintVector(x,tol,k);
-      constraintScalings[i] = getConstraintScale(*constraintVec);
-      alobj.setScaling(constriantScalings[k],k);
-    }
-    if (!constraintScalings.empty())
-      cscale_ = *std::max_element(constraintScalings.begin(),constraintScalings.end());
-  }
-  else {
+  // > TODO
+  // >if (useDefaultScaling_) {
+  // >  Ptr<Vector<Real>> ji = x.clone();
+  // >  // Helper function
+  // >  auto getConstraintScale = [&] (const Vector<Real> &c) -> Real {
+  // >    Real cscale(1);
+  // >    try {
+  // >      Real maxji(0), normji(0);
+  // >      for (int i = 0; i < c.dimension(); ++i) {
+  // >        c.applyAdjointJacobian(*ji,*c.basis(i),x,tol);
+  // >        normji = ji->norm();
+  // >        maxji  = std::max(normji,maxji);
+  // >      }
+  // >      cscale = one/std::max(one,maxji);
+  // >    }
+  // >    catch (std::exception &e) {}
+  // >    return cscale;
+  // >  };
+  // >  for (unsigned k = 0; k < numberPenalties; ++k) {
+  // >    constraintVec = alobj.getConstraintVec(x,tol,k);
+  // >    constraintScalings[k] = getConstraintScale(*constraintVec);
+  // >    alobj.setScaling(constraintScalings[k],k);
+  // >  }
+  // >  if (!constraintScalings.empty())
+  // >    cscale_ = *std::max_element(constraintScalings.begin(),constraintScalings.end());
+  // >}
+  // >else {
     for (unsigned i = 0; i < numberPenalties; ++i) {
       constraintScalings[i] = cscale_;
-      alobj.setScaling(constraintSaclings[i],i);
-    }
+      alobj.setScaling(constraintScalings[i],i);
+  // >}
   }
 
   // > // Compute gradient of the lagrangian
@@ -205,7 +209,7 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
   feasTolerance_ = std::max(TOL*outerFeasTolerance_,
                             feasToleranceInitial_*std::pow(minPenaltyReciprocal_,feasDecreaseExponent_));
 
-  alobj.reset()
+  alobj.reset();
 
   if (verbosity_ > 1) {
     outStream << std::endl;
@@ -218,20 +222,20 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
 }
 
 template<typename Real>
-void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
+void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
+                                               Vector<Real>  &g,
+                                               Problem<Real> &problem,
                                                std::ostream  &outStream ) {
 
   // ========================================================================
   // STEP 1: Get subproblem and objective
   // ========================================================================
   Ptr<Problem<Real>> subproblem = problem.getAugmentedLagrangianSubproblem();
-  Ptr<AugmentedLagrangianObjective2<Real>> alobj = dynamic_cast<Ptr<AugmentedLagrangianObjective2<Real>>>(subproblem.getObjective());
+  Ptr<AugmentedLagrangianObjective2<Real>> alobj = staticPtrCast<AugmentedLagrangianObjective2<Real>>(subproblem->getObjective());
 
   // ========================================================================
   // STEP 2: Set up
   // ========================================================================
-  Vector<Real> &x = *problem.getPrimalOptimizationVector();
-  Vector<Real> &g = *problem.getDualOptimizationVector();
   initialize(x,g,*alobj,outStream);
 
   // Constants
@@ -239,9 +243,12 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   Real tol(std::sqrt(ROL_EPSILON<Real>()));
 
   // Additional parameters
-  unsigned maxSubproblemFails = 10
+  unsigned maxSubproblemFails = 2;
+  unsigned k0 = 100;
+  Real nu = 1;
+  Real gamma = 1;
 
-  state_->gnorm = NAN;
+  state_->gnorm = ROL_INF<Real>();
 
   // Output
   if (verbosity_ > 0) writeOutput(outStream,true);
@@ -252,16 +259,19 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
 
   std::vector<Real> feasibilities(numberPenalties);
 
-  std::vector<Real> theta(numberPenalties);
-  for (unsigned i = 0; i < numberPenalties; ++i)
-    theta[i] = minPenaltyReciprocal_;
+  std::vector<Real> dualResiduals(numberPenalties);
 
   std::vector<Real> dualTolerances(numberPenalties); // \tau
   for (unsigned i = 0; i < numberPenalties; ++i)
     dualTolerances[i] = feasTolerance_;
 
+  std::vector<Real> theta(numberPenalties);
+  for (unsigned i = 0; i < numberPenalties; ++i)
+    theta[i] = minPenaltyReciprocal_;
+
   EExitStatus statusFlag;
   bool isSubproblemConverged = false;
+  Real penaltyParameter;
   bool isForcedUpdate = false;
   bool isUpdated      = false;
 
@@ -272,13 +282,15 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     // Solve augmented Lagrangian subproblem
     list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
     list_.sublist("Status Test").set("Step Tolerance",1.e-6*optTolerance_);
+    list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
     Solver<Real> solver(subproblem,list_);
-    isUbproblemConverged = false;
+    isSubproblemConverged = false;
     for (unsigned i = 0; i < maxSubproblemFails; ++i) {
       solver.reset();
+      alobj->update(x,UpdateType::Initial,state_->iter);
       solver.solve(outStream);
       statusFlag = solver.getAlgorithmState()->statusFlag;
-      isSubProblemConverged = (statusFlag == EXITSTATUS_CONVERGED) || (statusFlag == EXITSTATUS_USERDEFINED);
+      isSubproblemConverged = (statusFlag == EXITSTATUS_CONVERGED) || (statusFlag == EXITSTATUS_USERDEFINED);
       if (isSubproblemConverged)
         break;
     }
@@ -288,7 +300,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
         outStream << "Warning: Augmented Lagrangian subproblem failed to converge!" << std::endl;
     }
 
-    subproblemIter_ = algo->getState()->iter;
+    subproblemIter_ = solver.getAlgorithmState()->iter;
 
     // Compute step
     state_->stepVec->set(x);
@@ -302,8 +314,8 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     for (unsigned i = 0; i < numberPenalties; ++i)
       feasibilities[i] = alobj->feasibility(x,tol,i);
     if (!feasibilities.empty())
-      state_->cnorm = *std::max_element(feasibilities.begin(),feasibilites.end());
-    state_->gnorm = algo->getAlgorithmState()->gnorm;
+      state_->cnorm = *std::max_element(feasibilities.begin(),feasibilities.end());
+    state_->gnorm = solver.getAlgorithmState()->gnorm;
     //alobj.update(x,UpdateType::Accept,state_->iter);
 
     // Update evaluation counters
@@ -315,13 +327,13 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     // ALESQP Updates (Algorithm 4.1)
     // ========================================================================
 
-    for (unsigned i = 0; i < numberPenalites; ++i) {
+    for (unsigned i = 0; i < numberPenalties; ++i)
       dualResiduals[i] = alobj->dualResidual(x,tol,i);
 
     // Forced updates for large iterations (line 10)
     isForcedUpdate = false;
-    if (state_->iter > K0_) {
-      for (unsigned i = 0; i < numberPenalites; ++i) {
+    if (state_->iter > k0) {
+      for (unsigned i = 0; i < numberPenalties; ++i) {
         penaltyParameter = alobj->getPenaltyParameter(i);
         if (alobj->getScaling(i)*dualResiduals[i] > penaltyParameter*dualTolerances[i])
           isForcedUpdate = true;
@@ -330,36 +342,37 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
 
     // Update (line 13)
     isUpdated = false;
-    for (unsigned i = 0; i < numberPenalites; ++i) {
-      penaltyParameter = alobj->getPenaltyParameter();
+    for (unsigned i = 0; i < numberPenalties; ++i) {
+      penaltyParameter = alobj->getPenaltyParameter(i);
       if (isForcedUpdate || alobj->getScaling(i)*dualResiduals[i] > penaltyParameter*dualTolerances[i]) {
-        penaltyParameter *= penaltyUpdate_;
-        penaltyParameter  = std::min(penaltyParameter,maxPenaltyParameter);
-        step_->searchSize = std::max(step_->searchSize,penaltyParameter);
-        theta[i]          = std::min(one/penaltyParameter,theta[i]);
-        dualTolerances[i] = feasToleranceInitial_*std::pow(theta[i]*feasDecreaseExponent_);
-        dualTolerances[i] = std::max(dualTolerances[i],oem2*outerFeasTolerance_);   // ROL convention
+        penaltyParameter  *= penaltyUpdate_;
+        penaltyParameter   = std::min(penaltyParameter,maxPenaltyParam_);
+        state_->searchSize = std::max(state_->searchSize,penaltyParameter);
+        theta[i]           = std::min(one/penaltyParameter,theta[i]);
+        dualTolerances[i]  = feasToleranceInitial_*std::pow(theta[i],feasDecreaseExponent_);
+        dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_);   // ROL convention
         alobj->setPenaltyParameter(penaltyParameter,i);
         isUpdated = true;
       }
       else {
         theta[i]           = std::min(one/penaltyParameter,theta[i]);
-        dualTolerances[i] *= std::pow(theta[i]*feasIncreaseExponent_);
+        dualTolerances[i] *= std::pow(theta[i],feasIncreaseExponent_);
         dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_); // ROL convention
       }
-      if dualResiduals[i] <= nu_*std::pow(penaltyParameter,gamma_)
+      if (alobj->getScaling(i)*dualResiduals[i] <= nu*std::pow(penaltyParameter,gamma))
         alobj->updateMultiplier(x,tol,i);
     }
     if (!dualTolerances.empty())
       feasTolerance_ = *std::max_element(dualTolerances.begin(),dualTolerances.end());
     // ROL update to \epsilon. Updates to the constraint tolerance, \delta, are possible as well.
+    outStream << std::endl << "isUpdated: " << isUpdated << std::endl;
     if (isUpdated) {
       optTolerance_ = std::max(oem2*outerOptTolerance_,
-                      optToleranceInitial_*std::pow(std::max(two,state_->searchSize),optDecreaseExponent_));
+                      optToleranceInitial_/std::pow(std::max(two,state_->searchSize),optDecreaseExponent_));
     }
     else {
       optTolerance_ = std::max(oem2*outerOptTolerance_,
-                      optTolerance_*std::pow(std::max(two,state_->searchSize),optIncreaseExponent_));
+                      optTolerance_/std::pow(std::max(two,state_->searchSize),optIncreaseExponent_));
     }
     alobj->reset();
 

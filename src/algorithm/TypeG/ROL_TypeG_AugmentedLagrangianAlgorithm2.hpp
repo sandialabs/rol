@@ -11,7 +11,6 @@
 #define ROL_TYPEG_AUGMENTEDLAGRANGIANALGORITHM2_H
 
 #include "ROL_TypeG_Algorithm.hpp"
-#include "ROL_AugmentedLagrangianObjective.hpp"
 #include "ROL_Secant.hpp"
 
 /** \class ROL::TypeG::AugmentedLagrangianAlgorithm
@@ -75,7 +74,7 @@ private:
 
 public:
 
-  AugmentedLagrangianAlgorithm(ParameterList &list, const Ptr<Secant<Real>> &secant = nullPtr);
+  AugmentedLagrangianAlgorithm2(ParameterList &list, const Ptr<Secant<Real>> &secant = nullPtr);
 
   using TypeG::Algorithm<Real>::run;
   void run( Vector<Real>          &x,
@@ -87,7 +86,9 @@ public:
             const Vector<Real>    &eres,
             std::ostream          &outStream = std::cout ) override ;
 
-  void run( Problem<Real> &problem,
+  void run( Vector<Real>  &x,
+            Vector<Real>  &g,
+            Problem<Real> &problem,
             std::ostream  &outStream = std::cout );
 
   void writeHeader( std::ostream& os ) const override;
