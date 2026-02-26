@@ -10,6 +10,12 @@
 #ifndef ROL_AUGMENTEDLAGRANGIANPENALTY_H
 #define ROL_AUGMENTEDLAGRANGIANPENALTY_H
 
+#include "ROL_Constraint.hpp"
+#include "ROL_Objective.hpp"
+#include "ROL_ParameterList.hpp"
+#include "ROL_Projection.hpp"
+#include "ROL_VectorController.hpp"
+
 namespace ROL {
 
 template <class Real>

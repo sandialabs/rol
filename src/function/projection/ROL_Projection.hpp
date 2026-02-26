@@ -11,12 +11,16 @@
 #define ROL_PROJECTION_H
 
 #include <iostream>
+#include "ROL_Vector.hpp"
 
 namespace ROL {
 
 template<typename Real>
 class Projection {
 public:
+
+  virtual ~Projection() {}
+
   virtual void project(Vector<Real> &x, std::ostream &stream = std::cout) = 0;
 
   virtual void applyJacobian(Vector<Real> &v, const Vector<Real> &x) {

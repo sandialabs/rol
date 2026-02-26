@@ -98,7 +98,7 @@ inline EAlgorithmG StringToEAlgorithmG(std::string s) {
 }
 
 template<typename Real>
-inline Ptr<TypeG::Algorithm<Real>> AlgorithmFactory(ParameterList &parlist, const Ptr<Secant<Real>> &secant = nullPtr) {
+inline Ptr<TypeG::Algorithm<Real>> AlgorithmFactory(ParameterList &parlist, const Ptr<Secant<Real>> &secant) {
   std::string stepType = parlist.sublist("Step").get("Type","Augmented Lagrangian");
   EAlgorithmG ealg = StringToEAlgorithmG(stepType);
   switch(ealg) {
@@ -110,6 +110,12 @@ inline Ptr<TypeG::Algorithm<Real>> AlgorithmFactory(ParameterList &parlist, cons
     default:                               return nullPtr;
   }
 }
+
+template<class Real>
+Ptr<TypeG::Algorithm<Real>> AlgorithmFactory(ParameterList &parlist) {
+  return AlgorithmFactory<Real>(parlist, nullPtr);
+}
+
 } // namespace TypeG
 } // namespace ROL
 

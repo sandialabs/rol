@@ -13,13 +13,20 @@
 #include <cmath>
 
 #include "ROL_AugmentedLagrangianObjective2.hpp"
-#include "ROL_Solver.hpp"
+
 
 namespace ROL {
 
 template<class Real> class Solver;
 
 namespace TypeG {
+
+template <typename Real> class Algorithm;
+
+template <typename Real>
+inline Ptr<TypeG::Algorithm<Real>> AlgorithmFactory(
+    ParameterList &parlist,
+    const Ptr<Secant<Real>> &secant);
 
 template<typename Real>
 AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterList &list, const Ptr<Secant<Real>> &secant )
@@ -190,7 +197,7 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
     const Real oem8(1e-8), oem2(1e-2), two(2), ten(10);
     Real penaltyParameter;
     for (unsigned i = 0; i < numberPenalties; ++i) {
-      penaltyParameter = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value)) 
+      penaltyParameter = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value))
                                                     / std::max(one,std::pow(constraintScalings[i]*feasibilities_[i],two)),
                                                  oem2*maxPenaltyParam_)); // ROL convention
       alobj.setPenaltyParameter(penaltyParameter,i);
@@ -343,7 +350,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   // ========================================================================
   // STEP 3: Run algorithm
   // ========================================================================
-  
+
   while (status_->check(*state_)) {
     // Solve augmented Lagrangian subproblem
     list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
@@ -565,5 +572,7 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
 
 } // namespace TypeG
 } // namespace ROL
+
+#include "ROL_Solver.hpp"
 
 #endif
