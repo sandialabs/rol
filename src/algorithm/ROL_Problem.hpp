@@ -64,10 +64,11 @@ protected:
   Ptr<BoundConstraint<Real>>                           INPUT_bnd_;
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_con_;
   std::unordered_map<std::string,ConstraintData<Real>> INPUT_linear_con_;
-
-  std::unordered_map<std::string,std::pair<ConstraintData<Real>,Ptr<Projection<Real>>>> INPUT_proj_;
-  std::unordered_map<std::string,std::vector<std::string>> al_groups_;
-  std::unordered_set<std::string> al_constraints_;
+  std::unordered_map<std::string,ConstraintData<Real>> INPUT_proj_;
+  std::unordered_map<std::string,std::vector<std::string>> groups_;
+  std::unordered_set<std::string> grouped_constraint_names_;
+  std::vector<std::string> ungrouped_equality_constraint_names_;
+  std::vector<std::string> ungrouped_linear_equality_constraint_names_;
 
 public:
   virtual ~Problem() {}
@@ -107,8 +108,11 @@ public:
        INPUT_con_(problem.INPUT_con_),
        INPUT_linear_con_(problem.INPUT_linear_con_),
        INPUT_proj_(problem.INPUT_proj_),
-       al_groups_(problem.al_groups_),
-       al_constraints_(problem.al_constraints_) {}
+       groups_(problem.groups_),
+       grouped_constraint_names_(problem.grouped_constraint_names_),
+       ungrouped_equality_constraint_names_(problem.ungrouped_equality_constraint_names_),
+       ungrouped_linear_equality_constraint_names_(problem.ungrouped_linear_equality_constraint_names_)
+       {}
 
   /***************************************************************************/
   /*** Set and remove methods for constraints ********************************/
@@ -218,20 +222,27 @@ public:
   */
   void setProjectionAlgorithm(ParameterList &parlist);
 
-  /** Set Proximable objective function
+  /** \brief Set Proximable objective function
   */
   void addProximableObjective(const Ptr<Objective<Real>> &nobj);
 
-  /** Remove Proximable objective function
+  /** \brief Remove Proximable objective function
   */
   void removeProximableObjective();
 
-  void addAugmentedLagrangianGroup(std::string                     name,
-                                   const std::vector<std::string> &con_names);
+  /** \brief Combine a set of constraints into a group.
 
-  void removeAugmentedLagrangianGroup(std::string name);
+      @param[in] group_name       group name
+      @param[in] constraint_names constraint names
+  */
+  void addConstraintGroup(const std::string              &group_name,
+                          const std::vector<std::string> &constraint_names);
 
-  Ptr<Problem<Real>> getAugmentedLagrangianSubproblem();
+  /** \brief Remove a group of constraints.
+   *
+      @param[in] group_name group name
+  */
+  void removeConstraintGroup(const std::string &group_name);
 
   /***************************************************************************/
   /*** Accessor methods ******************************************************/
@@ -278,6 +289,16 @@ public:
   */
   EProblem                              getProblemType();
 
+  Ptr<ConstraintData<Real>>  getConstraintData(const std::string &constraint_name);
+
+  const std::vector<std::string>&  getUngroupedEqualityConstraintNames();
+
+  const std::vector<std::string>&  getUngroupedLinearEqualityConstraintNames();
+
+  const std::vector<std::string>   getGroupNames();
+
+  const Ptr<ConstraintData<Real>>  getGroupConstraintData(const std::string &group_name);
+
   /***************************************************************************/
   /*** Consistency checks ****************************************************/
   /***************************************************************************/
@@ -320,16 +341,18 @@ public:
   /*** Finalize and edit methods *********************************************/
   /***************************************************************************/
 
-  /** \brief Tranform user-supplied constraints to consist of only bounds
-             and equalities.  Optimization problem cannot be modified after
-             finalize has been called without calling the edit function.
+  /** \brief Tranform user-supplied constraints.  Problem cannot be modified
+   *         after finalize has been called without calling the edit function.
 
-      @param[in]     lumpConstraints combine both linear and nonlinear constraints
-      @param[in]     printToStream   determines whether to print to the supplied std::ostream
-      @param[in,out] outStream       user supplied std::ostream
+      @param[in]     lumpConstraints   combine both linear and nonlinear constraints
+      @param[in]     printToStream     determines whether to print to the supplied std::ostream
+      @param[in,out] outStream         user supplied std::ostream
+      @param[in]     useSlackVariables legacy finalize logic
   */
-  virtual void finalize(bool lumpConstraints = false, bool printToStream = false,
-                        std::ostream &outStream = std::cout);
+  virtual void finalize(bool lumpConstraints = false,
+                        bool printToStream = false,
+                        std::ostream &outStream = std::cout,
+                        bool useSlackVariables = true);
 
   /** \brief Indicate whether or no finalize has been called.
   */

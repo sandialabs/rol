@@ -63,6 +63,10 @@ private:
   bool printHeader_;
   bool hasPolyProj_;
 
+  bool isUpdated_;
+  std::vector<std::string> group_names_;
+  std::vector<Real> feasibilities_;
+
   using TypeG::Algorithm<Real>::state_;
   using TypeG::Algorithm<Real>::status_;
   using TypeG::Algorithm<Real>::proj_;
@@ -77,6 +81,10 @@ public:
   AugmentedLagrangianAlgorithm2(ParameterList &list, const Ptr<Secant<Real>> &secant = nullPtr);
 
   using TypeG::Algorithm<Real>::run;
+
+  void run( Problem<Real> &problem,
+            std::ostream  &outStream = std::cout ) override;
+
   void run( Vector<Real>          &x,
             const Vector<Real>    &g,
             Objective<Real>       &obj,
@@ -85,11 +93,6 @@ public:
             Vector<Real>          &emul,
             const Vector<Real>    &eres,
             std::ostream          &outStream = std::cout ) override ;
-
-  void run( Vector<Real>  &x,
-            Vector<Real>  &g,
-            Problem<Real> &problem,
-            std::ostream  &outStream = std::cout );
 
   void writeHeader( std::ostream& os ) const override;
 

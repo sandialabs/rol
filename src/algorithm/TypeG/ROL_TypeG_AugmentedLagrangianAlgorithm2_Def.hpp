@@ -12,10 +12,13 @@
 
 #include <cmath>
 
-#include "ROL_AugmentedLagrangianObjective2.hpp" 
-#include "ROL_Solver.hpp" 
+#include "ROL_AugmentedLagrangianObjective2.hpp"
+#include "ROL_Solver.hpp"
 
 namespace ROL {
+
+template<class Real> class Solver;
+
 namespace TypeG {
 
 template<typename Real>
@@ -66,7 +69,6 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
   fscale_             = sublist.get("Objective Scaling",           one);
   cscale_             = sublist.get("Constraint Scaling",          one);
 
-  // > nu and gamma
 }
 
 template<typename Real>
@@ -125,13 +127,14 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
 
   unsigned numberPenalties = alobj.getNumberConstraints();
 
+  feasibilities_.resize(numberPenalties);
+
   // Compute constraint violation
-  std::vector<Real> feasibilities(numberPenalties);
   for (unsigned i = 0; i < numberPenalties; ++i)
-    feasibilities[i] = alobj.feasibility(x,tol,i);
+    feasibilities_[i] = alobj.feasibility(x,tol,i);
   state_->cnorm = 0;
-  if (!feasibilities.empty())
-    state_->cnorm = *std::max_element(feasibilities.begin(),feasibilities.end());
+  if (!feasibilities_.empty())
+    state_->cnorm = *std::max_element(feasibilities_.begin(),feasibilities_.end());
 
   // Update evaluation counters
   state_->ncval += alobj.getNumberConstraintEvaluations();
@@ -187,7 +190,8 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
     const Real oem8(1e-8), oem2(1e-2), two(2), ten(10);
     Real penaltyParameter;
     for (unsigned i = 0; i < numberPenalties; ++i) {
-      penaltyParameter = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value)) / std::max(one,std::pow(constraintScalings[i]*feasibilities[i],two)),
+      penaltyParameter = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value)) 
+                                                    / std::max(one,std::pow(constraintScalings[i]*feasibilities_[i],two)),
                                                  oem2*maxPenaltyParam_)); // ROL convention
       alobj.setPenaltyParameter(penaltyParameter,i);
       state_->searchSize = std::max(state_->searchSize,penaltyParameter);
@@ -222,21 +226,85 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
 }
 
 template<typename Real>
-void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
-                                               Vector<Real>  &g,
-                                               Problem<Real> &problem,
+void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
                                                std::ostream  &outStream ) {
 
   // ========================================================================
-  // STEP 1: Get subproblem and objective
+  // STEP 1: Get augmented Lagrangian objective and subproblem
   // ========================================================================
-  Ptr<Problem<Real>> subproblem = problem.getAugmentedLagrangianSubproblem();
-  Ptr<AugmentedLagrangianObjective2<Real>> alobj = staticPtrCast<AugmentedLagrangianObjective2<Real>>(subproblem->getObjective());
+
+  problem.finalize(false,verbosity_>1,outStream,false);
+  Vector<Real> &x = *problem.getPrimalOptimizationVector();
+
+  auto makePenalty = [&] (Ptr<ConstraintData<Real>>& constraint_data)
+                           -> Ptr<AugmentedLagrangianPenalty<Real>> {
+    Ptr<AugmentedLagrangianPenalty<Real>> penalty = makePtr<AugmentedLagrangianPenalty<Real>>(
+                                                      constraint_data->constraint,
+                                                      constraint_data->projection,
+                                                      Real(1.0),
+                                                      x.dual(),
+                                                      *constraint_data->residual,
+                                                      *constraint_data->multiplier,
+                                                      0);
+    penalty->setMultiplier(*constraint_data->multiplier);
+    return penalty;
+  };
+
+  group_names_ = problem.getGroupNames();
+
+  Ptr<BoundConstraint<Real>> bound_constraint = problem.getBoundConstraint();
+  bool has_bound_constraint = (bound_constraint != nullPtr);
+  std::vector<std::string> ungrouped_linear_equality_constraints = problem.getUngroupedLinearEqualityConstraintNames();
+  std::vector<std::string> ungrouped_equality_constraints = problem.getUngroupedEqualityConstraintNames();
+
+  Ptr<ConstraintData<Real>> constraint_data;
+
+  // Construct augmented Lagrangian objective
+
+  std::vector<Ptr<AugmentedLagrangianPenalty<Real>>> penalties;
+  for (const std::string& name : group_names_) {
+    constraint_data = problem.getGroupConstraintData(name);
+    penalties.push_back(makePenalty(constraint_data));
+  }
+  // Penalizes the bound constraint
+  if (ungrouped_equality_constraints.size() > 0 && has_bound_constraint) {
+    Ptr<Projection<Real>> projection = makePtr<PolyhedralProjection<Real>>(bound_constraint);
+    Ptr<Vector<Real>> b = x.clone();
+    b->zero();
+    Ptr<LinearOperator<Real>> A = makePtr<IdentityOperator<Real>>();
+    Ptr<Constraint<Real>> constraint = makePtr<LinearConstraint<Real>>(A,b);
+    constraint_data = makePtr<ConstraintData<Real>>(constraint,x.dual().clone(),makePtrFromRef(x),nullPtr,projection);
+    penalties.push_back(makePenalty(constraint_data));
+    group_names_.push_back("bounds");
+  }
+  Ptr<Objective<Real>> objective = problem.getObjective();
+  Ptr<AugmentedLagrangianObjective2<Real>> alobj = makePtr<AugmentedLagrangianObjective2<Real>>(objective,penalties,x.dual(),false);
+
+  Ptr<Problem<Real>> subproblem = makePtr<Problem<Real>>(alobj,makePtrFromRef(x));
+
+  if (ungrouped_equality_constraints.size() == 0 && has_bound_constraint)
+    subproblem->addBoundConstraint(bound_constraint);
+
+  for (const auto& name : ungrouped_linear_equality_constraints) {
+    constraint_data = problem.getConstraintData(name);
+    subproblem->addLinearConstraint(name,constraint_data->constraint,constraint_data->multiplier,constraint_data->residual);
+  }
+
+  for (const auto& name : ungrouped_equality_constraints) {
+    constraint_data = problem.getConstraintData(name);
+    subproblem->addConstraint(name,constraint_data->constraint,constraint_data->multiplier,constraint_data->residual);
+  }
+
+  if (verbosity_ > 0) {
+    outStream << std::endl << "Subproblem Finalize:" << std::endl;
+    subproblem->finalize(false,verbosity_>0,outStream,true);
+  }
 
   // ========================================================================
-  // STEP 2: Set up
+  // STEP 2: Configure
   // ========================================================================
-  initialize(x,g,*alobj,outStream);
+
+  initialize(x,x.dual(),*alobj,outStream);
 
   // Constants
   const Real one(1), two(2), oem2(1e-2);
@@ -257,8 +325,6 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
 
   unsigned numberPenalties = alobj->getNumberConstraints();
 
-  std::vector<Real> feasibilities(numberPenalties);
-
   std::vector<Real> dualResiduals(numberPenalties);
 
   std::vector<Real> dualTolerances(numberPenalties); // \tau
@@ -273,11 +339,11 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
   bool isSubproblemConverged = false;
   Real penaltyParameter;
   bool isForcedUpdate = false;
-  bool isUpdated      = false;
 
   // ========================================================================
   // STEP 3: Run algorithm
   // ========================================================================
+  
   while (status_->check(*state_)) {
     // Solve augmented Lagrangian subproblem
     list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
@@ -312,9 +378,9 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
     state_->iterateVec->set(x);
     state_->value = alobj->getObjectiveValue(x,tol);
     for (unsigned i = 0; i < numberPenalties; ++i)
-      feasibilities[i] = alobj->feasibility(x,tol,i);
-    if (!feasibilities.empty())
-      state_->cnorm = *std::max_element(feasibilities.begin(),feasibilities.end());
+      feasibilities_[i] = alobj->feasibility(x,tol,i);
+    if (!feasibilities_.empty())
+      state_->cnorm = *std::max_element(feasibilities_.begin(),feasibilities_.end());
     state_->gnorm = solver.getAlgorithmState()->gnorm;
     //alobj.update(x,UpdateType::Accept,state_->iter);
 
@@ -341,7 +407,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
     }
 
     // Update (line 13)
-    isUpdated = false;
+    isUpdated_ = false;
     for (unsigned i = 0; i < numberPenalties; ++i) {
       penaltyParameter = alobj->getPenaltyParameter(i);
       if (isForcedUpdate || alobj->getScaling(i)*dualResiduals[i] > penaltyParameter*dualTolerances[i]) {
@@ -352,7 +418,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
         dualTolerances[i]  = feasToleranceInitial_*std::pow(theta[i],feasDecreaseExponent_);
         dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_);   // ROL convention
         alobj->setPenaltyParameter(penaltyParameter,i);
-        isUpdated = true;
+        isUpdated_ = true;
       }
       else {
         theta[i]           = std::min(one/penaltyParameter,theta[i]);
@@ -365,8 +431,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
     if (!dualTolerances.empty())
       feasTolerance_ = *std::max_element(dualTolerances.begin(),dualTolerances.end());
     // ROL update to \epsilon. Updates to the constraint tolerance, \delta, are possible as well.
-    outStream << std::endl << "isUpdated: " << isUpdated << std::endl;
-    if (isUpdated) {
+    if (isUpdated_) {
       optTolerance_ = std::max(oem2*outerOptTolerance_,
                       optToleranceInitial_/std::pow(std::max(two,state_->searchSize),optDecreaseExponent_));
     }
@@ -379,7 +444,10 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>  &x,
     // Update Output
     if (verbosity_ > 0) writeOutput(outStream,printHeader_);
   }
-  if (verbosity_ > 0) TypeG::Algorithm<Real>::writeExitStatus(outStream);
+  if (verbosity_ > 0) {
+    outStream << std::endl;
+    TypeG::Algorithm<Real>::writeExitStatus(outStream);
+  }
 }
 
 
@@ -401,25 +469,25 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
   if(verbosity_>1) {
     os << std::string(114,'-') << std::endl;
     os << "Augmented Lagrangian status output definitions" << std::endl << std::endl;
-    os << "  iter    - Number of iterates (steps taken)"            << std::endl;
-    os << "  fval    - Objective function value"                    << std::endl;
-    os << "  cnorm   - Norm of the constraint violation"            << std::endl;
-    os << "  gLnorm  - Norm of the gradient of the Lagrangian"      << std::endl;
-    os << "  snorm   - Norm of the step"                            << std::endl;
-    os << "  penalty - Penalty parameter"                           << std::endl;
-    os << "  feasTol - Feasibility tolerance"                       << std::endl;
-    os << "  optTol  - Optimality tolerance"                        << std::endl;
-    os << "  #fval   - Number of times the objective was computed"  << std::endl;
-    os << "  #grad   - Number of times the gradient was computed"   << std::endl;
-    os << "  #cval   - Number of times the constraint was computed" << std::endl;
-    os << "  subIter - Number of iterations to solve subproblem"    << std::endl;
+    os << "  iter       - Number of iterates (steps taken)"            << std::endl;
+    os << "  fval       - Objective function value"                    << std::endl;
+    os << "  max infeas - Largest infeasibility"                       << std::endl;
+    os << "  optimality - Norm of the subproblem optimality measure"   << std::endl;
+    os << "  snorm      - Norm of the step"                            << std::endl;
+    os << "  penalty    - Penalty parameter"                           << std::endl;
+    os << "  feasTol    - Feasibility tolerance"                       << std::endl;
+    os << "  optTol     - Optimality tolerance"                        << std::endl;
+    os << "  #fval      - Number of times the objective was computed"  << std::endl;
+    os << "  #grad      - Number of times the gradient was computed"   << std::endl;
+    os << "  #cval      - Number of times the constraint was computed" << std::endl;
+    os << "  subIter    - Number of iterations to solve subproblem"    << std::endl;
     os << std::string(114,'-') << std::endl;
   }
   os << "  ";
   os << std::setw(6)  << std::left << "iter";
   os << std::setw(15) << std::left << "fval";
-  os << std::setw(15) << std::left << "cnorm";
-  os << std::setw(15) << std::left << "gLnorm";
+  os << std::setw(15) << std::left << "max infeas";
+  os << std::setw(15) << std::left << "optimality";
   os << std::setw(15) << std::left << "snorm";
   os << std::setw(10) << std::left << "penalty";
   os << std::setw(10) << std::left << "feasTol";
@@ -446,6 +514,7 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
   std::ios_base::fmtflags osFlags(os.flags());
   os << std::scientific << std::setprecision(6);
   if ( state_->iter == 0 ) writeName(os);
+  os << std::endl;
   if ( print_header )      writeHeader(os);
   if ( state_->iter == 0 ) {
     os << "  ";
@@ -483,6 +552,14 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
     os << std::setw(8) << std::left << subproblemIter_;
     os << std::endl;
   }
+  os << std::endl;
+  os << "    is updated? " << isUpdated_ << "  |  ";
+  os << std::scientific << std::setprecision(6);
+  for (unsigned i = 0; i < feasibilities_.size(); ++i) {
+    std::string name = group_names_[i].substr(0,std::min<unsigned>(8,group_names_[i].size()));
+    os << std::setw(8) << std::left << name << ": "  << std::setw(8) << std::left << feasibilities_[i] << "  ";
+  }
+  os << std::endl;
   os.flags(osFlags);
 }
 
