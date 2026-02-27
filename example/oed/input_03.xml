@@ -1,22 +1,23 @@
 <ParameterList name="Inputs">
   <ParameterList name="Problem">
-    <Parameter name="X Lower Bound"           type="double" value="-1.0"  />
-    <Parameter name="X Upper Bound"           type="double" value="1.0"   />
-    <Parameter name="Number of Samples"       type="int"    value="100"   />
-    <Parameter name="Polynomial Degree"       type="int"    value="5"     />
-    <Parameter name="Noise Decay Rate"        type="double" value="5.0"   />
-    <Parameter name="Use Budget Constraint"   type="bool"   value="false" />
-    <Parameter name="Budget"                  type="double" value="5.0"   />
-    <Parameter name="Use Tikhonov"            type="bool"   value="false" />
-    <Parameter name="Tikhonov Parameter"      type="double" value="1e-4"  />
-    <Parameter name="Number of Theta Samples" type="int"    value="5"     />
+    <Parameter name="X Lower Bound"         type="double" value="-1.0"  />
+    <Parameter name="X Upper Bound"         type="double" value="1.0"   />
+    <Parameter name="Number of Samples"     type="int"    value="100"   />
+    <Parameter name="Polynomial Degree"     type="int"    value="5"     />
+    <Parameter name="Noise Decay Rate"      type="double" value="5.0"   />
+    <Parameter name="Use Budget Constraint" type="bool"   value="false" />
+    <Parameter name="Budget"                type="double" value="5.0"   />
+    <Parameter name="Use Tikhonov"          type="bool"   value="true"  />
+    <Parameter name="Tikhonov Parameter"    type="double" value="1e-4"  />
+    <Parameter name="Use SVD"               type="bool"   value="false" />
+    <Parameter name="SVD Drop Tolerance"    type="double" value="1e-12" />
   </ParameterList>
 
   <ParameterList name="OED">
-    <Parameter name="Optimality Type" type="string" value="D"     />
+    <Parameter name="Optimality Type" type="string" value="C"     />
     <!--
     <Parameter name="Optimality Type" type="string" value="A"     />
-    <Parameter name="Optimality Type" type="string" value="C"     />
+    <Parameter name="Optimality Type" type="string" value="D"     />
     <Parameter name="Optimality Type" type="string" value="I"     />
     -->
     <Parameter name="Use Storage"                   type="bool"   value="true"  />
@@ -134,7 +135,7 @@
     <!-- ===========  TRUST REGION  =========== -->
     <ParameterList name="Trust Region">
       <Parameter name="Subproblem Solver"                    type="string" value="Truncated CG" />
-      <Parameter name="Subproblem Model"                     type="string" value="Lin-More"     />
+      <Parameter name="Subproblem Model"                     type="string" value="SPG"     />
       <Parameter name="Initial Radius"                       type="double" value="1e2"          />
       <Parameter name="Maximum Radius"                       type="double" value="5e8"          />
       <Parameter name="Step Acceptance Threshold"            type="double" value="0.05"         />

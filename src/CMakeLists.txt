@@ -293,6 +293,7 @@ TRIBITS_INCLUDE_DIRECTORIES(${DIR}
                     ${DIR}/objective
                     ${DIR}/objective/het
                     ${DIR}/objective/hom
+                    ${DIR}/vector
                     ${DIR}/utilities)
 APPEND_GLOB(HEADERS ${DIR}/*.hpp
                     ${DIR}/constraint/*.hpp
@@ -300,6 +301,7 @@ APPEND_GLOB(HEADERS ${DIR}/*.hpp
                     ${DIR}/objective/*.hpp
                     ${DIR}/objective/het/*.hpp
                     ${DIR}/objective/hom/*.hpp
+                    ${DIR}/vector/*.hpp
                     ${DIR}/utilities/*.hpp)
 
 #
