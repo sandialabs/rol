@@ -28,6 +28,10 @@ PolyhedralProjection<Real>::PolyhedralProjection(const Vector<Real>             
   xdual_ = xdual.clone();
   mul_   = mul.clone();
   res_   = res.clone();
+  if (con_ != nullPtr) {
+    rcon_ = makePtr<ReducedLinearConstraint<Real>>(con,bnd,xprim_);
+    ns_   = makePtr<NullSpaceOperator<Real>>(rcon_,*xprim_,*res_);
+  }
 }
 
 template<typename Real>
@@ -46,7 +50,10 @@ void PolyhedralProjection<Real>::applyJacobian(Vector<Real> &v, const Vector<Rea
     bnd_->pruneActive(v,x);
   }
   else {
-    throw Exception::NotImplemented(">>> ROL::PolyhedralProjection::applyJacobian : No projection Jacobian implemented!");
+    rcon_->setX(makePtrFromRef(x));
+    ns_->update(x);
+    Real tol = 0;
+    ns_->apply(v,*xprim_,tol);
   }
 }
 

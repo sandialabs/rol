@@ -66,6 +66,7 @@ private:
   bool isUpdated_;
   std::vector<std::string> group_names_;
   std::vector<Real> feasibilities_;
+  std::vector<Real> penalty_growthf_;
 
   using TypeG::Algorithm<Real>::state_;
   using TypeG::Algorithm<Real>::status_;

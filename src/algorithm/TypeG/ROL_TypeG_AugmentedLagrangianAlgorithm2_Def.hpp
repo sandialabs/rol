@@ -54,7 +54,6 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
   feasDecreaseExponent_ = sublist.get("Feasibility Tolerance Decrease Exponent", p9);  // \beta
   feasToleranceInitial_ = sublist.get("Initial Feasibility Tolerance",           one);
   // Subproblem information
-  print_         = sublist.get("Print Intermediate Optimization History", false);
   maxit_         = sublist.get("Subproblem Iteration Limit",              1000);
   subStep_       = sublist.get("Subproblem Step Type",                    "Trust Region");
   hessianApprox_ = sublist.get("Level of Hessian Approximation",          0);
@@ -62,10 +61,10 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
   list_.sublist("Status Test").set("Iteration Limit",maxit_);
   list_.sublist("Status Test").set("Use Relative Tolerances",false);
   // Verbosity setting
-  verbosity_          = list.sublist("General").get("Output Level", 0);
-  printHeader_        = verbosity_ > 0;
-  print_              = (verbosity_ > 2 ? true : print_);
-  list_.sublist("General").set("Output Level",(print_ ? verbosity_ : 0));
+  verbosity_    = list.sublist("General").get("Output Level", 0);
+  printHeader_  = verbosity_ > 0;
+  int subproblemOutputLevel     = verbosity_ > 2 ? 1 : 0;
+  list_.sublist("General").set("Output Level", subproblemOutputLevel);
   // Outer iteration tolerances
   outerFeasTolerance_ = list.sublist("Status Test").get("Constraint Tolerance",    oem8);
   outerOptTolerance_  = list.sublist("Status Test").get("Gradient Tolerance",      oem8);
@@ -193,20 +192,29 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
   // > TODO: problem.getSubproblemStationarityMeasure(*state_->iterateVec,x); which is used below to set tolerances
 
   // Compute initial penalty parameter
+  Real temp;
   if (useDefaultInitPen_) {
     const Real oem8(1e-8), oem2(1e-2), two(2), ten(10);
-    Real penaltyParameter;
     for (unsigned i = 0; i < numberPenalties; ++i) {
-      penaltyParameter = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value))
+      temp = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value)) 
                                                     / std::max(one,std::pow(constraintScalings[i]*feasibilities_[i],two)),
-                                                 oem2*maxPenaltyParam_)); // ROL convention
-      alobj.setPenaltyParameter(penaltyParameter,i);
-      state_->searchSize = std::max(state_->searchSize,penaltyParameter);
+                                                  oem2*maxPenaltyParam_)); // ROL convention
+      alobj.setPenaltyParameter(temp,i);
+      state_->searchSize = std::max(state_->searchSize,temp);
     }
   }
   else {
-    for (unsigned i = 0; i < numberPenalties; ++i)
-      alobj.setPenaltyParameter(state_->searchSize,i);
+    for (unsigned i = 0; i < numberPenalties; ++i) {
+      temp = list_.sublist("Step").sublist("Augmented Lagrangian").sublist(group_names_[i]).get("Initial Penalty Parameter",state_->searchSize);
+      alobj.setPenaltyParameter(temp,i);
+      state_->searchSize = std::max(state_->searchSize,temp);
+    }
+  }
+
+  // Define penalty updates
+  for (unsigned i = 0; i < numberPenalties; ++i) {
+    temp = list_.sublist("Step").sublist("Augmented Lagrangian").sublist(group_names_[i]).get("Penalty Parameter Growth Factor",penaltyUpdate_);
+    penalty_growthf_.push_back(temp);
   }
 
   // Initialize intermediate stopping tolerances
@@ -302,7 +310,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     subproblem->addConstraint(name,constraint_data->constraint,constraint_data->multiplier,constraint_data->residual);
   }
 
-  if (verbosity_ > 0) {
+  if (verbosity_ > 1) {
     outStream << std::endl << "Subproblem Finalize:" << std::endl;
     subproblem->finalize(false,verbosity_>0,outStream,true);
   }
@@ -418,7 +426,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     for (unsigned i = 0; i < numberPenalties; ++i) {
       penaltyParameter = alobj->getPenaltyParameter(i);
       if (isForcedUpdate || alobj->getScaling(i)*dualResiduals[i] > penaltyParameter*dualTolerances[i]) {
-        penaltyParameter  *= penaltyUpdate_;
+        penaltyParameter  *= penalty_growthf_[i];
         penaltyParameter   = std::min(penaltyParameter,maxPenaltyParam_);
         state_->searchSize = std::max(state_->searchSize,penaltyParameter);
         theta[i]           = std::min(one/penaltyParameter,theta[i]);
@@ -449,7 +457,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     alobj->reset();
 
     // Update Output
-    if (verbosity_ > 0) writeOutput(outStream,printHeader_);
+    if (verbosity_ > 0) writeOutput(outStream,false);
   }
   if (verbosity_ > 0) {
     outStream << std::endl;
@@ -459,7 +467,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
 
 
 template<typename Real>
-void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>          &x,
+void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>         &x,
                                               const Vector<Real>    &g,
                                               Objective<Real>       &obj,
                                               BoundConstraint<Real> &bnd,
@@ -473,7 +481,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Vector<Real>          &x,
 template<typename Real>
 void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const {
   std::ios_base::fmtflags osFlags(os.flags());
-  if(verbosity_>1) {
+  if(verbosity_ > 1 && state_->iter == 0) {
     os << std::string(114,'-') << std::endl;
     os << "Augmented Lagrangian status output definitions" << std::endl << std::endl;
     os << "  iter       - Number of iterates (steps taken)"            << std::endl;
@@ -481,7 +489,7 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
     os << "  max infeas - Largest infeasibility"                       << std::endl;
     os << "  optimality - Norm of the subproblem optimality measure"   << std::endl;
     os << "  snorm      - Norm of the step"                            << std::endl;
-    os << "  penalty    - Penalty parameter"                           << std::endl;
+    os << "  max pen    - Largest penalty parameter"                   << std::endl;
     os << "  feasTol    - Feasibility tolerance"                       << std::endl;
     os << "  optTol     - Optimality tolerance"                        << std::endl;
     os << "  #fval      - Number of times the objective was computed"  << std::endl;
@@ -490,13 +498,14 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
     os << "  subIter    - Number of iterations to solve subproblem"    << std::endl;
     os << std::string(114,'-') << std::endl;
   }
+  if (verbosity_ > 1) os << std::endl;
   os << "  ";
   os << std::setw(6)  << std::left << "iter";
   os << std::setw(15) << std::left << "fval";
   os << std::setw(15) << std::left << "max infeas";
   os << std::setw(15) << std::left << "optimality";
   os << std::setw(15) << std::left << "snorm";
-  os << std::setw(10) << std::left << "penalty";
+  os << std::setw(10) << std::left << "max pen";
   os << std::setw(10) << std::left << "feasTol";
   os << std::setw(10) << std::left << "optTol";
   os << std::setw(8)  << std::left << "#fval";
@@ -521,14 +530,13 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
   std::ios_base::fmtflags osFlags(os.flags());
   os << std::scientific << std::setprecision(6);
   if ( state_->iter == 0 ) writeName(os);
-  os << std::endl;
-  if ( print_header )      writeHeader(os);
+  if (  print_header || verbosity_ > 1 ) writeHeader(os);
   if ( state_->iter == 0 ) {
     os << "  ";
     os << std::setw(6)  << std::left << state_->iter;
     os << std::setw(15) << std::left << state_->value;
     os << std::setw(15) << std::left << state_->cnorm;
-    os << std::setw(15) << std::left << state_->gnorm;
+    os << std::setw(15) << std::left << "---";
     os << std::setw(15) << std::left << "---";
     os << std::scientific << std::setprecision(2);
     os << std::setw(10) << std::left << state_->searchSize;
@@ -559,14 +567,16 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
     os << std::setw(8) << std::left << subproblemIter_;
     os << std::endl;
   }
-  os << std::endl;
-  os << "    is updated? " << isUpdated_ << "  |  ";
-  os << std::scientific << std::setprecision(6);
-  for (unsigned i = 0; i < feasibilities_.size(); ++i) {
-    std::string name = group_names_[i].substr(0,std::min<unsigned>(8,group_names_[i].size()));
-    os << std::setw(8) << std::left << name << ": "  << std::setw(8) << std::left << feasibilities_[i] << "  ";
+  if (verbosity_ > 1) {
+    os << std::endl;
+    os << "    Penalty Update?  " << (isUpdated_ ? "Yes" : "No") << "  |  Feasibilities:  ";
+    os << std::scientific << std::setprecision(6);
+    for (unsigned i = 0; i < feasibilities_.size(); ++i) {
+      std::string name = group_names_[i];
+      os << name << ": "  << std::setw(8) << std::left << feasibilities_[i] << "  ";
+    }
+    os << std::endl;
   }
-  os << std::endl;
   os.flags(osFlags);
 }
 

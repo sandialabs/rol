@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     problem->check(true,*outStream,x);
 
     ROL::ParameterList list;
-    list.sublist("General").set("Output Level", 1);
+    list.sublist("General").set("Output Level", 3);
     list.sublist("Status Test").set("Iteration Limit",20);
     list.sublist("Step").set("Type", "Augmented Lagrangian 2");
     list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Iteration Limit",100);
@@ -64,11 +64,10 @@ int main(int argc, char *argv[]) {
     list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Penalty Parameter", 1.0);
     list.sublist("Step").sublist("Augmented Lagrangian").set("Penalty Parameter Growth Factor", 4.0);
     list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Step Type","Composite Step");
-    list.sublist("Step").sublist("Augmented Lagrangian").set("Print Intermediate Optimization History", true);
+    list.sublist("Step").sublist("Augmented Lagrangian").sublist("inequality constraint").set("Initial Penalty Parameter",1.0);
+    // list.sublist("Step").sublist("Augmented Lagrangian").sublist("bounds").set("Penalty Parameter Growth Factor",1.0);
     ROL::Solver<RealT> solver(problem,list);
     solver.solve(*outStream);
-    // ROL::TypeG::AugmentedLagrangianAlgorithm2<RealT> algo(list);
-    // algo.run(*problem,*outStream);
 
     std::cout << std::endl << "Solution: ";
     x->print(*outStream);
