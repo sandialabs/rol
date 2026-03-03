@@ -209,7 +209,6 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
   Ptr<Objective<Real>> obj;
   Ptr<BilinearConstraint<Real>> covar0, covar1;
   Ptr<QuadraticObjective<Real>> qobj;
-  Ptr<TraceSampler<Real>> traceSampler;
   bool useTrace = plist.sublist("OED").sublist("I-Optimality").get("Use Trace Form",false);
   if ((type_ == "I" && !useTrace) || type_ == "R") {
     covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_);
@@ -245,10 +244,10 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
     obj    = makePtr<Het::C_Objective<Real>>(covar1,qobj,theta0,useStorage_);
   }
   else if (type_ == "D") {
-    traceSampler = makePtr<TraceSampler<Real>>(theta0);
-    covar0       = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
-    covar1       = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
-    obj          = makePtr<Het::D_Objective<Real>>(covar0,covar1,theta0,useStorage_);
+    auto traceSampler = makePtr<TraceSampler<Real>>(theta0);
+    covar0            = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+    covar1            = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
+    obj               = makePtr<Het::D_Objective<Real>>(covar0,covar1,theta0,useStorage_);
   }
   else if (type_ == "A") {
     bool useRandomTrace = plist.sublist("OED").sublist("A-Optimality").get("Randomized Trace Estimation",false);
