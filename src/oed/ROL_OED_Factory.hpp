@@ -111,7 +111,7 @@ public:
   int loadDesign(const std::string &file, int dim, int n);
   const Ptr<const Vector<Real>> getDesign() const;
   const Ptr<const Vector<Real>> getOptimizationVector() const;
-  //const Ptr<Factors<Real>> getFactors() const;
+  const Ptr<Factors<Real>> getFactors(const Ptr<Vector<Real>>& theta) const;
   Ptr<Vector<Real>> createDesignVector() const;
   void printDesign(const std::string &name, const std::string &ext = ".txt") const;
   void printPredictionVariance(const Ptr<SampleGenerator<Real>> &sampler,

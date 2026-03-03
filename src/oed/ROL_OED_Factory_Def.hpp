@@ -507,10 +507,10 @@ const Ptr<const Vector<Real>> Factory<Real>::getOptimizationVector() const {
   return vec_;
 }
 
-//template<typename Real>
-//const Ptr<Factors<Real>> Factory<Real>::getFactors() const {
-//  return factors_;
-//}
+template<typename Real>
+const Ptr<Factors<Real>> Factory<Real>::getFactors(const Ptr<Vector<Real>>& theta) const {
+  return objArray_->getFactors(theta);
+}
 
 template<typename Real>
 void Factory<Real>::printDesign(const std::string &name, const std::string &ext) const {

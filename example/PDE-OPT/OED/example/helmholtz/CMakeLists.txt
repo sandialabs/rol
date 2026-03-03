@@ -1,5 +1,4 @@
 ADD_SUBDIRECTORY(singleFrequency)
-ADD_SUBDIRECTORY(twoFrequencyMO)
 ADD_SUBDIRECTORY(multipleFrequency)
 
 ROL_COPY_FILES_TO_BINARY_DIR(
