@@ -271,6 +271,7 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
     int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
     int nfactors = theta0->dimension();
     int size = (useRandomTrace ? nRandomTrace : nfactors);
+    Ptr<TraceSampler<Real>> traceSampler;
     if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
     else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
     const int one(1);
