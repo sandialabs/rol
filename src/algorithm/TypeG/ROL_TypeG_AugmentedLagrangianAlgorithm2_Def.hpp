@@ -191,25 +191,29 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
   // > x.set(*state_->iterateVec);
   // > TODO: problem.getSubproblemStationarityMeasure(*state_->iterateVec,x); which is used below to set tolerances
 
-  // Compute initial penalty parameter
   Real temp;
+
+  // Compute initial penalty parameter
+  Real max_penalty = 0;
   if (useDefaultInitPen_) {
+    state_->searchSize = 0;
     const Real oem8(1e-8), oem2(1e-2), two(2), ten(10);
     for (unsigned i = 0; i < numberPenalties; ++i) {
       temp = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value)) 
                                                     / std::max(one,std::pow(constraintScalings[i]*feasibilities_[i],two)),
                                                   oem2*maxPenaltyParam_)); // ROL convention
       alobj.setPenaltyParameter(temp,i);
-      state_->searchSize = std::max(state_->searchSize,temp);
+      max_penalty = std::max(max_penalty,temp);
     }
   }
   else {
     for (unsigned i = 0; i < numberPenalties; ++i) {
       temp = list_.sublist("Step").sublist("Augmented Lagrangian").sublist(group_names_[i]).get("Initial Penalty Parameter",state_->searchSize);
       alobj.setPenaltyParameter(temp,i);
-      state_->searchSize = std::max(state_->searchSize,temp);
+      max_penalty = std::max(max_penalty,temp);
     }
   }
+  state_->searchSize = max_penalty;
 
   // Define penalty updates
   for (unsigned i = 0; i < numberPenalties; ++i) {
@@ -290,7 +294,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     Ptr<Constraint<Real>> constraint = makePtr<LinearConstraint<Real>>(A,b);
     constraint_data = makePtr<ConstraintData<Real>>(constraint,x.dual().clone(),makePtrFromRef(x),nullPtr,projection);
     penalties.push_back(makePenalty(constraint_data));
-    group_names_.push_back("bounds");
+    group_names_.push_back("Bounds");
   }
   Ptr<Objective<Real>> objective = problem.getObjective();
   Ptr<AugmentedLagrangianObjective2<Real>> alobj = makePtr<AugmentedLagrangianObjective2<Real>>(objective,penalties,x.dual(),false);
@@ -363,7 +367,6 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     // Solve augmented Lagrangian subproblem
     list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
     list_.sublist("Status Test").set("Step Tolerance",1.e-6*optTolerance_);
-    list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
     Solver<Real> solver(subproblem,list_);
     isSubproblemConverged = false;
     for (unsigned i = 0; i < maxSubproblemFails; ++i) {

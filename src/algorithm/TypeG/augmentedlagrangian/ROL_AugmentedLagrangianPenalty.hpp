@@ -32,7 +32,8 @@ private:
   // Auxiliary storage
   Ptr<Vector<Real>> dualOptVector_;
   Ptr<Vector<Real>> dualConVector_;
-  Ptr<Vector<Real>> primConVector_;
+  Ptr<Vector<Real>> primConVector1_;
+  Ptr<Vector<Real>> primConVector2_;
 
   // Constraint evaluations
   Ptr<VectorController<Real,int>> conValue_;
@@ -66,7 +67,8 @@ public:
     multiplier_->zero();
     dualOptVector_ = dualOptVec.clone();
     dualConVector_ = dualConVec.clone();
-    primConVector_ = primConVec.clone();
+    primConVector1_ = primConVec.clone();
+    primConVector2_ = primConVec.clone();
 
     ParameterList& sublist = parlist.sublist("Step").sublist("Augmented Lagrangian");
     hessianApprox_ = sublist.get("Level of Hessian Approximation",  0);
@@ -89,7 +91,8 @@ public:
     multiplier_->zero();
     dualOptVector_ = dualOptVec.clone();
     dualConVector_ = dualConVec.clone();
-    primConVector_ = primConVec.clone();
+    primConVector1_ = primConVec.clone();
+    primConVector2_ = primConVec.clone();
   }
 
   virtual void update( const Vector<Real> &x, UpdateType type, int iter = -1 ) {
@@ -127,12 +130,15 @@ public:
       hv.zero();
       return;
     }
-    con_->applyAdjointHessian(hv,*getDualVec(x,tol),v,x,tol);
-    con_->applyJacobian(*primConVector_,v,x,tol);
-    dualConVector_->set(getConstraintVec(x,tol)->dual());
-    dualConVector_->axpy(Real(1)/penaltyParameter_,*multiplier_);
-    proj_->applyJacobian(*primConVector_,dualConVector_->dual());
-    con_->applyAdjointJacobian(*dualOptVector_,primConVector_->dual(),x,tol);
+    con_->applyJacobian(*primConVector1_,v,x,tol);
+    dualConVector_->set(primConVector1_->dual());
+    primConVector2_->set(*getConstraintVec(x,tol));
+    primConVector2_->axpy(Real(1)/penaltyParameter_,multiplier_->dual());
+    proj_->applyJacobian(*primConVector1_,*primConVector2_);
+    dualConVector_->axpy(-1,primConVector1_->dual());
+    dualConVector_->scale(penaltyParameter_);
+    con_->applyAdjointJacobian(hv,*dualConVector_,x,tol);
+    con_->applyAdjointHessian(*dualOptVector_,*getDualVec(x,tol),v,x,tol);
     hv.plus(*dualOptVector_);
     hv.scale(cscale_);
   }
@@ -148,10 +154,10 @@ public:
   }
 
   Real feasibility( const Vector<Real> &x, Real &tol ) {
-    primConVector_->set(*getConstraintVec(x,tol));
-    proj_->project(*primConVector_,bhs_);
-    primConVector_->axpy(Real(-1),*getConstraintVec(x,tol));
-    return primConVector_->norm();
+    primConVector1_->set(*getConstraintVec(x,tol));
+    proj_->project(*primConVector1_,bhs_);
+    primConVector1_->axpy(Real(-1),*getConstraintVec(x,tol));
+    return primConVector1_->norm();
   }
 
   void setPenaltyParameter( const Real penaltyParameter ) {
@@ -174,7 +180,7 @@ public:
   const Ptr<const Vector<Real>> getConstraintVec( const Vector<Real> &x, Real &tol ) {
     int key(0);
     if (!conValue_->isComputed(key)) {
-      if (conValue_->isNull(key)) conValue_->allocate(*primConVector_,key);
+      if (conValue_->isNull(key)) conValue_->allocate(*primConVector1_,key);
       con_->value(*conValue_->set(key),x,tol); ncval_++;
     }
     return conValue_->get(key);
@@ -185,11 +191,11 @@ public:
     int key(0);
     if (!dualValue_->isComputed(key)) {
       if (dualValue_->isNull(key)) dualValue_->allocate(*dualConVector_,key);
-      primConVector_->set(*getConstraintVec(x,tol));
-      primConVector_->axpy(Real(1)/penaltyParameter_,multiplier_->dual());
-      dualConVector_->set(primConVector_->dual());
-      proj_->project(*primConVector_,bhs_);
-      dualConVector_->axpy(Real(-1),primConVector_->dual());
+      primConVector1_->set(*getConstraintVec(x,tol));
+      primConVector1_->axpy(Real(1)/penaltyParameter_,multiplier_->dual());
+      dualConVector_->set(primConVector1_->dual());
+      proj_->project(*primConVector1_,bhs_);
+      dualConVector_->axpy(Real(-1),primConVector1_->dual());
       dualConVector_->scale(penaltyParameter_);
       dualValue_->set(key)->set(*dualConVector_);
     }

@@ -58,13 +58,13 @@ int main(int argc, char *argv[]) {
     ROL::ParameterList list;
     list.sublist("General").set("Output Level", 3);
     list.sublist("Status Test").set("Iteration Limit",20);
+    list.sublist("Status Test").set("Step Tolerance",-1.);
     list.sublist("Step").set("Type", "Augmented Lagrangian 2");
     list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Iteration Limit",100);
     list.sublist("Step").sublist("Augmented Lagrangian").set("Use Default Initial Penalty Parameter", false);
-    list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Penalty Parameter", 1.0);
-    list.sublist("Step").sublist("Augmented Lagrangian").set("Penalty Parameter Growth Factor", 4.0);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Penalty Parameter", 1.e1);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Penalty Parameter Growth Factor", 1.e1);
     list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Step Type","Composite Step");
-    list.sublist("Step").sublist("Augmented Lagrangian").sublist("inequality constraint").set("Initial Penalty Parameter",1.0);
     // list.sublist("Step").sublist("Augmented Lagrangian").sublist("bounds").set("Penalty Parameter Growth Factor",1.0);
     ROL::Solver<RealT> solver(problem,list);
     solver.solve(*outStream);

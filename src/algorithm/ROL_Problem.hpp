@@ -289,7 +289,7 @@ public:
   */
   EProblem                              getProblemType();
 
-  Ptr<ConstraintData<Real>>  getConstraintData(const std::string &constraint_name);
+  Ptr<ConstraintData<Real>>        getConstraintData(const std::string &constraint_name);
 
   const std::vector<std::string>&  getUngroupedEqualityConstraintNames();
 
