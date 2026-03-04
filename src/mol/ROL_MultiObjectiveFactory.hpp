@@ -16,6 +16,7 @@
 
 #include "ROL_ParameterList.hpp"
 #include "ROL_Problem.hpp"
+#include "ROL_StatusTest.hpp"
 #include "ROL_MOL_Types.hpp"
 
 namespace ROL {
@@ -44,8 +45,12 @@ private:
   bool isObjInit_;
 
   void addConstraintsToProblem(Ptr<Problem<Real>> &problem);
-  void computeUtopia(ParameterList &parlist, std::ostream &outStream);
-  void initializeObjectives(ParameterList &parlist, std::ostream &outStream);
+  void computeUtopia(ParameterList &parlist, std::ostream &outStream,
+                     const Ptr<StatusTest<Real>>& status = nullPtr,
+                     bool combineStatus = true);
+  void initializeObjectives(ParameterList &parlist, std::ostream &outStream,
+                            const Ptr<StatusTest<Real>>& status = nullPtr,
+                            bool combineStatus = true);
 
 public:
   virtual ~MultiObjectiveFactory() {}
@@ -209,7 +214,9 @@ public:
   */
   Ptr<Problem<Real>> makeScalarProblem(const std::vector<Real>& lam, ParameterList& parlist,
                                        std::ostream& outStream=std::cout,
-                                       bool initGuess=false, const Ptr<Vector<Real>>& x0=nullPtr);
+                                       bool initGuess=false, const Ptr<Vector<Real>>& x0=nullPtr,
+                                       const Ptr<StatusTest<Real>>& status=nullPtr,
+                                       bool combineStatus=true);
 
   /** \brief Return number of objective functions.
   */
@@ -243,8 +250,10 @@ public:
       @param[in] parlist    parameter list (contains bool to normalize objective)
       @param[in] outStream  out stream for printing diagnostic information
   */
-  const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist,std::ostream& outStream = std::cout) {
-    computeUtopia(parlist,outStream);
+  const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist, std::ostream& outStream = std::cout,
+                                                    const Ptr<StatusTest<Real>>& status = nullPtr,
+                                                    bool combineStatus = false) {
+    computeUtopia(parlist,outStream,status,combineStatus);
     return solution_vec_;
   }
 
