@@ -12,13 +12,18 @@
 */
 
 #include "ROL_StdObjective.hpp"
+#include "ROL_Problem.hpp"
+#include "ROL_Solver.hpp"
 #include "ROL_BatchManager.hpp"
 #include "ROL_UserInputGenerator.hpp"
-#include "ROL_Solver.hpp"
+#include "ROL_PartitionedVector.hpp"
+#include "ROL_BlockDiagonalOperator.hpp"
+#include "ROL_SeparableObjective.hpp"
 #include "ROL_Stream.hpp"
 
 #include "ROL_OED_Factory.hpp"
 #include "ROL_OED_StdMomentOperator.hpp"
+#include "ROL_OED_IndependentMomentOperator.hpp"
 
 #include "ROL_GlobalMPISession.hpp"
 
@@ -27,26 +32,24 @@
 template<typename Real>
 class PolynomialModel : public ROL::StdObjective<Real> {
 private:
+  const std::vector<Real> param_;
   const unsigned deg_;
 
 public:
-  PolynomialModel(unsigned deg = 2) : deg_(deg) {}
+  PolynomialModel(const std::vector<Real> &param)
+   : param_(param), deg_(param.size()) {}
 
   Real value(const std::vector<Real> &theta, Real &tol) override {
-    Real val(0), xpow(1);
-    for (unsigned i = 0; i <= deg_; ++i) {
-      val  += theta[i] * xpow;
-      xpow *= ROL::Objective<Real>::getParameter()[0];
-    }
+    Real val = theta[0];
+    for (unsigned i = 1u; i <= deg_; ++i)
+      val += theta[i]*std::pow(param_[i-1]-ROL::Objective<Real>::getParameter()[0],i);
     return val;
   }
 
   void gradient(std::vector<Real> &g, const std::vector<Real> &theta, Real &tol) override {
-    Real xpow(1);
-    for (unsigned i = 0; i <= deg_; ++i) {
-      g[i]  = xpow;
-      xpow *= ROL::Objective<Real>::getParameter()[0];
-    }
+    g[0] = static_cast<Real>(1);
+    for (unsigned i = 1u; i <= deg_; ++i)
+      g[i] = std::pow(param_[i-1]-ROL::Objective<Real>::getParameter()[0],i);
   }
 };
 
@@ -114,11 +117,29 @@ int main(int argc, char *argv[]) {
     auto parlist = ROL::getParametersFromXmlFile( filename );
 
     // Setup parameter vector and polynomial model
-    const RealT alpha = parlist->sublist("Problem").get("Noise Decay Rate", 5.0);
-    const int deg = parlist->sublist("Problem").get("Polynomial Degree", 5);
-    auto theta = ROL::makePtr<ROL::StdVector<RealT>>(deg+1,1);
-    auto model = ROL::makePtr<PolynomialModel<RealT>>(deg);
-    auto noise = ROL::makePtr<PolynomialNoise<RealT>>(alpha);
+
+    // Build list of models and noises
+    const int paramDim = parlist->sublist("Problem").get("Parameter Dimension",    5);
+    const int numParam = parlist->sublist("Problem").get("Number of Parameters",  10);
+    const RealT alpha = parlist->sublist("Problem").get("Noise Decay Rate",      5.0);
+    const RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",   1e-4);
+    const bool addTik = parlist->sublist("Problem").get("Use Tikhonov",        false);
+    std::vector<RealT> param(paramDim);
+    std::vector<ROL::Ptr<ROL::Objective<RealT>>>  models(numParam);
+    std::vector<ROL::Ptr<ROL::Vector<RealT>>>     thetas(numParam);
+    std::vector<ROL::Ptr<ROL::OED::Noise<RealT>>> noises(numParam);
+    std::vector<ROL::Ptr<ROL::LinearOperator<RealT>>> Ps(numParam);
+    for (int i = 0; i < numParam; ++i) {
+      for (int j = 0; j < paramDim; ++j)
+        param[j] = static_cast<RealT>(2*rand())/static_cast<RealT>(RAND_MAX)-static_cast<RealT>(1);
+      models[i] = ROL::makePtr<PolynomialModel<RealT>>(param);
+      thetas[i] = ROL::makePtr<ROL::StdVector<RealT>>(paramDim+1,1);
+      noises[i] = ROL::makePtr<PolynomialNoise<RealT>>(alpha*static_cast<RealT>(rand())/static_cast<RealT>(RAND_MAX));
+      Ps[i]     = ROL::makePtr<RegularizationOperator<RealT>>(beta*static_cast<RealT>(rand())/static_cast<RealT>(RAND_MAX));
+    }
+    auto P = ROL::makePtr<ROL::BlockDiagonalOperator<RealT>>(Ps);
+    auto model = ROL::makePtr<ROL::SeparableObjective<RealT>>(models);
+    auto theta = ROL::makePtr<ROL::PartitionedVector<RealT>>(thetas);
 
     // Setup experiment sample generator
     const RealT lb = parlist->sublist("Problem").get("X Lower Bound", -1.0);
@@ -139,38 +160,26 @@ int main(int argc, char *argv[]) {
     auto sampler = ROL::makePtr<ROL::UserInputGenerator<RealT>>("points.txt","weights.txt",nsamp,1,bman);
     auto isampler = ROL::makePtr<ROL::UserInputGenerator<RealT>>("pointsGL.txt","weightsGL.txt",11,1,bman);
 
-    // Setup factory
+    // Build moment operator
     bool homNoise = true;
     std::string regType = "Least Squares";
-    std::string ocType = parlist->sublist("OED").get("Optimality Type","A");
+    std::string ocType  = parlist->sublist("OED").get("Optimality Type","A");
     auto type = ROL::OED::StringToRegressionType(regType);
-    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
-    bool addTik = parlist->sublist("Problem").get("Use Tikhonov",false);
-    if (addTik) {
-      RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",1e-4);
-      auto P = ROL::makePtr<RegularizationOperator<RealT>>(beta);
-      M->setPerturbation(P);
-    }
+    std::vector<ROL::Ptr<ROL::OED::MomentOperator<RealT>>> Ms(numParam);
+    for (int i = 0; i < numParam; ++i)
+      Ms[i] = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noises[i]);
+    auto M = ROL::makePtr<ROL::OED::IndependentMomentOperator<RealT>>(Ms);
+    if (addTik) M->setPerturbation(P);
+
+    // Setup factory
     auto factory = ROL::makePtr<ROL::OED::Factory<RealT>>(model,sampler,theta,M,*parlist);
     if (parlist->sublist("Problem").get("Use Budget Constraint",false)) {
-      auto cost = factory->createDesignVector();
+      auto cost = factory->getDesign()->clone();
       cost->setScalar(static_cast<RealT>(1));
       RealT budget = parlist->sublist("Problem").get("Budget",5.0);
-      bool useBudgetEquality = parlist->sublist("Problem").get("Use Budget Equality Constraint",false);
-      factory->setBudgetConstraint(cost,budget,useBudgetEquality);
+      factory->setBudgetConstraint(cost,budget);
     }
-    if (parlist->sublist("Problem").get("Use Probability Scaling",false)) {
-      auto prob = factory->createDesignVector();
-      auto prob0 = ROL::dynamicPtrCast<ROL::StdVector<RealT>>(prob)->getVector();
-      for (unsigned i = 0u; i < prob0->size(); ++i)
-        (*prob0)[i] = static_cast<RealT>(rand())/static_cast<RealT>(RAND_MAX);
-      factory->setProbabilityVector(prob);
-    }
-    //if (ocType == "A" || ocType == "I")
-    //  parlist->sublist("General").sublist("Polyhedral Projection").set("Type","Brents");
-    //else
-    //  parlist->sublist("General").sublist("Polyhedral Projection").set("Type","Dai-Fletcher");
-    
+
     // Generate optimization problem
     auto problem = factory->get(*parlist,sampler);
     problem->setProjectionAlgorithm(*parlist);
@@ -188,7 +197,7 @@ int main(int argc, char *argv[]) {
                << " seconds" << std::endl;
     factory->profile(*outStream);
     std::stringstream dname;
-    dname << ocType << "_optimal_design";
+    dname << ocType << "_optimal_design_ex4";
     factory->printDesign(dname.str());
   }
   catch (std::logic_error& err) {

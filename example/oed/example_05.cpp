@@ -12,9 +12,10 @@
 */
 
 #include "ROL_StdObjective.hpp"
+#include "ROL_Problem.hpp"
+#include "ROL_Solver.hpp"
 #include "ROL_BatchManager.hpp"
 #include "ROL_UserInputGenerator.hpp"
-#include "ROL_Solver.hpp"
 #include "ROL_Stream.hpp"
 
 #include "ROL_OED_Factory.hpp"
@@ -29,24 +30,58 @@ class PolynomialModel : public ROL::StdObjective<Real> {
 private:
   const unsigned deg_;
 
+  Real f(Real x) const {
+    return std::exp(x);
+    //const Real zero(0), one(1);
+    //if ( x > zero ) {
+    //  return one / (one + std::exp(-x));
+    //}
+    //else if ( x < zero ) {
+    //  const Real expx = std::exp(x);
+    //  return expx / (one + expx);
+    //}
+    //else {
+    //  return static_cast<Real>(0.5);
+    //}
+  }
+
+  Real df(Real x) const {
+    return std::exp(x);
+    //const Real zero(0), one(1);
+    //if ( x > zero ) {
+    //  const Real expx = std::exp(-x);
+    //  return expx / ((expx+one)*(expx+one));
+    //}
+    //else if ( x < zero ) {
+    //  const Real expx = std::exp(x);
+    //  return expx / ((expx+one)*(expx+one));
+    //}
+    //else {
+    //  return static_cast<Real>(0.25);
+    //}
+  }
+
 public:
   PolynomialModel(unsigned deg = 2) : deg_(deg) {}
 
   Real value(const std::vector<Real> &theta, Real &tol) override {
     Real val(0), xpow(1);
-    for (unsigned i = 0; i <= deg_; ++i) {
+    for (unsigned i = 0u; i <= deg_; ++i) {
       val  += theta[i] * xpow;
       xpow *= ROL::Objective<Real>::getParameter()[0];
     }
-    return val;
+    return f(val);
   }
 
   void gradient(std::vector<Real> &g, const std::vector<Real> &theta, Real &tol) override {
-    Real xpow(1);
-    for (unsigned i = 0; i <= deg_; ++i) {
+    Real val(0), xpow(1);
+    for (unsigned i = 0u; i <= deg_; ++i) {
+      val  += theta[i] * xpow;
       g[i]  = xpow;
       xpow *= ROL::Objective<Real>::getParameter()[0];
     }
+    Real dfval = df(val);
+    for (unsigned i = 0u; i <= deg_; ++i) g[i] *= dfval;
   }
 };
 
@@ -60,33 +95,6 @@ public:
 
   Real evaluate(const std::vector<Real> &x) const override {
     return std::exp(alpha_ * std::abs(x[0])) / std::exp(alpha_);
-  }
-};
-
-template<typename Real>
-class RegularizationOperator : public ROL::LinearOperator<Real> {
-private:
-  const Real alpha_;
-
-public:
-  RegularizationOperator(Real alpha = Real(1)) : alpha_(alpha) {}
-
-  void apply(ROL::Vector<Real> &Px, const ROL::Vector<Real> &x, Real &tol) const override {
-    Px.set(x);
-    Px.scale(alpha_);
-  }
-
-  void applyInverse(ROL::Vector<Real> &Px, const ROL::Vector<Real> &x, Real &tol) const override {
-    Px.set(x);
-    Px.scale(static_cast<Real>(1)/alpha_);
-  }
-
-  void applyAdjoint(ROL::Vector<Real> &Px, const ROL::Vector<Real> &x, Real &tol) const override {
-    apply(Px,x,tol);
-  }
-
-  void applyAdjointInverse(ROL::Vector<Real> &Px, const ROL::Vector<Real> &x, Real &tol) const override {
-    applyInverse(Px,x,tol);
   }
 };
 
@@ -140,31 +148,32 @@ int main(int argc, char *argv[]) {
     auto isampler = ROL::makePtr<ROL::UserInputGenerator<RealT>>("pointsGL.txt","weightsGL.txt",11,1,bman);
 
     // Setup factory
-    bool homNoise = true;
+    unsigned numDrop  = parlist->sublist("Problem").get("Number of Dropout Samples",10);
+    bool     homNoise = true;
     std::string regType = "Least Squares";
-    std::string ocType = parlist->sublist("OED").get("Optimality Type","A");
+    std::string ocType  = parlist->sublist("OED").get("Optimality Type","A");
     auto type = ROL::OED::StringToRegressionType(regType);
     auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
-    bool addTik = parlist->sublist("Problem").get("Use Tikhonov",false);
-    if (addTik) {
-      RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",1e-4);
-      auto P = ROL::makePtr<RegularizationOperator<RealT>>(beta);
-      M->setPerturbation(P);
-    }
+    std::vector<ROL::Ptr<ROL::Vector<RealT>>> pvec(numDrop,ROL::nullPtr);
+    std::vector<RealT> weights(numDrop,static_cast<RealT>(1));
     auto factory = ROL::makePtr<ROL::OED::Factory<RealT>>(model,sampler,theta,M,*parlist);
+    if (numDrop == 1u) {
+      pvec[0] = factory->createDesignVector();
+      pvec[0]->setScalar(static_cast<RealT>(1));
+    }
+    else {
+      for (unsigned i = 0u; i < numDrop; ++i) {
+        pvec[i] = factory->createDesignVector();
+        pvec[i]->randomize(static_cast<RealT>(0),static_cast<RealT>(1));
+	weights[i] = static_cast<RealT>(1) / static_cast<RealT>(numDrop);
+      }
+    }
+
     if (parlist->sublist("Problem").get("Use Budget Constraint",false)) {
-      auto cost = factory->createDesignVector();
+      auto cost = factory->getDesign()->clone();
       cost->setScalar(static_cast<RealT>(1));
       RealT budget = parlist->sublist("Problem").get("Budget",5.0);
-      bool useBudgetEquality = parlist->sublist("Problem").get("Use Budget Equality Constraint",false);
-      factory->setBudgetConstraint(cost,budget,useBudgetEquality);
-    }
-    if (parlist->sublist("Problem").get("Use Probability Scaling",false)) {
-      auto prob = factory->createDesignVector();
-      auto prob0 = ROL::dynamicPtrCast<ROL::StdVector<RealT>>(prob)->getVector();
-      for (unsigned i = 0u; i < prob0->size(); ++i)
-        (*prob0)[i] = static_cast<RealT>(rand())/static_cast<RealT>(RAND_MAX);
-      factory->setProbabilityVector(prob);
+      factory->setBudgetConstraint(cost,budget);
     }
     //if (ocType == "A" || ocType == "I")
     //  parlist->sublist("General").sublist("Polyhedral Projection").set("Type","Brents");
@@ -188,8 +197,42 @@ int main(int argc, char *argv[]) {
                << " seconds" << std::endl;
     factory->profile(*outStream);
     std::stringstream dname;
-    dname << ocType << "_optimal_design";
+    dname << ocType << "_optimal_design_ex5";
     factory->printDesign(dname.str());
+
+    factory = ROL::makePtr<ROL::OED::Factory<RealT>>(model,sampler,theta,M,*parlist);
+    if (parlist->sublist("Problem").get("Use Budget Constraint",false)) {
+      auto cost = factory->getDesign()->clone();
+      cost->setScalar(static_cast<RealT>(1));
+      RealT budget = parlist->sublist("Problem").get("Budget",5.0);
+      factory->setBudgetConstraint(cost,budget);
+    }
+    //if (ocType == "A" || ocType == "I")
+    //  parlist->sublist("General").sublist("Polyhedral Projection").set("Type","Brents");
+    //else
+    //  parlist->sublist("General").sublist("Polyhedral Projection").set("Type","Dai-Fletcher");
+    
+    // Generate optimization problem
+    parlist->sublist("OED").set("Use Minimax Formulation", false);
+    parlist->sublist("OED").set("Use Drop Out Sampling", true);
+    problem = factory->get(pvec,weights,*parlist,sampler);
+    problem->setProjectionAlgorithm(*parlist);
+    problem->finalize(false,true,*outStream);
+    test = factory->getDesign()->clone();
+    test->randomize(1,2);
+    problem->check(true,*outStream,test,0.1);
+
+    // Setup ROL solver
+    std::clock_t timer2 = std::clock();
+    solver = ROL::makePtr<ROL::Solver<RealT>>(problem,*parlist);
+    solver->solve(*outStream);
+    *outStream << "  " << ocType << "-optimal design time:      "
+               << static_cast<RealT>(std::clock()-timer2)/static_cast<RealT>(CLOCKS_PER_SEC)
+               << " seconds" << std::endl;
+    factory->profile(*outStream);
+    std::stringstream dname2;
+    dname2 << "robust_" << ocType << "_optimal_design_ex5";
+    factory->printDesign(dname2.str());
   }
   catch (std::logic_error& err) {
     *outStream << err.what() << std::endl;
