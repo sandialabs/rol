@@ -25,7 +25,7 @@
 #include "ROL_TpetraMultiVector.hpp"
 #include "ROL_Reduced_Objective_SimOpt.hpp"
 #include "ROL_Bounds.hpp"
-#include "ROL_TpetraBoundConstraints.hpp"
+#include "ROL_TpetraBoundConstraint.hpp"
 #include "ROL_Solver.hpp"
 #include "ROL_SingletonVector.hpp"
 #include "ROL_ConstraintFromObjective.hpp"

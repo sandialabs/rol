@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
     auto ilp  = ROL::makePtr<ROL::SingletonVector<RealT>>(0);
     auto iup  = ROL::makePtr<ROL::SingletonVector<RealT>>(0);
     zp->zero(); con_vol->value(*ilp,*zp,tol);
-    auto ibnd = ROL::makePtr<ROL::Bounds<RealT>>(ilp,iup);
+    ROL::Ptr<ROL::BoundConstraint<RealT>> ibnd = ROL::makePtr<ROL::Bounds<RealT>>(ilp,iup);
 
     // Define bound constraint
     auto zlo = assemblerFilter->createControlVector(); zlo->putScalar(0.0);
