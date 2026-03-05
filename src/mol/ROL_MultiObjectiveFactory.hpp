@@ -250,9 +250,10 @@ public:
       @param[in] parlist    parameter list (contains bool to normalize objective)
       @param[in] outStream  out stream for printing diagnostic information
   */
-  const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist, std::ostream& outStream = std::cout,
-                                                    const Ptr<StatusTest<Real>>& status = nullPtr,
-                                                    bool combineStatus = false) {
+  const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist,
+                                                    std::ostream& outStream=std::cout,
+                                                    const Ptr<StatusTest<Real>>& status=nullPtr,
+                                                    bool combineStatus=true) {
     computeUtopia(parlist,outStream,status,combineStatus);
     return solution_vec_;
   }
