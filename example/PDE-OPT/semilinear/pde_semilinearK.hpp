@@ -47,6 +47,12 @@ private:
   std::vector<std::vector<std::vector<int>>> bdryCellLocIds_;
   // Finite element definition
   ROL::Ptr<fe_type> fe_vol_;
+  std::vector<std::vector<int>> fidx_;
+  std::vector<std::vector<scalar_view>> bdryCellDofValues_;
+
+  Real DirichletFunc(const std::vector<Real> & coords, int sideset, int locSideId) const {
+    return 0;
+  }
 
 public:
   PDE_Semilinear(Teuchos::ParameterList &parlist) {
@@ -98,6 +104,25 @@ public:
       rst::scale(valZ_eval, static_cast<Real>(-1));
       fst::integrate(res, valZ_eval, fe_vol_->NdetJ(), true);
     }
+    // =====================================
+    // DIRICHLET CONDITIONS
+    // =====================================
+    int numSideSets = bdryCellLocIds_.size();
+    for (int i = 0; i < numSideSets; ++i) {
+      int numLocalSideIds = bdryCellLocIds_[i].size();
+      for (int j = 0; j < numLocalSideIds; ++j) {
+        int numCellsSide = bdryCellLocIds_[i][j].size();
+        int numVBdryDofs = fidx_[j].size();
+        for (int k = 0; k < numCellsSide; ++k) {
+          int cidx = bdryCellLocIds_[i][j][k];
+          for (int l = 0; l < numVBdryDofs; ++l) {
+            for (int m = 0; m < d; ++m) {
+              res(cidx,fidx_[j][l]) = u_coeff(cidx,fidx_[j][l]) - (bdryCellDofValues_[i][j])(k,fidx_[j][l]);
+            }
+          }
+        }
+      }
+    }
   }
 
   void Jacobian_1(scalar_view & jac,
@@ -123,6 +148,26 @@ public:
     scalar_view NexpU("NexpU", c, f, p);
     fst::scalarMultiplyDataField(NexpU, valU_eval, fe_vol_->N());
     fst::integrate(jac, NexpU, fe_vol_->NdetJ(), true);
+    // =====================================
+    // DIRICHLET CONDITIONS
+    // =====================================
+    int numSideSets = bdryCellLocIds_.size();
+    for (int i = 0; i < numSideSets; ++i) {
+      int numLocalSideIds = bdryCellLocIds_[i].size();
+      for (int j = 0; j < numLocalSideIds; ++j) {
+        int numCellsSide = bdryCellLocIds_[i][j].size();
+        int numBdryDofs = fidx_[j].size();
+        for (int k = 0; k < numCellsSide; ++k) {
+          int cidx = bdryCellLocIds_[i][j][k];
+          for (int l = 0; l < numBdryDofs; ++l) {
+            for (int m = 0; m < f; ++m) {
+              jac(cidx,fidx_[j][l],m) = static_cast<Real>(0);
+            }
+            jac(cidx,fidx_[j][l],fidx_[j][l]) = static_cast<Real>(1);
+          }
+        }
+      }
+    }
   }
 
   void Jacobian_2(scalar_view & jac,
@@ -138,6 +183,27 @@ public:
       // ADD CONTROL TERM
       fst::integrate(jac, fe_vol_->N(), fe_vol_->NdetJ(), false);
       rst::scale(jac, static_cast<Real>(-1));
+      // =====================================
+      // DIRICHLET CONDITIONS
+      // =====================================
+      int numSideSets = bdryCellLocIds_.size();
+      if (numSideSets > 0) {
+        for (int i = 0; i < numSideSets; ++i) {
+          int numLocalSideIds = bdryCellLocIds_[i].size();
+          for (int j = 0; j < numLocalSideIds; ++j) {
+            int numCellsSide = bdryCellLocIds_[i][j].size();
+            int numBdryDofs = fidx_[j].size();
+            for (int k = 0; k < numCellsSide; ++k) {
+              int cidx = bdryCellLocIds_[i][j][k];
+              for (int l = 0; l < numBdryDofs; ++l) {
+                for (int m = 0; m < f; ++m) {
+                  jac(cidx,fidx_[j][l],m) = static_cast<Real>(0);
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -152,6 +218,26 @@ public:
     int p = fe_vol_->N().extent_int(2);
     // INITIALIZE HESSIAN
     hess = scalar_view("hess11", c, f, f);
+
+    // =====================================
+    // DIRICHLET CONDITIONS
+    // =====================================
+    int numSideSets = bdryCellLocIds_.size();
+    for (int i = 0; i < numSideSets; ++i) {
+      int numLocalSideIds = bdryCellLocIds_[i].size();
+      for (int j = 0; j < numLocalSideIds; ++j) {
+        int numCellsSide = bdryCellLocIds_[i][j].size();
+        int numVBdryDofs = fidx_[j].size();
+        for (int k = 0; k < numCellsSide; ++k) {
+          int cidx = bdryCellLocIds_[i][j][k];
+          for (int l = 0; l < numVBdryDofs; ++l) {
+            l_coeff(cidx,fidx_[j][l]) = static_cast<Real>(0);
+          }
+        }
+      }
+    }
+    // =====================================
+
     // COMPUTE NONLINEAR TERM
     scalar_view valU_eval("valU_eval", c, p);
     fe_vol_->evaluateValue(valU_eval, u_coeff);
@@ -223,6 +309,33 @@ public:
     bdryCellLocIds_ = bdryCellLocIds;
     // Finite element definition.
     fe_vol_ = ROL::makePtr<fe_type>(volCellNodes_, basisPtr_, cellCub_);
+    fidx_ = fe_vol_->getBoundaryDofs();
+    // Compute Dirichlet values at DOFs.
+    int d = basisPtr_->getBaseCellTopology().getDimension();
+    int numSidesets = bdryCellLocIds_.size();
+    bdryCellDofValues_.resize(numSidesets);
+    for (int i=0; i<numSidesets; ++i) {
+      int numLocSides = bdryCellLocIds_[i].size();
+      bdryCellDofValues_[i].resize(numLocSides);
+      for (int j=0; j<numLocSides; ++j) {
+        int c = bdryCellLocIds_[i][j].size();
+        int f = basisPtr_->getCardinality();
+        bdryCellDofValues_[i][j] = scalar_view("bdryVals", c, f);
+        scalar_view coords("coords", c, f, d);
+        if (c > 0) {
+          fe_vol_->computeDofCoords(coords, bdryCellNodes_[i][j]);
+        }
+        for (int k=0; k<c; ++k) {
+          for (int l=0; l<f; ++l) {
+            std::vector<Real> dofpoint(d);
+            for (int m=0; m<d; ++m) {
+              dofpoint[m] = coords(k, l, m);
+            }
+            bdryCellDofValues_[i][j](k, l) = DirichletFunc(dofpoint, i, j);
+          }
+        }
+      }
+    }
   }
 
   const ROL::Ptr<fe_type> getFE(void) const {

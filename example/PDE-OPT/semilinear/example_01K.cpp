@@ -16,6 +16,7 @@
 #include "ROL_GlobalMPISession.hpp"
 #include "ROL_TpetraBoundConstraint.hpp"
 #include "ROL_BoundConstraint_SimOpt.hpp"
+#include "ROL_UpdateType.hpp"
 
 #include "Tpetra_Core.hpp"
 #include "Tpetra_Version.hpp"
@@ -112,29 +113,51 @@ int main(int argc, char *argv[]) {
     b->zero();
     ROL::Ptr<ROL::LinearOperator<RealT>> A = ROL::makePtr<ROL::IdentityOperator<RealT>>();
     ROL::Ptr<ROL::Constraint<RealT>> constraint = ROL::makePtr<ROL::LinearConstraint<RealT>>(A,b);
-    auto lou1_ptr =  con->getAssembler()->createStateVector();  lou1_ptr->putScalar(-2/3);
+    auto lou1_ptr =  con->getAssembler()->createStateVector();  lou1_ptr->putScalar(-2./3.);
     auto hiu1_ptr =  con->getAssembler()->createStateVector();  hiu1_ptr->putScalar(ROL::ROL_INF<RealT>());
     auto loz1_ptr = con->getAssembler()->createControlVector(); loz1_ptr->putScalar(ROL::ROL_NINF<RealT>());
     auto hiz1_ptr = con->getAssembler()->createControlVector(); hiz1_ptr->putScalar(ROL::ROL_INF<RealT>());
     auto bnd1u = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(lou1_ptr,hiu1_ptr);
     auto bnd1z = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(loz1_ptr,hiz1_ptr);
     ROL::Ptr<ROL::BoundConstraint<RealT>> bnd1 = ROL::makePtr<ROL::BoundConstraint_SimOpt<RealT>>(bnd1u,bnd1z);
-    auto lou2_ptr =  con->getAssembler()->createStateVector();  lou2_ptr->putScalar(ROL::ROL_NINF<RealT>());
-    auto hiu2_ptr =  con->getAssembler()->createStateVector();  hiu2_ptr->putScalar(ROL::ROL_INF<RealT>());
+    auto lou2_ptr = con->getAssembler()->createStateVector();   lou2_ptr->putScalar(ROL::ROL_NINF<RealT>());
+    auto hiu2_ptr = con->getAssembler()->createStateVector();   hiu2_ptr->putScalar(ROL::ROL_INF<RealT>());
     auto loz2_ptr = con->getAssembler()->createControlVector(); loz2_ptr->putScalar(-10.0);
-    auto hiz2_ptr = con->getAssembler()->createControlVector(); hiz2_ptr->putScalar( 10.0);
+    auto hiz2_ptr = con->getAssembler()->createControlVector(); hiz2_ptr->putScalar(ROL::ROL_INF<RealT>());
     auto bnd2u = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(lou2_ptr,hiu2_ptr);
     auto bnd2z = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(loz2_ptr,hiz2_ptr);
     ROL::Ptr<ROL::BoundConstraint<RealT>> bnd2 = ROL::makePtr<ROL::BoundConstraint_SimOpt<RealT>>(bnd2u,bnd2z);
+    auto lou3_ptr = con->getAssembler()->createStateVector();   lou3_ptr->putScalar(ROL::ROL_NINF<RealT>());
+    auto hiu3_ptr = con->getAssembler()->createStateVector();   hiu3_ptr->putScalar(ROL::ROL_INF<RealT>());
+    auto loz3_ptr = con->getAssembler()->createControlVector(); loz3_ptr->putScalar(ROL::ROL_NINF<RealT>());
+    auto hiz3_ptr = con->getAssembler()->createControlVector(); hiz3_ptr->putScalar(-1.0);
+    auto bnd3u = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(lou3_ptr,hiu3_ptr);
+    auto bnd3z = ROL::makePtr<ROL::TpetraBoundConstraint<RealT>>(loz3_ptr,hiz3_ptr);
+    ROL::Ptr<ROL::BoundConstraint<RealT>> bnd3 = ROL::makePtr<ROL::BoundConstraint_SimOpt<RealT>>(bnd3u,bnd3z);
 
     RealT tol(1.e-8);
-    con->solve(*rp, *up, *zp, tol);
+    // con->solve(*rp, *up, *zp, tol);
+    ROL::Ptr<ROL::Vector<RealT>> x_dual = x->dual().clone();
+    obj->gradient(*x_dual,*x,tol);
+    x_dual->scale(-1.0);
+    rp->zero();
+    x->zero();
+    obj->update(*x,ROL::UpdateType::Initial);
+    con->solveAugmentedSystem(*d,*pp,*x_dual,*rp,*x,tol);
+    // pp->zero();
+
     auto problem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
     problem->addConstraint("PDE", con, pp);
     ROL::Ptr<ROL::Vector<RealT>> mul1 = x->dual().clone();
+    mul1->zero();
     ROL::Ptr<ROL::Vector<RealT>> mul2 = x->dual().clone();
-    problem->addConstraint("State Bounds", constraint, mul1, bnd1);
-    problem->addConstraint("Control Bounds", constraint, mul2, bnd2);
+    mul2->zero();
+    ROL::Ptr<ROL::Vector<RealT>> mul3 = x->dual().clone();
+    mul3->zero();
+    problem->addConstraint("State Bounds",   constraint, mul1, bnd1);
+    problem->addConstraint("Control Bounds 1", constraint, mul2, bnd2);
+    problem->addConstraint("Control Bounds 2", constraint, mul3, bnd3);
+    x->zero();
     // problem->finalize(false, true, *outStream);
     problem->finalize(false, true, *outStream, false);
     Teuchos::Time algoTimer("Algorithm Time", true);

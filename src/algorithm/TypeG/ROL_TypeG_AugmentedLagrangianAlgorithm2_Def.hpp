@@ -332,8 +332,8 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   // Additional parameters
   unsigned maxSubproblemFails = 2;
   unsigned k0 = 100;
-  Real nu = 1;
-  Real gamma = 1;
+  Real nu = 1.e6;
+  Real gamma = 0.49;
 
   state_->gnorm = ROL_INF<Real>();
 
@@ -359,6 +359,8 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   Real penaltyParameter;
   bool isForcedUpdate = false;
 
+  Real subproblemFeas = optTolerance_; 
+
   // ========================================================================
   // STEP 3: Run algorithm
   // ========================================================================
@@ -366,7 +368,9 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   while (status_->check(*state_)) {
     // Solve augmented Lagrangian subproblem
     list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
-    list_.sublist("Status Test").set("Step Tolerance",1.e-6*optTolerance_);
+    list_.sublist("Status Test").set("Constraint Tolerance",subproblemFeas);
+    //list_.sublist("Status Test").set("Step Tolerance",1.e-6*optTolerance_);
+    list_.sublist("Status Test").set("Step Tolerance",1.e-14);
     Solver<Real> solver(subproblem,list_);
     isSubproblemConverged = false;
     for (unsigned i = 0; i < maxSubproblemFails; ++i) {
@@ -493,7 +497,7 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
     os << "  optimality - Norm of the subproblem optimality measure"   << std::endl;
     os << "  snorm      - Norm of the step"                            << std::endl;
     os << "  max pen    - Largest penalty parameter"                   << std::endl;
-    os << "  feasTol    - Feasibility tolerance"                       << std::endl;
+    os << "  dfeasTol   - Dual feasibility tolerance"                  << std::endl;
     os << "  optTol     - Optimality tolerance"                        << std::endl;
     os << "  #fval      - Number of times the objective was computed"  << std::endl;
     os << "  #grad      - Number of times the gradient was computed"   << std::endl;
@@ -509,7 +513,7 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
   os << std::setw(15) << std::left << "optimality";
   os << std::setw(15) << std::left << "snorm";
   os << std::setw(10) << std::left << "max pen";
-  os << std::setw(10) << std::left << "feasTol";
+  os << std::setw(10) << std::left << "dfeasTol";
   os << std::setw(10) << std::left << "optTol";
   os << std::setw(8)  << std::left << "#fval";
   os << std::setw(8)  << std::left << "#grad";

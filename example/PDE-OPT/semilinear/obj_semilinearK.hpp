@@ -36,7 +36,7 @@ private:
     for (int i = 0; i < size; ++i) {
       val += x[i]*x[i];
     }
-    return val;
+    return -1;
   }
 
 public:
@@ -244,7 +244,7 @@ private:
 
 public:
   StdObjective_Semilinear(Teuchos::ParameterList &parlist) {
-    alpha_ = parlist.sublist("Semilinear Objective Function").get("Control Penalty",1.e-4);
+    alpha_ = parlist.sublist("Semilinear Objective Function").get("Control Penalty",1.e-3);
   }
 
   Real value(const std::vector<Real> &x, Real &tol) {

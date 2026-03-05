@@ -1,9 +1,30 @@
 <ParameterList name="Inputs">
+
+  <ParameterList name="Semilinear Objective Function">
+    <Parameter name="Control Penalty"  type="double"     value="1e-3"    />
+  </ParameterList>  
+
+  <ParameterList name="PDE Semilinear">
+    <Parameter name="Cubature Degree"  type="int"     value="3"    />
+  </ParameterList>  
+
+  <ParameterList name="Vector">
+    <ParameterList name="Sim">
+      <Parameter name="Use Riesz Map"             type="bool"    value="true"         />
+      <Parameter name="Lump Riesz Map"            type="bool"    value="true"         />
+    </ParameterList>
+    <ParameterList name="Opt">
+      <Parameter name="Use Riesz Map"             type="bool"    value="true"         />
+      <Parameter name="Lump Riesz Map"            type="bool"    value="true"         />
+    </ParameterList>
+  </ParameterList>
+
   <!-- ===========  PROBLEM INPUT PARAMETER SUBLIST  =========== -->
   <ParameterList name="Problem">
-    <Parameter name="Control penalty parameter"   type="double"  value="1e-5" />
-    <Parameter name="Control lower bound"         type="double"  value="0"    />
-    <Parameter name="Control upper bound"         type="double"  value="10"   />
+    <!-- <Parameter name="Control penalty parameter"   type="double"  value="1e-3" /> -->
+    <!-- <Parameter name="Control penalty parameter"   type="double"  value="1e-3" /> -->
+    <!-- <Parameter name="Control lower bound"         type="double"  value="0"    />
+    <Parameter name="Control upper bound"         type="double"  value="10"   /> -->
     <!--Parameter name="State lower bound"           type="double"  value="0"    -->
     <!--Parameter name="State upper bound"           type="double"  value="0.9"  -->
     <Parameter name="Order of FE discretization"  type="int"     value="1"    />
@@ -15,8 +36,8 @@
     <Parameter name="Height"            type="double"  value="1.0"  />
     <Parameter name="X0"                type="double"  value="0.0"  />
     <Parameter name="Y0"                type="double"  value="0.0"  />
-    <Parameter name="NX"                type="int"     value="20"   />
-    <Parameter name="NY"                type="int"     value="20"   />
+    <Parameter name="NX"                type="int"     value="32"   />
+    <Parameter name="NY"                type="int"     value="32"   />
     <Parameter name="Partition type"    type="int"     value="1"    />
   </ParameterList>
 
@@ -45,7 +66,7 @@
     <ParameterList name="Krylov">
       <Parameter name="Type"               type="string" value="Conjugate Gradients" />
       <Parameter name="Absolute Tolerance" type="double" value="1.e-4"               />
-      <Parameter name="Relative Tolerance" type="double" value="1.e-2"               />
+      <Parameter name="Relative Tolerance" type="double" value="1.e-3"               />
       <Parameter name="Iteration Limit"    type="int"    value="100"                 />
     </ParameterList>
   </ParameterList>
@@ -58,15 +79,16 @@
     <!-- ===========  COMPOSITE STEP  =========== -->
     <ParameterList name="Composite Step">
       <Parameter name="Output Level" type="int" value="0" />
+      <Parameter name="Initial Radius" type="double" value="1e-1" />
       <!-- ===========  OPTIMALITY SYSTEM SOLVER  =========== -->
       <ParameterList name="Optimality System Solver">
-        <Parameter name="Nominal Relative Tolerance" type="double" value="1e-10"  />
+        <Parameter name="Nominal Relative Tolerance" type="double" value="1e-14"  />
         <Parameter name="Fix Tolerance"              type="bool"   value="true"  />
       </ParameterList>
       <!-- ===========  TANGENTIAL SUBPROBLEM SOLVER  =========== -->
       <ParameterList name="Tangential Subproblem Solver">
         <Parameter name="Iteration Limit"    type="int"    value="20"   />
-        <Parameter name="Relative Tolerance" type="double" value="1e-2" />
+        <Parameter name="Relative Tolerance" type="double" value="1e-4" />
       </ParameterList>
     </ParameterList>
 
@@ -76,14 +98,6 @@
       <Parameter name="Use Default Initial Penalty Parameter"   type="bool" value="false"            />
       <Parameter name="Initial Penalty Parameter"               type="double" value="1.e0"           />
       <Parameter name="Penalty Parameter Growth Factor"         type="double" value="1.e0"           />
-      <!-- ===========  OPTIMALITY TOLERANCE UPDATE  =========== -->
-      <Parameter name="Initial Optimality Tolerance"            type="double" value="1e-0"           />
-      <Parameter name="Optimality Tolerance Update Exponent"    type="double" value="1.0"            />
-      <Parameter name="Optimality Tolerance Decrease Exponent"  type="double" value="1.0"            />
-      <!-- ===========  FEASIBILITY TOLERANCE UPDATE  =========== -->
-      <Parameter name="Initial Feasibility Tolerance"           type="double" value="1e-0"           />
-      <Parameter name="Feasibility Tolerance Update Exponent"   type="double" value="0.1"            />
-      <Parameter name="Feasibility Tolerance Decrease Exponent" type="double" value="0.9"            />
       <!-- ===========  SUBPROBLEM SOLVER  =========== -->
       <Parameter name="Print Intermediate Optimization History" type="bool"   value="false"          />
       <Parameter name="Subproblem Step Type"                    type="string" value="Composite Step" />
@@ -92,7 +106,11 @@
         <Parameter name="Initial Penalty Parameter"               type="double" value="1.e+3"         />
         <Parameter name="Penalty Parameter Growth Factor"         type="double" value="5"             />
       </ParameterList>
-      <ParameterList name="Control Bounds">
+      <ParameterList name="Control Bounds 1">
+        <Parameter name="Initial Penalty Parameter"               type="double" value="1.e-3"         />
+        <Parameter name="Penalty Parameter Growth Factor"         type="double" value="5"             />
+      </ParameterList>
+      <ParameterList name="Control Bounds 2">
         <Parameter name="Initial Penalty Parameter"               type="double" value="1.e-3"         />
         <Parameter name="Penalty Parameter Growth Factor"         type="double" value="5"             />
       </ParameterList>
@@ -102,9 +120,9 @@
 
   <!-- ===========  STATUS TEST SUBLIST  =========== -->
   <ParameterList name="Status Test">
-    <Parameter name="Gradient Tolerance"   type="double" value="1.e-4"  />
+    <Parameter name="Gradient Tolerance"   type="double" value="1.e-6"  />
     <Parameter name="Constraint Tolerance" type="double" value="1.e-6"   />
     <Parameter name="Step Tolerance"       type="double" value="-1.e-14"  />
-    <Parameter name="Iteration Limit"      type="int"    value="2000"     />
+    <Parameter name="Iteration Limit"      type="int"    value="100"     />
   </ParameterList>
 </ParameterList>
