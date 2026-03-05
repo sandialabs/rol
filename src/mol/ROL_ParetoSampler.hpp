@@ -6,6 +6,7 @@
 #include <random>
 #include <algorithm>
 
+#include "ROL_StatusTest.hpp"
 #include "ROL_MultiObjectiveFactory.hpp"
 #include "ROL_UniformSimplexGenerator.hpp"
 #include "ROL_Equispaced2dGenerator.hpp"
@@ -25,6 +26,8 @@ public:
   void run(const Ptr<MultiObjectiveFactory<Real>>& factory,
            ParameterList& parlist,
            std::ostream& outStream = std::cout,
+	   const Ptr<StatusTest<Real>> &status = nullPtr,
+           bool combineStatus = true,
            bool reset = false) {
     if (reset) samples_.clear();
     const Real zero(0), one(1);
@@ -32,7 +35,7 @@ public:
     const int batchid = bman_->batchID();
     const int nbatch = bman_->numBatches();
     // Compute endpoints
-    auto pdsol = factory->getEndPoints(parlist,outStream);
+    auto pdsol = factory->getEndPoints(parlist,outStream,status,combineStatus);
     int frac   = nobj / nbatch;
     int rem    = nobj % nbatch;
     int N      = frac + ((batchid < rem) ? 1 : 0);
@@ -55,13 +58,13 @@ public:
         // Generate simplex sample
         lam = sampler->getMyPoint(i);
         // Solve scalarized problem
-        auto problem = factory->makeScalarProblem(lam,parlist,outStream,initGuess&&(i!=0),x0);
+        auto problem = factory->makeScalarProblem(lam,parlist,outStream,initGuess&&(i!=0),x0,status,combineStatus);
         //x0->randomize(1.0,2.0);
         problem->finalize(false,true,outStream);
         //problem->check(true,outStream,x0,0.1);
         auto solver = makePtr<Solver<Real>>(problem,parlist);
         auto timer = std::clock();
-        solver->solve(outStream);
+        solver->solve(outStream,status,combineStatus);
         Real time = static_cast<Real>(std::clock()-timer)/static_cast<Real>(CLOCKS_PER_SEC);
         outStream << "Optimization Time: " << time << " seconds" << std::endl;
         tottime += time;

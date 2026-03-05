@@ -223,7 +223,9 @@ void MultiObjectiveFactory<Real>::addConstraintsToProblem(Ptr<Problem<Real>> &pr
 }
 
 template<typename Real>
-void MultiObjectiveFactory<Real>::computeUtopia(ParameterList &parlist, std::ostream &outStream) {
+void MultiObjectiveFactory<Real>::computeUtopia(ParameterList &parlist, std::ostream &outStream,
+                                                const Ptr<StatusTest<Real>>& status,
+                                                bool combineStatus) {
   if (values_.size() != cnt_obj_) {
     solution_vec_.clear();
     scale_vec_.resize(cnt_obj_,static_cast<Real>(1));
@@ -236,7 +238,7 @@ void MultiObjectiveFactory<Real>::computeUtopia(ParameterList &parlist, std::ost
       problem->finalize(false,true,outStream);
       // Solve single-objective optimization problem
       auto solver = makePtr<Solver<Real>>(problem,parlist);
-      solver->solve(outStream);
+      solver->solve(outStream,status,combineStatus);
       // Store Pareto data
       auto x = INPUT_xprim_->clone();
       x->set(*INPUT_xprim_);
@@ -254,10 +256,12 @@ void MultiObjectiveFactory<Real>::computeUtopia(ParameterList &parlist, std::ost
 }
 
 template<typename Real>
-void MultiObjectiveFactory<Real>::initializeObjectives(ParameterList &parlist, std::ostream &outStream) {
+void MultiObjectiveFactory<Real>::initializeObjectives(ParameterList &parlist, std::ostream &outStream,
+                                                       const Ptr<StatusTest<Real>>& status,
+                                                       bool combineStatus) {
   if (!isObjInit_) {
     const bool normalize = parlist.sublist("Multi-Objective").get("Normalize Objectives",false);
-    computeUtopia(parlist,outStream);
+    computeUtopia(parlist,outStream,status,combineStatus);
     if (normalize) {
       const Real tol = 1e-2*std::sqrt(ROL_EPSILON<Real>());
       // Compute normalization data
@@ -312,7 +316,9 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::getScalarProblem(std::string nam
 template<typename Real>
 Ptr<Problem<Real>> MultiObjectiveFactory<Real>::makeScalarProblem(const std::vector<Real> &lam, ParameterList &parlist,
                                                                   std::ostream &outStream,
-                                                                  bool initGuess, const Ptr<Vector<Real>>& x0) {
+                                                                  bool initGuess, const Ptr<Vector<Real>>& x0,
+                                                                  const Ptr<StatusTest<Real>>& status,
+                                                                  bool combineStatus) {
   Ptr<Objective<Real>>  obj;
   Ptr<Vector<Real>>     x;
   Ptr<Constraint<Real>> nbicon;
@@ -323,7 +329,7 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::makeScalarProblem(const std::vec
   }
   else {
     // Normalize the objective functions based on utopia points
-    initializeObjectives(parlist,outStream);
+    initializeObjectives(parlist,outStream,status,combineStatus);
     // Set initial guess
     x = INPUT_xprim_;
     if (initGuess && x0 != nullPtr) {
@@ -342,7 +348,7 @@ Ptr<Problem<Real>> MultiObjectiveFactory<Real>::makeScalarProblem(const std::vec
         break;
       }
       case MOTYPE_NBI: {
-        computeUtopia(parlist,outStream);
+        computeUtopia(parlist,outStream,status,combineStatus);
         obj = obj_[0];
         nbicon = makePtr<ConstraintNBI<Real>>(obj_,lam,nvalues_);
         nbimul = makePtr<StdVector<Real>>(cnt_obj_-1u);
