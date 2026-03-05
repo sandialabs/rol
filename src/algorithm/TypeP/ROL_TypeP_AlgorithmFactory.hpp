@@ -16,7 +16,6 @@
 #include "ROL_TypeP_QuasiNewtonAlgorithm.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_InexactNewtonAlgorithm.hpp"
-#include "ROL_TypeP_STORMAlgorithm.hpp"
 #include "ROL_Types.hpp"
 
 namespace ROL {
