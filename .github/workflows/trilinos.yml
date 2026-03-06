@@ -1,6 +1,9 @@
 name: Test ROL as part of Trilinos
 
 on:
+  pull_request:
+    branches:
+      - develop
   workflow_dispatch:
   # push:
   #   branches: actions
@@ -24,6 +27,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cmake libopenblas-dev
         sudo apt-get install -y ninja-build
+        sudo apt-get install -y libgtest-dev
+        cd /usr/src/googletest
+        sudo mkdir build && cd build
+        sudo cmake ..
+        sudo make
+        sudo cp lib/*.a /usr/lib
     - name: Build Trilinos
       if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
       run: |
@@ -39,7 +48,6 @@ jobs:
               -D Trilinos_ENABLE_ROL:BOOL=ON \
               -D Trilinos_ENABLE_TESTS:BOOL=OFF \
               -D Trilinos_ENABLE_Intrepid2:BOOL=ON \
-              -D Trilinos_ENABLE_Epetra:BOOL=ON \
               -D Trilinos_WARNINGS_MODE=WARN \
               -B ../trilinos/build \
               ../trilinos

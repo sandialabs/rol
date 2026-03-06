@@ -22,8 +22,7 @@ ADD_SUBDIRECTORY(dense-hessian)
 ADD_SUBDIRECTORY(stream-buffer)
 ADD_SUBDIRECTORY(oed)
 ADD_SUBDIRECTORY(lincon-test)
-ADD_SUBDIRECTORY(dualsvm)
-ADD_SUBDIRECTORY(logistic)
+ADD_SUBDIRECTORY(user-defined-status-test)
 
 IF(NOT STANDALONE_ROL)
 

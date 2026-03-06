@@ -78,6 +78,7 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/teuchos/src/sol)
 
   # Need ROL_TpetraMultiVector.hpp
+  TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/function)
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/vector)
   TRIBITS_INCLUDE_DIRECTORIES(${${PACKAGE_NAME}_SOURCE_DIR}/adapters/tpetra/src/sol)
 
@@ -87,24 +88,24 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
     ADD_DIR_TO_NAME
   )
 
-  #  ROL_ADD_EXECUTABLE(
-  #    example_02_Kokkos
-  #    SOURCES example_02K.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
+   ROL_ADD_EXECUTABLE(
+     example_02_Kokkos
+     SOURCES example_02K.cpp
+     ADD_DIR_TO_NAME
+   )
 
-  #  ROL_ADD_EXECUTABLE(
-  #    example_03_Kokkos
-  #    SOURCES example_03K.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
-  #  ROL_ADD_EXECUTABLE(
-  #    example_04_Kokkos
-  #    SOURCES example_04K.cpp
-  #    ADD_DIR_TO_NAME
-  #  )
-  #
+   ROL_ADD_EXECUTABLE(
+     example_03_Kokkos
+     SOURCES example_03K.cpp
+     ADD_DIR_TO_NAME
+   )
+  
+   ROL_ADD_EXECUTABLE(
+     example_04_Kokkos
+     SOURCES example_04K.cpp
+     ADD_DIR_TO_NAME
+   )
+
   ROL_ADD_EXECUTABLE(
     example_05_Kokkos
     SOURCES example_05K.cpp
@@ -114,10 +115,11 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid2 AND
   TRIBITS_ADD_TEST(
     example_01_Kokkos
     ARGS PrintItAll
-    NUM_MPI_PROCS 4
-    NUM_TOTAL_CORES_USED 4
+    NUM_MPI_PROCS 2
+    NUM_TOTAL_CORES_USED 2
     PASS_REGULAR_EXPRESSION "TEST PASSED"
     ADD_DIR_TO_NAME
+    RUN_SERIAL
   )
 
   #TRIBITS_ADD_TEST(
