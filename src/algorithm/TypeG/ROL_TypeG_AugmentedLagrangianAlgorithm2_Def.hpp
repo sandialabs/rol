@@ -344,12 +344,12 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   initialize(x,x.dual(),*alobj,outStream);
 
   // Constants
-  const Real one(1), two(2), oem2(1e-2);
+  const Real one(1);
   Real tol(std::sqrt(ROL_EPSILON<Real>()));
 
   // Additional parameters
   unsigned maxSubproblemFails = 2;
-  unsigned k0 = 100;
+  int k0 = 100;
   Real nu = 1.e6;
   Real gamma = 0.49;
 

@@ -74,7 +74,7 @@ public:
 
   virtual void update( const Vector<Real> &x, UpdateType type, int iter = -1 ) {
     obj_->update(x,type,iter);
-    for (unsigned i = 0; i < getNumberConstraints(); ++i) pvec_[i]->update(x,type,iter);
+    for (unsigned i = 0; i < unsigned(getNumberConstraints()); ++i) pvec_[i]->update(x,type,iter);
     fval_->objectiveUpdate(type);
     gradient_->objectiveUpdate(type);
   }
@@ -96,7 +96,7 @@ public:
     Real val = getObjectiveValue(x,tol);
     val *= fscale_;
     // Compute penalty term
-    for (unsigned i = 0; i < getNumberConstraints(); ++i)
+    for (unsigned i = 0; i < unsigned(getNumberConstraints()); ++i)
       val += pvec_[i]->value(x,tol);
     return val;
   }
@@ -105,7 +105,7 @@ public:
     // Compute objective function gradient
     g.set(*getObjectiveGradient(x,tol));
     g.scale(fscale_);
-    for (unsigned i = 0; i < getNumberConstraints(); ++i) {
+    for (unsigned i = 0; i < unsigned(getNumberConstraints()); ++i) {
       pvec_[i]->gradient(*dualOptVector_,x,tol);
       // std::cout << "Gradient penalty term " << i << ": " << std::scientific << std::setprecision(8) << dualOptVector_->norm() << std::endl;
       g.plus(*dualOptVector_);
@@ -116,7 +116,7 @@ public:
     // Apply objective Hessian to a vector
     obj_->hessVec(hv,v,x,tol);
     hv.scale(fscale_);
-    for (unsigned i = 0; i < getNumberConstraints(); ++i) {
+    for (unsigned i = 0; i < unsigned(getNumberConstraints()); ++i) {
       pvec_[i]->hessVec(*dualOptVector_,v,x,tol);
       // std::cout << "HV penalty term " << i << ": " << std::scientific << std::setprecision(8) << dualOptVector_->norm() << std::endl;
       hv.plus(*dualOptVector_);
@@ -183,8 +183,8 @@ public:
 
   // Return total number of constraint evaluations
   int getNumberConstraintEvaluations(void) const {
-    int ncval;
-    for (unsigned i = 0; i < getNumberConstraints(); ++i)
+    int ncval = 0;
+    for (unsigned i = 0; i < unsigned(getNumberConstraints()); ++i)
       ncval += pvec_[i]->getNumberConstraintEvaluations();
     return ncval;
   }
@@ -202,7 +202,7 @@ public:
   // Reset counters
   void reset(void) {
     nfval_ = 0; ngval_ = 0;
-    for (unsigned i = 0; i < getNumberConstraints(); ++i) pvec_[i]->reset();
+    for (unsigned i = 0; i < unsigned(getNumberConstraints()); ++i) pvec_[i]->reset();
   }
 
 }; // class AugmentedLagrangianObjective2
