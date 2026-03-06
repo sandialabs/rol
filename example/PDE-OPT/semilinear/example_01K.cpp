@@ -137,14 +137,8 @@ int main(int argc, char *argv[]) {
 
     RealT tol(1.e-8);
     // con->solve(*rp, *up, *zp, tol);
-    ROL::Ptr<ROL::Vector<RealT>> x_dual = x->dual().clone();
-    obj->gradient(*x_dual,*x,tol);
-    x_dual->scale(-1.0);
-    rp->zero();
-    x->zero();
-    obj->update(*x,ROL::UpdateType::Initial);
-    con->solveAugmentedSystem(*d,*pp,*x_dual,*rp,*x,tol);
-    // pp->zero();
+    pp->zero();
+
 
     auto problem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
     problem->addConstraint("PDE", con, pp);
@@ -154,7 +148,7 @@ int main(int argc, char *argv[]) {
     mul2->zero();
     ROL::Ptr<ROL::Vector<RealT>> mul3 = x->dual().clone();
     mul3->zero();
-    problem->addConstraint("State Bounds",   constraint, mul1, bnd1);
+    // problem->addConstraint("State Bounds",   constraint, mul1, bnd1);
     problem->addConstraint("Control Bounds 1", constraint, mul2, bnd2);
     problem->addConstraint("Control Bounds 2", constraint, mul3, bnd3);
     x->zero();

@@ -57,14 +57,22 @@ int main(int argc, char *argv[]) {
 
     ROL::ParameterList list;
     list.sublist("General").set("Output Level", 3);
-    list.sublist("Status Test").set("Iteration Limit",20);
-    list.sublist("Status Test").set("Step Tolerance",-1.);
+    list.sublist("Status Test").set("Iteration Limit", 20);
+    list.sublist("Status Test").set("Constraint Tolerance", 1.e-4);
+    list.sublist("Status Test").set("Step Tolerance", -1.);
     list.sublist("Step").set("Type", "Augmented Lagrangian 2");
-    list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Iteration Limit",100);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Iteration Limit", 100);
     list.sublist("Step").sublist("Augmented Lagrangian").set("Use Default Initial Penalty Parameter", false);
-    list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Penalty Parameter", 1.e4);
-    list.sublist("Step").sublist("Augmented Lagrangian").set("Penalty Parameter Growth Factor", 1.e1);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Penalty Parameter", 1.e1);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Penalty Parameter Growth Factor", 5.0);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Optimality Tolerance", 1e-6);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Initial Feasibility Tolerance", 1e-5);
     list.sublist("Step").sublist("Augmented Lagrangian").set("Subproblem Step Type","Composite Step");
+    list.sublist("Step").sublist("Composite Step").sublist("Optimality System Solver").set("Fix Tolerance", true);
+    list.sublist("Step").sublist("Composite Step").set("Initial Radius", 1.e-1);
+    list.sublist("Step").sublist("Composite Step").sublist("Optimality System Solver").set("Nominal Relative Tolerance", 1.e-14);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Use Default Problem Scaling", false);
+    list.sublist("Step").sublist("Augmented Lagrangian").set("Level of Hessian Approximation", 1);
     // list.sublist("Step").sublist("Augmented Lagrangian").sublist("bounds").set("Penalty Parameter Growth Factor",1.0);
     ROL::Solver<RealT> solver(problem,list);
     solver.solve(*outStream);

@@ -27,42 +27,42 @@ class AugmentedLagrangianAlgorithm2 : public TypeG::Algorithm<Real> {
 private:
   const Ptr<Secant<Real>> secant_;
   ParameterList list_;
-  bool useRelTol_;
-  // Lagrange multiplier update
+  // Penalty parameter quantities
   bool useDefaultInitPen_;
-  bool scaleLagrangian_;
-  Real minPenaltyReciprocal_;
-  Real minPenaltyLowerBound_;
   Real penaltyUpdate_;
   Real maxPenaltyParam_;
+  Real minPenaltyReciprocal_;
+  // Dual feasiblity parameters
+  Real alphat_;
+  Real betat_;
+  Real tau0_;
+  Real theta_;
+  // Subproblem information
+  bool useDefaultInitTol_;
+  Real delta_;
+  Real epsilon_;
+  int maxit_;
+  std::string subStep_;
   // Optimality tolerance update
   Real optIncreaseExponent_;
   Real optDecreaseExponent_;
-  Real optToleranceInitial_;
-  Real optTolerance_;
-  // Feasibility tolerance update
-  Real feasIncreaseExponent_;
-  Real feasDecreaseExponent_;
-  Real feasToleranceInitial_;
-  Real feasTolerance_;
-  // Subproblem information
-  bool print_;
-  int maxit_;
-  int subproblemIter_;
-  std::string subStep_;
-  int hessianApprox_;
+  // Verbosity
+  int verbosity_;
+  bool printHeader_;
+  // Outer tolerances
+
   Real outerOptTolerance_;
   Real outerFeasTolerance_;
   Real outerStepTolerance_;
+  bool useRelTol_;
   // Scaling information
   bool useDefaultScaling_;
+  bool scaleLagrangian_;
   Real fscale_;
   Real cscale_;
-  // Verbosity flag
-  int verbosity_;
-  bool printHeader_;
-  bool hasPolyProj_;
+  int hessianApprox_;
 
+  int subproblemIter_;
   bool isUpdated_;
   std::vector<std::string> group_names_;
   std::vector<Real> feasibilities_;

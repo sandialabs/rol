@@ -37,43 +37,55 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
 
   Real one(1), p1(0.1), p9(0.9), ten(1.e1), oe8(1.e8), oem8(1.e-8);
   ParameterList& sublist = list.sublist("Step").sublist("Augmented Lagrangian");
+
+  // Penalty parameter quantities
   useDefaultInitPen_     = sublist.get("Use Default Initial Penalty Parameter", true);
   state_->searchSize     = sublist.get("Initial Penalty Parameter",             ten);
-  // Multiplier update parameters
-  scaleLagrangian_      = sublist.get("Use Scaled Augmented Lagrangian",          false);
-  minPenaltyLowerBound_ = sublist.get("Penalty Parameter Reciprocal Lower Bound", p1);  // \theta, no superscript
-  penaltyUpdate_        = sublist.get("Penalty Parameter Growth Factor",          ten); // \eta (or \overline{\eta} which overrides after sufficiently many iterations)
-  maxPenaltyParam_      = sublist.get("Maximum Penalty Parameter",                oe8);
-  minPenaltyReciprocal_ = p1;                                                           // \theta with superscript
-  // Optimality tolerance update
-  optIncreaseExponent_ = sublist.get("Optimality Tolerance Update Exponent",   one);
-  optDecreaseExponent_ = sublist.get("Optimality Tolerance Decrease Exponent", one);
-  optToleranceInitial_ = sublist.get("Initial Optimality Tolerance",           one);
-  // Feasibility tolerance update
-  feasIncreaseExponent_ = sublist.get("Feasibility Tolerance Update Exponent",   p1);  // \alpha
-  feasDecreaseExponent_ = sublist.get("Feasibility Tolerance Decrease Exponent", p9);  // \beta
-  feasToleranceInitial_ = sublist.get("Initial Feasibility Tolerance",           one);
+  penaltyUpdate_         = sublist.get("Penalty Parameter Growth Factor",       ten);
+  maxPenaltyParam_       = sublist.get("Maximum Penalty Parameter",             oe8);
+  minPenaltyReciprocal_  = p1; 
+
+  // Dual feasibility parameters
+  alphat_ = sublist.get("Feasibility Tolerance Update Exponent",    p1);
+  betat_  = sublist.get("Feasibility Tolerance Decrease Exponent",  p9);
+  theta_  = sublist.get("Penalty Parameter Reciprocal Lower Bound", p1); 
+  tau0_   = sublist.get("Initial Dual Feasibility Tolerance",       one);
+
   // Subproblem information
-  maxit_         = sublist.get("Subproblem Iteration Limit",              1000);
-  subStep_       = sublist.get("Subproblem Step Type",                    "Trust Region");
-  hessianApprox_ = sublist.get("Level of Hessian Approximation",          0);
+  useDefaultInitTol_  = sublist.get("Use Default Initial Subproblem Tolerances", false);
+  epsilon_            = sublist.get("Initial Optimality Tolerance",              1e-4);
+  delta_              = sublist.get("Initial Feasibility Tolerance",             1e-4);
+  maxit_              = sublist.get("Subproblem Iteration Limit",                1000);
+  bool print          = sublist.get("Print Intermediate Optimization History",   false);
+  subStep_            = sublist.get("Subproblem Step Type",             "Trust Region");
   list_.sublist("Step").set("Type",subStep_);
-  list_.sublist("Status Test").set("Iteration Limit",maxit_);
+  list_.sublist("Status Test").set("Iteration Limit", maxit_);
   list_.sublist("Status Test").set("Use Relative Tolerances",false);
-  // Verbosity setting
+
+  // Optimality parameters
+  optIncreaseExponent_  = sublist.get("Optimality Tolerance Update Exponent",   one);
+  optDecreaseExponent_  = sublist.get("Optimality Tolerance Decrease Exponent", one);
+
+  // Verbosity 
   verbosity_    = list.sublist("General").get("Output Level", 0);
   printHeader_  = verbosity_ > 0;
-  int subproblemOutputLevel     = verbosity_ > 2 ? 1 : 0;
-  list_.sublist("General").set("Output Level", subproblemOutputLevel);
+  print         = (verbosity_ > 2 ? true : print);
+  list_.sublist("General").set("Output Level",(print ? verbosity_ - 2 : 0));
+
   // Outer iteration tolerances
   outerFeasTolerance_ = list.sublist("Status Test").get("Constraint Tolerance",    oem8);
   outerOptTolerance_  = list.sublist("Status Test").get("Gradient Tolerance",      oem8);
   outerStepTolerance_ = list.sublist("Status Test").get("Step Tolerance",          oem8);
   useRelTol_          = list.sublist("Status Test").get("Use Relative Tolerances", false);
+
+  // Augmented Lagrangian parameters
+  useDefaultScaling_  = sublist.get("Use Default Problem Scaling",     true);
+  scaleLagrangian_    = sublist.get("Use Scaled Augmented Lagrangian", false);
+  fscale_             = sublist.get("Objective Scaling",               one);
+  cscale_             = sublist.get("Constraint Scaling",              one);
+  hessianApprox_      = sublist.get("Level of Hessian Approximation",  0);
+
   // Scaling
-  useDefaultScaling_  = sublist.get("Use Default Problem Scaling", true);
-  fscale_             = sublist.get("Objective Scaling",           one);
-  cscale_             = sublist.get("Constraint Scaling",          one);
 
 }
 
@@ -82,6 +94,12 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
                                                      const Vector<Real>                   &g,
                                                      AugmentedLagrangianObjective2<Real>  &alobj,
                                                      std::ostream                         &outStream ) {
+
+  if (useRelTol_) {
+    outStream << "Warning: \"Use Relative Tolerances\" parameter is unsupported!" << std::endl;
+    useRelTol_ = false;
+  }
+
   const Real one(1), TOL(1.e-2);
   Real tol = std::sqrt(ROL_EPSILON<Real>());
   // > TypeG::Algorithm<Real>::initialize(x,g,l,c);
@@ -177,10 +195,11 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
   // >    cscale_ = *std::max_element(constraintScalings.begin(),constraintScalings.end());
   // >}
   // >else {
+  if (!useDefaultScaling_) {
     for (unsigned i = 0; i < numberPenalties; ++i) {
       constraintScalings[i] = cscale_;
       alobj.setScaling(constraintScalings[i],i);
-  // >}
+    }
   }
 
   // > // Compute gradient of the lagrangian
@@ -193,45 +212,44 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
 
   Real temp;
 
-  // Compute initial penalty parameter
-  Real max_penalty = 0;
+  // Initial penalty parameters
   if (useDefaultInitPen_) {
+    const Real oem8(1e-8), oem2(1e-2);
     state_->searchSize = 0;
-    const Real oem8(1e-8), oem2(1e-2), two(2), ten(10);
     for (unsigned i = 0; i < numberPenalties; ++i) {
-      temp = std::max(oem8, std::min(ten*std::max(one,std::abs(fscale_*state_->value)) 
-                                                    / std::max(one,std::pow(constraintScalings[i]*feasibilities_[i],two)),
-                                                  oem2*maxPenaltyParam_)); // ROL convention
+      temp = alobj.dualNorm(x,tol,i);
+      if (temp <= oem8) temp = 1;
+      temp = std::max(oem8, oem2*std::abs(fscale_*state_->value)/temp);
       alobj.setPenaltyParameter(temp,i);
-      max_penalty = std::max(max_penalty,temp);
+      state_->searchSize = std::max(state_->searchSize,temp);
     }
   }
   else {
     for (unsigned i = 0; i < numberPenalties; ++i) {
+      Real max_penalty = 0;
       temp = list_.sublist("Step").sublist("Augmented Lagrangian").sublist(group_names_[i]).get("Initial Penalty Parameter",state_->searchSize);
       alobj.setPenaltyParameter(temp,i);
       max_penalty = std::max(max_penalty,temp);
+      state_->searchSize = max_penalty;
     }
   }
-  state_->searchSize = max_penalty;
 
-  // Define penalty updates
+  // Penalty updates
   for (unsigned i = 0; i < numberPenalties; ++i) {
     temp = list_.sublist("Step").sublist("Augmented Lagrangian").sublist(group_names_[i]).get("Penalty Parameter Growth Factor",penaltyUpdate_);
     penalty_growthf_.push_back(temp);
   }
 
-  // Initialize intermediate stopping tolerances
-  // > if (useRelTol_) outerOptTolerance_ *= state_->gnorm;
-  if (verbosity_ > 0)
-    outStream << "Warning: \"Use Relative Tolerances\" parameter is unsupported!" << std::endl;
-  minPenaltyReciprocal_ = std::min(one/state_->searchSize,minPenaltyLowerBound_);
-  optTolerance_  = std::max(TOL*outerOptTolerance_,
-                            optToleranceInitial_*std::pow(minPenaltyReciprocal_,optDecreaseExponent_));
-  // > optTolerance_  = std::min<Real>(optTolerance_,TOL*state_->gnorm);
-  feasTolerance_ = std::max(TOL*outerFeasTolerance_,
-                            feasToleranceInitial_*std::pow(minPenaltyReciprocal_,feasDecreaseExponent_));
-
+  // Subproblem stopping
+  if (useDefaultInitTol_) {
+    temp = 0;
+    for (unsigned i = 0; i < numberPenalties; ++i) 
+      temp += alobj.getPenaltyParameter(i);
+    temp = std::min(minPenaltyReciprocal_,1./temp);
+    epsilon_ = std::max(TOL*outerOptTolerance_, epsilon_*std::pow(temp,optDecreaseExponent_));
+    delta_   = std::max(TOL*outerFeasTolerance_,delta_  *std::pow(temp,optDecreaseExponent_));
+  }
+  
   alobj.reset();
 
   if (verbosity_ > 1) {
@@ -264,7 +282,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
                                                       x.dual(),
                                                       *constraint_data->residual,
                                                       *constraint_data->multiplier,
-                                                      0);
+                                                      hessianApprox_);
     penalty->setMultiplier(*constraint_data->multiplier);
     return penalty;
   };
@@ -348,18 +366,14 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
 
   std::vector<Real> dualTolerances(numberPenalties); // \tau
   for (unsigned i = 0; i < numberPenalties; ++i)
-    dualTolerances[i] = feasTolerance_;
-
-  std::vector<Real> theta(numberPenalties);
-  for (unsigned i = 0; i < numberPenalties; ++i)
-    theta[i] = minPenaltyReciprocal_;
+    dualTolerances[i] = tau0_*std::pow(theta_,alphat_);
 
   EExitStatus statusFlag;
   bool isSubproblemConverged = false;
   Real penaltyParameter;
   bool isForcedUpdate = false;
 
-  Real subproblemFeas = optTolerance_; 
+  Real theta;
 
   // ========================================================================
   // STEP 3: Run algorithm
@@ -367,8 +381,8 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
 
   while (status_->check(*state_)) {
     // Solve augmented Lagrangian subproblem
-    list_.sublist("Status Test").set("Gradient Tolerance",optTolerance_);
-    list_.sublist("Status Test").set("Constraint Tolerance",subproblemFeas);
+    list_.sublist("Status Test").set("Gradient Tolerance",epsilon_);
+    list_.sublist("Status Test").set("Constraint Tolerance",delta_);
     //list_.sublist("Status Test").set("Step Tolerance",1.e-6*optTolerance_);
     list_.sublist("Status Test").set("Step Tolerance",1.e-14);
     Solver<Real> solver(subproblem,list_);
@@ -432,35 +446,36 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     isUpdated_ = false;
     for (unsigned i = 0; i < numberPenalties; ++i) {
       penaltyParameter = alobj->getPenaltyParameter(i);
+      // std::cout << "Dual Residuals " << i << ": " << dualResiduals[i] << " Scaling: " << alobj->getScaling(i) << " Tolerance: " << dualTolerances[i] << std::endl;
       if (isForcedUpdate || alobj->getScaling(i)*dualResiduals[i] > penaltyParameter*dualTolerances[i]) {
         penaltyParameter  *= penalty_growthf_[i];
         penaltyParameter   = std::min(penaltyParameter,maxPenaltyParam_);
         state_->searchSize = std::max(state_->searchSize,penaltyParameter);
-        theta[i]           = std::min(one/penaltyParameter,theta[i]);
-        dualTolerances[i]  = feasToleranceInitial_*std::pow(theta[i],feasDecreaseExponent_);
-        dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_);   // ROL convention
+        theta              = std::min(one/penaltyParameter,theta_);
+        dualTolerances[i]  = tau0_*std::pow(theta,alphat_);
+        // dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_);   // ROL convention
         alobj->setPenaltyParameter(penaltyParameter,i);
         isUpdated_ = true;
       }
       else {
-        theta[i]           = std::min(one/penaltyParameter,theta[i]);
-        dualTolerances[i] *= std::pow(theta[i],feasIncreaseExponent_);
-        dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_); // ROL convention
+        theta              = std::min(one/penaltyParameter,theta_);
+        dualTolerances[i] *= std::pow(theta,betat_);
+        // dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_); // ROL convention
       }
-      if (alobj->getScaling(i)*dualResiduals[i] <= nu*std::pow(penaltyParameter,gamma))
+      if (alobj->getScaling(i)*dualResiduals[i] <= nu*std::pow(penaltyParameter,gamma)) {
         alobj->updateMultiplier(x,tol,i);
+        // outStream << "multiplier update" << std::endl;
+      }
     }
-    if (!dualTolerances.empty())
-      feasTolerance_ = *std::max_element(dualTolerances.begin(),dualTolerances.end());
-    // ROL update to \epsilon. Updates to the constraint tolerance, \delta, are possible as well.
     if (isUpdated_) {
-      optTolerance_ = std::max(oem2*outerOptTolerance_,
-                      optToleranceInitial_/std::pow(std::max(two,state_->searchSize),optDecreaseExponent_));
+      epsilon_ = 0.9*epsilon_;
+      delta_   = 0.9*delta_;
     }
     else {
-      optTolerance_ = std::max(oem2*outerOptTolerance_,
-                      optTolerance_/std::pow(std::max(two,state_->searchSize),optIncreaseExponent_));
+      epsilon_ = 0.25*epsilon_;
+      delta_   = 0.25*delta_;
     }
+
     alobj->reset();
 
     // Update Output
@@ -497,8 +512,8 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
     os << "  optimality - Norm of the subproblem optimality measure"   << std::endl;
     os << "  snorm      - Norm of the step"                            << std::endl;
     os << "  max pen    - Largest penalty parameter"                   << std::endl;
-    os << "  dfeasTol   - Dual feasibility tolerance"                  << std::endl;
-    os << "  optTol     - Optimality tolerance"                        << std::endl;
+    os << "  feasTol    - Subproblem Feasibility tolerance"            << std::endl;
+    os << "  optTol     - Subproblem Optimality tolerance"             << std::endl;
     os << "  #fval      - Number of times the objective was computed"  << std::endl;
     os << "  #grad      - Number of times the gradient was computed"   << std::endl;
     os << "  #cval      - Number of times the constraint was computed" << std::endl;
@@ -513,7 +528,7 @@ void AugmentedLagrangianAlgorithm2<Real>::writeHeader( std::ostream& os ) const 
   os << std::setw(15) << std::left << "optimality";
   os << std::setw(15) << std::left << "snorm";
   os << std::setw(10) << std::left << "max pen";
-  os << std::setw(10) << std::left << "dfeasTol";
+  os << std::setw(10) << std::left << "feasTol";
   os << std::setw(10) << std::left << "optTol";
   os << std::setw(8)  << std::left << "#fval";
   os << std::setw(8)  << std::left << "#grad";
@@ -547,8 +562,8 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
     os << std::setw(15) << std::left << "---";
     os << std::scientific << std::setprecision(2);
     os << std::setw(10) << std::left << state_->searchSize;
-    os << std::setw(10) << std::left << std::max(feasTolerance_,outerFeasTolerance_);
-    os << std::setw(10) << std::left << std::max(optTolerance_,outerOptTolerance_);
+    os << std::setw(10) << std::left << delta_;
+    os << std::setw(10) << std::left << epsilon_;
     os << std::scientific << std::setprecision(6);
     os << std::setw(8) << std::left << state_->nfval;
     os << std::setw(8) << std::left << state_->ngrad;
@@ -565,8 +580,8 @@ void AugmentedLagrangianAlgorithm2<Real>::writeOutput( std::ostream& os, const b
     os << std::setw(15) << std::left << state_->snorm;
     os << std::scientific << std::setprecision(2);
     os << std::setw(10) << std::left << state_->searchSize;
-    os << std::setw(10) << std::left << feasTolerance_;
-    os << std::setw(10) << std::left << optTolerance_;
+    os << std::setw(10) << std::left << delta_;
+    os << std::setw(10) << std::left << epsilon_;
     os << std::scientific << std::setprecision(6);
     os << std::setw(8) << std::left << state_->nfval;
     os << std::setw(8) << std::left << state_->ngrad;

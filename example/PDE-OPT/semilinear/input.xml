@@ -10,11 +10,11 @@
 
   <ParameterList name="Vector">
     <ParameterList name="Sim">
-      <Parameter name="Use Riesz Map"             type="bool"    value="true"         />
+      <Parameter name="Use Riesz Map"             type="bool"    value="false"         />
       <Parameter name="Lump Riesz Map"            type="bool"    value="true"         />
     </ParameterList>
     <ParameterList name="Opt">
-      <Parameter name="Use Riesz Map"             type="bool"    value="true"         />
+      <Parameter name="Use Riesz Map"             type="bool"    value="false"         />
       <Parameter name="Lump Riesz Map"            type="bool"    value="true"         />
     </ParameterList>
   </ParameterList>
@@ -107,12 +107,12 @@
         <Parameter name="Penalty Parameter Growth Factor"         type="double" value="5"             />
       </ParameterList>
       <ParameterList name="Control Bounds 1">
-        <Parameter name="Initial Penalty Parameter"               type="double" value="1.e-3"         />
-        <Parameter name="Penalty Parameter Growth Factor"         type="double" value="5"             />
+        <Parameter name="Initial Penalty Parameter"               type="double" value="1.e-5"         />
+        <Parameter name="Penalty Parameter Growth Factor"         type="double" value="10"             />
       </ParameterList>
       <ParameterList name="Control Bounds 2">
-        <Parameter name="Initial Penalty Parameter"               type="double" value="1.e-3"         />
-        <Parameter name="Penalty Parameter Growth Factor"         type="double" value="5"             />
+        <Parameter name="Initial Penalty Parameter"               type="double" value="1.e-5"         />
+        <Parameter name="Penalty Parameter Growth Factor"         type="double" value="10"             />
       </ParameterList>
     </ParameterList>
 

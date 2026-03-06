@@ -112,8 +112,7 @@ public:
   virtual Real value( const Vector<Real> &x, Real &tol ) {
     // Compute penalty function value
     Real val = getDualVec(x,tol)->norm();
-    Real temp = multiplier_->norm();
-    val = (val*val - temp*temp)/(Real(2)*penaltyParameter_);
+    val = val*val/(Real(2)*penaltyParameter_);
     val *= cscale_;
     return val;
   }
@@ -138,8 +137,10 @@ public:
     dualConVector_->axpy(-1,primConVector1_->dual());
     dualConVector_->scale(penaltyParameter_);
     con_->applyAdjointJacobian(hv,*dualConVector_,x,tol);
+    if (hessianApprox_ == 0) {
     con_->applyAdjointHessian(*dualOptVector_,*getDualVec(x,tol),v,x,tol);
     hv.plus(*dualOptVector_);
+    }
     hv.scale(cscale_);
   }
 

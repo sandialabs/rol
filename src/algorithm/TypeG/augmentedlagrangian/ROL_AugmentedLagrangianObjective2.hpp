@@ -96,7 +96,8 @@ public:
     Real val = getObjectiveValue(x,tol);
     val *= fscale_;
     // Compute penalty term
-    for (unsigned i = 0; i < getNumberConstraints(); ++i) val += pvec_[i]->value(x,tol);
+    for (unsigned i = 0; i < getNumberConstraints(); ++i)
+      val += pvec_[i]->value(x,tol);
     return val;
   }
 
@@ -106,6 +107,7 @@ public:
     g.scale(fscale_);
     for (unsigned i = 0; i < getNumberConstraints(); ++i) {
       pvec_[i]->gradient(*dualOptVector_,x,tol);
+      // std::cout << "Gradient penalty term " << i << ": " << std::scientific << std::setprecision(8) << dualOptVector_->norm() << std::endl;
       g.plus(*dualOptVector_);
     }
   }
@@ -116,6 +118,7 @@ public:
     hv.scale(fscale_);
     for (unsigned i = 0; i < getNumberConstraints(); ++i) {
       pvec_[i]->hessVec(*dualOptVector_,v,x,tol);
+      // std::cout << "HV penalty term " << i << ": " << std::scientific << std::setprecision(8) << dualOptVector_->norm() << std::endl;
       hv.plus(*dualOptVector_);
     }
   }
