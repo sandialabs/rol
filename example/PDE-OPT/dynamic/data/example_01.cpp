@@ -20,13 +20,17 @@
 #include <algorithm>
 //#include <fenv.h>
 
-#include "ROL_Stream.hpp"
-#include "ROL_ParameterList.hpp"
-#include "ROL_Problem.hpp"
-#include "ROL_Solver.hpp"
-#include "ROL_ReducedDynamicObjective.hpp"
 #include "ROL_DynamicConstraintCheck.hpp"
 #include "ROL_DynamicObjectiveCheck.hpp"
+#include "ROL_MonteCarloGenerator.hpp"
+#include "ROL_TpetraTeuchosBatchManager.hpp"
+#include "ROL_ParameterList.hpp"
+#include "ROL_ReducedDynamicObjective.hpp"
+#include "ROL_Solver.hpp"
+#include "ROL_StochasticProblem.hpp"
+#include "ROL_Stream.hpp"
+
+#include "ROL_PartitionedBatchManager.hpp"
 
 #include "../../TOOLS/dynconstraint.hpp"
 #include "../../TOOLS/pdeobjective.hpp"
@@ -182,11 +186,12 @@ int main(int argc, char *argv[]) {
       obj->checkHessVec(*z,*dz,true,*outStream);
       obj->checkHessSym(*z,*dz,*hz,true,*outStream);
     }
- 
+
     /*************************************************************************/
     /***************** OUTPUT UNCONTROLLED STATE *****************************/
     /*************************************************************************/
     bool printU0 = parlist->sublist("Problem").get("Print Uncontrolled State", false);
+    u0->zero();
     if (printU0) {
       std::clock_t timer_print0 = std::clock();
       // Output state and control to file
@@ -210,9 +215,42 @@ int main(int argc, char *argv[]) {
     }
 
     /*************************************************************************/
+    /***************** BUILD SAMPLER *****************************************/
+    /*************************************************************************/
+    int Nbottom = parlist->sublist("Problem").get("Bottom KL Truncation Order",5);
+    int Nleft   = parlist->sublist("Problem").get("Left KL Truncation Order",5);
+    int Nright  = parlist->sublist("Problem").get("Right KL Truncation Order",5);
+    int stochDim = Nbottom + Nleft + Nright + 3;
+    int nsamp = parlist->sublist("Problem").get("Number of samples",100);
+    // Build vector of distributions
+    std::vector<ROL::Ptr<ROL::Distribution<RealT> > > distVec(stochDim);
+    Teuchos::ParameterList UList;
+    UList.sublist("Distribution").set("Name","Uniform");
+    UList.sublist("Distribution").sublist("Uniform").set("Lower Bound",-1.0);
+    UList.sublist("Distribution").sublist("Uniform").set("Upper Bound", 1.0);
+    for (int i = 0; i < stochDim; ++i) {
+      distVec[i] = ROL::DistributionFactory<RealT>(UList);
+    }
+    // Sampler
+    ROL::Ptr<ROL::BatchManager<RealT>> bman
+      = ROL::makePtr<ROL::TpetraTeuchosBatchManager<RealT>>(comm);
+    //  = ROL::makePtr<PDE_OptVector_BatchManager<RealT>>(comm);
+    ROL::Ptr<ROL::BatchManager<RealT>> pbman
+      = ROL::makePtr<ROL::PartitionedBatchManager<RealT>>(bman);
+    ROL::Ptr<ROL::SampleGenerator<RealT> > sampler
+      = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp,distVec,pbman);
+
+    /*************************************************************************/
+    /***************** BUILD STOCHASTIC PROBLEM ******************************/
+    /*************************************************************************/
+    ROL::Ptr<ROL::StochasticProblem<RealT>> problem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj,z);
+    bool makeObjectiveStochastic = true;
+    if (makeObjectiveStochastic) problem->makeObjectiveStochastic(*parlist,sampler);
+    z->zero();
+
+    /*************************************************************************/
     /***************** SOLVE OPTIMIZATION PROBLEM ****************************/
     /*************************************************************************/
-    ROL::Ptr<ROL::Problem<RealT>> problem = ROL::makePtr<ROL::Problem<RealT>>(obj,z);
     ROL::Solver<RealT> solver(problem,*parlist);
     z->zero();
     std::clock_t timer = std::clock();
@@ -281,7 +319,7 @@ void computeInitialCondition(const ROL::Ptr<ROL::Vector<Real>>       &u0,
                              const ROL::Ptr<DynConstraint<Real>>     &con,
                              const Real                               dt,
                              std::ostream                            &outStream) {
-  Real T  = 0.8;
+  Real T  = 10;
   int  nt = static_cast<int>(T/dt);
   std::vector<ROL::TimeStamp<Real>> ts(nt);
   for( int k=0; k<nt; ++k ) {
