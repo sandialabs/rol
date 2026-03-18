@@ -264,6 +264,13 @@ public:
     return solution_vec_;
   }
 
+  std::vector<std::string> getObjectiveLabels() const {
+    std::vector<std::string> names;
+    for (auto it = INPUT_obj_.begin(); it != INPUT_obj_.end(); ++it)
+      names.push_back(it->first);
+    return names;
+  }
+
 }; // class MultiObjectiveFactory
 
 }  // namespace ROL

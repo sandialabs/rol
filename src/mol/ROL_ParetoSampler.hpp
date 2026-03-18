@@ -18,6 +18,7 @@ class ParetoSampler {
 private:
   const Ptr<BatchManager<Real>> bman_;
   std::vector<ParetoData<Real>> samples_;
+  std::vector<std::string>      labels_;
 
 public:
   ParetoSampler(const Ptr<BatchManager<Real>>& bman = nullPtr)
@@ -35,6 +36,7 @@ public:
     const int batchid = bman_->batchID();
     const int nbatch = bman_->numBatches();
     // Compute endpoints
+    labels_ = factory->getObjectiveLabels();
     auto x0 = factory->getOptimizationVector()->clone();
     x0->set(*factory->getOptimizationVector());
     const bool initGuess = !parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Warm Start",false);
@@ -92,7 +94,7 @@ public:
     }
   }
 
-  void print(std::string file) const {
+  void print(std::string file, bool printColumnHeader=false) const {
     // Gather data to root batch
     const unsigned nobj = samples_[0].values.size();
     const unsigned nsamp = samples_.size();
@@ -112,6 +114,11 @@ public:
       std::ofstream os;
       os.open(file);
       os << std::scientific << std::setprecision(15);
+      if (printColumnHeader) {
+        for (unsigned j=0; j<nobj; ++j)
+          os << std::right << std::setw(25) << labels_[j];
+        os << std::endl;
+      }
       for (unsigned i=0; i<nsampg; ++i) {
         for (unsigned j=0; j<nobj; ++j) os << std::right << std::setw(25) << valg[i*nobj+j];
         os << std::endl;

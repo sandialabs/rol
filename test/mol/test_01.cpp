@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
 
     auto ps = ROL::makePtr<ROL::ParetoSampler<RealT>>();
     ps->run(mof,parlist,*outStream);
-    ps->print("output_01.txt");
+    ps->print("output_01.txt",true);
 
     // Pareto front is given by f1 in [0.01,0.16] or [0.36,0.81]
     // and f2 = (sqrt(f1)-1)^2.  The optimal solutions are
