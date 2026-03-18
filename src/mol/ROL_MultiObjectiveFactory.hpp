@@ -46,11 +46,15 @@ private:
 
   void addConstraintsToProblem(Ptr<Problem<Real>> &problem);
   void computeUtopia(ParameterList &parlist, std::ostream &outStream,
-                     const Ptr<StatusTest<Real>>& status = nullPtr,
-                     bool combineStatus = true);
+                     bool initGuess=false,
+                     const Ptr<Vector<Real>>& x0=nullPtr,
+                     const Ptr<StatusTest<Real>>& status=nullPtr,
+                     bool combineStatus=true);
   void initializeObjectives(ParameterList &parlist, std::ostream &outStream,
-                            const Ptr<StatusTest<Real>>& status = nullPtr,
-                            bool combineStatus = true);
+                            bool initGuess=false,
+                            const Ptr<Vector<Real>>& x0=nullPtr,
+                            const Ptr<StatusTest<Real>>& status=nullPtr,
+                            bool combineStatus=true);
 
 public:
   virtual ~MultiObjectiveFactory() {}
@@ -252,10 +256,19 @@ public:
   */
   const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist,
                                                     std::ostream& outStream=std::cout,
+                                                    bool initGuess=false,
+                                                    const Ptr<Vector<Real>>& x0=nullPtr,
                                                     const Ptr<StatusTest<Real>>& status=nullPtr,
                                                     bool combineStatus=true) {
-    computeUtopia(parlist,outStream,status,combineStatus);
+    computeUtopia(parlist,outStream,initGuess,x0,status,combineStatus);
     return solution_vec_;
+  }
+
+  std::vector<std::string> getObjectiveLabels() const {
+    std::vector<std::string> names;
+    for (auto it = INPUT_obj_.begin(); it != INPUT_obj_.end(); ++it)
+      names.push_back(it->first);
+    return names;
   }
 
 }; // class MultiObjectiveFactory

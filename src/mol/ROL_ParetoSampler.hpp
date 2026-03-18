@@ -18,6 +18,7 @@ class ParetoSampler {
 private:
   const Ptr<BatchManager<Real>> bman_;
   std::vector<ParetoData<Real>> samples_;
+  std::vector<std::string>      labels_;
 
 public:
   ParetoSampler(const Ptr<BatchManager<Real>>& bman = nullPtr)
@@ -26,7 +27,7 @@ public:
   void run(const Ptr<MultiObjectiveFactory<Real>>& factory,
            ParameterList& parlist,
            std::ostream& outStream = std::cout,
-	   const Ptr<StatusTest<Real>> &status = nullPtr,
+           const Ptr<StatusTest<Real>> &status = nullPtr,
            bool combineStatus = true,
            bool reset = false) {
     if (reset) samples_.clear();
@@ -35,7 +36,11 @@ public:
     const int batchid = bman_->batchID();
     const int nbatch = bman_->numBatches();
     // Compute endpoints
-    auto pdsol = factory->getEndPoints(parlist,outStream,status,combineStatus);
+    labels_ = factory->getObjectiveLabels();
+    auto x0 = factory->getOptimizationVector()->clone();
+    x0->set(*factory->getOptimizationVector());
+    const bool initGuess = !parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Warm Start",false);
+    auto pdsol = factory->getEndPoints(parlist,outStream,initGuess,x0,status,combineStatus);
     int frac   = nobj / nbatch;
     int rem    = nobj % nbatch;
     int N      = frac + ((batchid < rem) ? 1 : 0);
@@ -44,21 +49,18 @@ public:
     for (int i = 0; i < N; ++i) samples_.push_back(pdsol[offset+i]);
     // Compute random samples
     const int nsamp = parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Number of Points",10);
-    const bool initGuess = parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Warm Start",false);
     const bool useTrig = parlist.sublist("Multi-Objective").sublist("Pareto Sampler").get("Use Trigonometric Spacing",false);
     if (nobj > 1u && nsamp > 0) {
       Ptr<SampleGenerator<Real>> sampler;
       if (nobj == 2u) sampler = makePtr<Equispaced2dGenerator<Real>>(nsamp,bman_,useTrig);
       else            sampler = makePtr<UniformSimplexGenerator<Real>>(nsamp,nobj,bman_);
-      auto x0 = factory->getOptimizationVector()->clone();
-      x0->set(*factory->getOptimizationVector());
       std::vector<Real> fail(sampler->numMySamples(),zero), lam(nobj);
       Real tottime(0);
       for (int i = 0; i < sampler->numMySamples(); ++i) {
         // Generate simplex sample
         lam = sampler->getMyPoint(i);
         // Solve scalarized problem
-        auto problem = factory->makeScalarProblem(lam,parlist,outStream,initGuess&&(i!=0),x0,status,combineStatus);
+        auto problem = factory->makeScalarProblem(lam,parlist,outStream,initGuess,x0,status,combineStatus);
         //x0->randomize(1.0,2.0);
         problem->finalize(false,true,outStream);
         //problem->check(true,outStream,x0,0.1);
@@ -74,7 +76,6 @@ public:
         auto val = factory->evaluateObjectiveVector(*x);
         ParetoData<Real> pd(x,lam,val,solver->getAlgorithmState()->statusFlag);
         samples_.push_back(pd);
-        x0->set(*x);
       }
       Real nfail = std::reduce(fail.begin(),fail.end()), gtime(0), gfail(0);
       bman_->sumAll(&tottime,&gtime,1);
@@ -93,7 +94,7 @@ public:
     }
   }
 
-  void print(std::string file) const {
+  void print(std::string file, bool printColumnHeader=false) const {
     // Gather data to root batch
     const unsigned nobj = samples_[0].values.size();
     const unsigned nsamp = samples_.size();
@@ -113,6 +114,11 @@ public:
       std::ofstream os;
       os.open(file);
       os << std::scientific << std::setprecision(15);
+      if (printColumnHeader) {
+        for (unsigned j=0; j<nobj; ++j)
+          os << std::right << std::setw(25) << labels_[j];
+        os << std::endl;
+      }
       for (unsigned i=0; i<nsampg; ++i) {
         for (unsigned j=0; j<nobj; ++j) os << std::right << std::setw(25) << valg[i*nobj+j];
         os << std::endl;
