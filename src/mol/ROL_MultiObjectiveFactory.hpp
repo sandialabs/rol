@@ -46,11 +46,15 @@ private:
 
   void addConstraintsToProblem(Ptr<Problem<Real>> &problem);
   void computeUtopia(ParameterList &parlist, std::ostream &outStream,
-                     const Ptr<StatusTest<Real>>& status = nullPtr,
-                     bool combineStatus = true);
+                     bool initGuess=false,
+                     const Ptr<Vector<Real>>& x0=nullPtr,
+                     const Ptr<StatusTest<Real>>& status=nullPtr,
+                     bool combineStatus=true);
   void initializeObjectives(ParameterList &parlist, std::ostream &outStream,
-                            const Ptr<StatusTest<Real>>& status = nullPtr,
-                            bool combineStatus = true);
+                            bool initGuess=false,
+                            const Ptr<Vector<Real>>& x0=nullPtr,
+                            const Ptr<StatusTest<Real>>& status=nullPtr,
+                            bool combineStatus=true);
 
 public:
   virtual ~MultiObjectiveFactory() {}
@@ -252,9 +256,11 @@ public:
   */
   const std::vector<ParetoData<Real>>& getEndPoints(ParameterList& parlist,
                                                     std::ostream& outStream=std::cout,
+                                                    bool initGuess=false,
+                                                    const Ptr<Vector<Real>>& x0=nullPtr,
                                                     const Ptr<StatusTest<Real>>& status=nullPtr,
                                                     bool combineStatus=true) {
-    computeUtopia(parlist,outStream,status,combineStatus);
+    computeUtopia(parlist,outStream,initGuess,x0,status,combineStatus);
     return solution_vec_;
   }
 

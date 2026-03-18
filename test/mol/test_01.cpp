@@ -138,9 +138,9 @@ int main(int argc, char *argv[]) {
     parlist.sublist("Step").sublist("Augmented Lagrangian").set("Initial Penalty Parameter",1.0);
     parlist.sublist("Step").sublist("Augmented Lagrangian").set("Use Default Initial Penalty Parameter",false);
     parlist.sublist("Step").sublist("Augmented Lagrangian").set("Use Default Problem Scaling",false);
-    parlist.sublist("Mult-Objective").set("Scalarization Type","Convex Combination");
-    parlist.sublist("Mult-Objective").sublist("Pareto Sampler").set("Number of Points",10);
-    parlist.sublist("Mult-Objective").sublist("Pareto Sampler").set("Warm Start",false);
+    parlist.sublist("Multi-Objective").set("Scalarization Type","Convex Combination");
+    parlist.sublist("Multi-Objective").sublist("Pareto Sampler").set("Number of Points",10);
+    parlist.sublist("Multi-Objective").sublist("Pareto Sampler").set("Warm Start",true);
 
     auto ps = ROL::makePtr<ROL::ParetoSampler<RealT>>();
     ps->run(mof,parlist,*outStream);
