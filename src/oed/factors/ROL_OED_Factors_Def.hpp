@@ -220,8 +220,23 @@ int Factors<Real>::numFactors() const {
 }
 
 template<typename Real>
+int Factors<Real>::numSamples() const {
+  return sampler_->numGlobalSamples();
+}
+
+template<typename Real>
 int Factors<Real>::numMySamples() const {
   return sampler_->numMySamples();
+}
+
+template<typename Real>
+int Factors<Real>::numBatches() const {
+  return sampler_->numBatches();
+}
+
+template<typename Real>
+int Factors<Real>::batchID() const {
+  return sampler_->batchID();
 }
 
 template<typename Real>
