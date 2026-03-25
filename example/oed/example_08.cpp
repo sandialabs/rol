@@ -24,6 +24,7 @@
 #include "ROL_OED_GreedyAlgorithm.hpp"
 #include "ROL_OED_Factory.hpp"
 #include "ROL_OED_StdMomentOperator.hpp"
+#include "ROL_OED_PrintDesign.hpp"
 
 #include <iostream>
 
@@ -177,23 +178,32 @@ int main(int argc, char *argv[]) {
     // Run greedy algorithm
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",true);
     auto pad = ROL::OED::GreedyAlgorithmA<RealT>(model,sampler,theta,M,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pad,sampler,"GreedyDeletionDesignA",".txt");
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",false);
     auto paa = ROL::OED::GreedyAlgorithmA<RealT>(model,sampler,theta,M,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(paa,sampler,"GreedyAdditionDesignA",".txt");
 
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",true);
     auto pcd = ROL::OED::GreedyAlgorithmC<RealT>(model,sampler,theta,M,CoptVec,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pcd,sampler,"GreedyDeletionDesignC",".txt");
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",false);
     auto pca = ROL::OED::GreedyAlgorithmC<RealT>(model,sampler,theta,M,CoptVec,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pca,sampler,"GreedyAdditionDesignC",".txt");
 
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",true);
     auto pdd = ROL::OED::GreedyAlgorithmD<RealT>(model,sampler,theta,M,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pdd,sampler,"GreedyDeletionDesignD",".txt");
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",false);
     auto pda = ROL::OED::GreedyAlgorithmD<RealT>(model,sampler,theta,M,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pda,sampler,"GreedyAdditionDesignD",".txt");
     
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",true);
     auto pid = ROL::OED::GreedyAlgorithmI<RealT>(model,sampler,theta,M,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pid,sampler,"GreedyDeletionDesignI",".txt");
     parlist->sublist("OED").sublist("Greedy").set("Use Deletion",false);
     auto pia = ROL::OED::GreedyAlgorithmI<RealT>(model,sampler,theta,M,cost,budget,*parlist,*outStream);
+    ROL::OED::PrintDesign<RealT>(pia,sampler,"GreedyAdditionDesignI",".txt");
+
 
 
     //// Generate optimization problem
