@@ -52,13 +52,13 @@ public:
 template<typename Real>
 struct GreedyObjectiveA : public GreedyObjective<Real> {
 public:
-  GreedyObjectiveA(const Ptr<MomentOperator<Real>>& cov, const Ptr<TraceSampler<Real>>& tsampler, std::vector<Real> weight, bool useDeletion)
-    : GreedyObjective<Real>(cov,useDeletion), tsampler_(tsampler),
+  GreedyObjectiveA(const Ptr<MomentOperator<Real>>& cov_, const Ptr<TraceSampler<Real>>& tsampler, std::vector<Real> weight, bool useDeletion_)
+    : GreedyObjective<Real>(cov_,useDeletion_), tsampler_(tsampler),
       weight_(weight), size_(weight.size()),
       stateStore_(makePtr<VectorController<Real,unsigned>>()),
-      uvec_(cov->getFactors()->get(0)->dual().clone()),
-      rhs_(cov->getFactors()->get(0)->clone()),
-      invMfj_(cov->getFactors()->get(0)->dual().clone()) {}
+      uvec_(cov_->getFactors()->get(0)->dual().clone()),
+      rhs_(cov_->getFactors()->get(0)->clone()),
+      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {}
   void update(const Vector<Real>& x, int iter=-1) override final {
     GreedyObjective<Real>::update(x,iter);
     stateStore_->objectiveUpdate(UpdateType::Trial);
@@ -100,10 +100,10 @@ private:
 template<typename Real>
 struct GreedyObjectiveC : public GreedyObjective<Real> {
 public:
-  GreedyObjectiveC(const Ptr<MomentOperator<Real>>& cov, const Ptr<Vector<Real>>& c, bool useDeletion)
-    : GreedyObjective<Real>(cov,useDeletion), c_(c),
+  GreedyObjectiveC(const Ptr<MomentOperator<Real>>& cov_, const Ptr<Vector<Real>>& c, bool useDeletion_)
+    : GreedyObjective<Real>(cov_,useDeletion_), c_(c),
       uvec_(c->dual().clone()),
-      invMfj_(cov->getFactors()->get(0)->dual().clone()) {}
+      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {}
   void update(const Vector<Real>& x, int iter=-1) {
     GreedyObjective<Real>::update(x,iter);
     GreedyObjective<Real>::cov->applyInverse(*uvec_,*c_,x);
@@ -130,9 +130,9 @@ private:
 template<typename Real>
 struct GreedyObjectiveD : public GreedyObjective<Real> {
 public:
-  GreedyObjectiveD(const Ptr<MomentOperator<Real>>& cov, bool useDeletion)
-    : GreedyObjective<Real>(cov,useDeletion),
-      invMfj_(cov->getFactors()->get(0)->dual().clone()) {}
+  GreedyObjectiveD(const Ptr<MomentOperator<Real>>& cov_, bool useDeletion_)
+    : GreedyObjective<Real>(cov_,useDeletion_),
+      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {}
   Real value(const Vector<Real>& x) const override final {
     return -GreedyObjective<Real>::cov->logDeterminant(x);
   }
@@ -149,16 +149,16 @@ private:
 template<typename Real>
 struct GreedyObjectiveI : public GreedyObjective<Real> {
 public:
-  GreedyObjectiveI(const Ptr<MomentOperator<Real>>& cov,
-                   const Ptr<Factors<Real>>& factors, const Ptr<SampleGenerator<Real>>& sampler,
+  GreedyObjectiveI(const Ptr<MomentOperator<Real>>& cov_,
+                   const Ptr<Factors<Real>>& PVfactors, const Ptr<SampleGenerator<Real>>& sampler,
                    const Ptr<TraceSampler<Real>>& tsampler, std::vector<Real> weight,
-                         bool useDeletion)
-    : GreedyObjective<Real>(cov,useDeletion), tsampler_(tsampler),
+                         bool useDeletion_)
+    : GreedyObjective<Real>(cov_,useDeletion_), tsampler_(tsampler),
       weight_(weight), size_(weight.size()),
       stateStore_(makePtr<VectorController<Real,unsigned>>()),
-      uvec_(cov->getFactors()->get(0)->dual().clone()),
-      rhs_(cov->getFactors()->get(0)->clone()),
-      invMfj_(cov->getFactors()->get(0)->dual().clone()) {
+      uvec_(cov_->getFactors()->get(0)->dual().clone()),
+      rhs_(cov_->getFactors()->get(0)->clone()),
+      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {
     auto F = uvec_->dual().clone();
     auto b = F->clone();
     b_.clear(); b_.resize(size_);
@@ -167,7 +167,7 @@ public:
       b_[i] = b->clone();
       tsampler->get(*rhs_,{static_cast<Real>(i)});
       for (int j = 0; j < sampler->numMySamples(); ++j) {
-        factors->evaluate(*F,sampler->getMyPoint(j));
+        PVfactors->evaluate(*F,sampler->getMyPoint(j));
         b->axpy(F->dot(*rhs_)*sampler->getMyWeight(j),*F);
       }
       sampler->sumAll(*b,*b_[i]);
