@@ -38,7 +38,19 @@ ROL_ADD_EXECUTABLE(
   ADD_DIR_TO_NAME
   )
 
+ROL_ADD_EXECUTABLE(
+  ParallelGreedyPolynomialRegression1D
+  SOURCES example_08.cpp
+  ADD_DIR_TO_NAME
+  )
+
 ENDIF()
+
+ROL_ADD_EXECUTABLE(
+  GreedyPolynomialRegression1D
+  SOURCES example_07.cpp
+  ADD_DIR_TO_NAME
+  )
 
 ROL_COPY_FILES_TO_BINARY_DIR(
   OEDExampleDataCopy

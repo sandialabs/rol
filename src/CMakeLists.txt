@@ -288,6 +288,7 @@ APPEND_GLOB(HEADERS ${DIR}/*.hpp
 
 TRIBITS_SET_AND_INC_DIRS(DIR ${CMAKE_CURRENT_SOURCE_DIR}/oed)
 TRIBITS_INCLUDE_DIRECTORIES(${DIR}
+                    ${DIR}/algorithm
                     ${DIR}/constraint
                     ${DIR}/factors
                     ${DIR}/objective
@@ -296,6 +297,7 @@ TRIBITS_INCLUDE_DIRECTORIES(${DIR}
                     ${DIR}/vector
                     ${DIR}/utilities)
 APPEND_GLOB(HEADERS ${DIR}/*.hpp
+                    ${DIR}/algorithm/*.hpp
                     ${DIR}/constraint/*.hpp
                     ${DIR}/factors/*.hpp
                     ${DIR}/objective/*.hpp

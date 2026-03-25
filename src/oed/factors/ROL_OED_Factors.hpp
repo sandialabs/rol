@@ -93,7 +93,13 @@ public:
 
   virtual int numFactors() const;
 
+  virtual int numSamples() const;
+
   virtual int numMySamples() const;
+
+  virtual int numBatches() const;
+
+  virtual int batchID() const;
 
   virtual std::vector<Real> getSample(int k) const;
 
