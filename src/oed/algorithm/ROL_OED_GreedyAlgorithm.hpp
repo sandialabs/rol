@@ -495,7 +495,7 @@ Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Constraint<Real>>& model,
   cov->generateFactors(model,theta,obs,sampler);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveD<Real>>(cov,useDeletion);
-  GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
 }
 
 // Specialized Greedy Algorithm for D-Optimality
