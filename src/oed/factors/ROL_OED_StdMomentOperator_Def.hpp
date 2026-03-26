@@ -10,8 +10,7 @@
 #ifndef ROL_OED_STD_COVARIANCE_OPERATOR_DEF_HPP
 #define ROL_OED_STD_COVARIANCE_OPERATOR_DEF_HPP
 
-namespace ROL {
-namespace OED {
+namespace ROL::OED {
 
 template<typename Real>
 void StdMomentOperator<Real>::initialize(int nfactors) {
@@ -52,7 +51,7 @@ void StdMomentOperator<Real>::build(const Vector<Real> &p) {
     if (isPset_) blas_->AXPY(nfactors*nfactors,one,P_.values(),1,M_.values(),1);
     isBuilt_      = true;
     isFactorized_ = false;
-    useSVD_       = false;
+    useSVD_       = alwaysUseSVD_;
   }
   stopTimer("build");
 }
@@ -163,7 +162,9 @@ Ptr<MomentOperator<Real>> StdMomentOperator<Real>::clone() const {
   bool hom;
   Ptr<Noise<Real>> noise;
   MomentOperator<Real>::getRegressionInfo(type,hom,noise);
-  return makePtr<StdMomentOperator<Real>>(type,hom,noise,alwaysUseSVD_,SVDtol_);
+  auto M = makePtr<StdMomentOperator<Real>>(type,hom,noise,alwaysUseSVD_,SVDtol_);
+  if (isPset_) M->setPerturbation(MomentOperator<Real>::getPerturbation());
+  return M;
 }
 
 template<typename Real>
@@ -221,12 +222,12 @@ void StdMomentOperator<Real>::applyInverse(Vector<Real> &Mx,
       std::vector<Real> Ux(nfactors);
       //blas_->GEMV(Teuchos::TRANS,nfactors,nfactors,one,U_.values(),nfactors,
       //            &xdata[0],1,zero,&Ux[0],1);
-      blas_->GEMV(Teuchos::NO_TRANS,nfactors,nfactors,one,Minv_.values(),nfactors,
+      blas_->GEMV(Teuchos::TRANS,nfactors,nfactors,one,Minv_.values(),nfactors,
                   &xdata[0],1,zero,&Ux[0],1);
       Real maxSV(-1);
       for (int i = 0; i < nfactors; ++i)
         maxSV = (maxSV < sval_[i] ? sval_[i] : maxSV);
-      const Real tol = SVDtol_*static_cast<Real>(nfactors) * maxSV;
+      const Real tol = SVDtol_ * maxSV; // * static_cast<Real>(nfactors);
       for (int i = 0; i < nfactors; ++i) {
         if (sval_[i] > tol)
           Ux[i] /= sval_[i];
@@ -235,7 +236,7 @@ void StdMomentOperator<Real>::applyInverse(Vector<Real> &Mx,
       }
       //blas_->GEMV(Teuchos::TRANS,nfactors,nfactors,one,V_.values(),nfactors,
       //            &Ux[0],1,zero,&Mxdata[0],1);
-      blas_->GEMV(Teuchos::TRANS,nfactors,nfactors,one,Minv_.values(),nfactors,
+      blas_->GEMV(Teuchos::NO_TRANS,nfactors,nfactors,one,Minv_.values(),nfactors,
                   &Ux[0],1,zero,&Mxdata[0],1);
     }
   }
@@ -399,8 +400,19 @@ Real StdMomentOperator<Real>::logDeterminant(const Vector<Real> &z) {
     build(z);
     factorize(z);
     const int nfactors = M_.numRows();
-    for (int j = 0; j < nfactors; ++j) {
-      val += std::log(!useSVD_ ? Minv_(j,j) : sval_[j]);
+    if (useSVD_) {
+      Real maxSV(-1);
+      for (int i = 0; i < nfactors; ++i)
+        maxSV = (maxSV < sval_[i] ? sval_[i] : maxSV);
+      const Real tol = SVDtol_ * maxSV; // * static_cast<Real>(nfactors);
+      for (int j = 0; j < nfactors; ++j) {
+        if (sval_[j] >= tol) val += std::log(sval_[j]);
+      }
+    }
+    else {
+      for (int j = 0; j < nfactors; ++j) {
+        val += std::log(Minv_(j,j));
+      }
     }
   }
   else {
@@ -416,7 +428,6 @@ Real StdMomentOperator<Real>::logDeterminant(const Vector<Real> &z) {
   return val;
 }
 
-} // End OED Namespace
-} // End ROL Namespace
+} // End ROL::OED Namespace
 
 #endif
