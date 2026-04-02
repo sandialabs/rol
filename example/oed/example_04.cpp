@@ -167,7 +167,7 @@ int main(int argc, char *argv[]) {
     auto type = ROL::OED::StringToRegressionType(regType);
     std::vector<ROL::Ptr<ROL::OED::MomentOperator<RealT>>> Ms(numParam);
     for (int i = 0; i < numParam; ++i)
-      Ms[i] = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noises[i]);
+      Ms[i] = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,(homNoise ? ROL::nullPtr : noises[i]));
     auto M = ROL::makePtr<ROL::OED::IndependentMomentOperator<RealT>>(Ms);
     if (addTik) M->setPerturbation(P);
 

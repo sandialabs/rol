@@ -16,8 +16,7 @@
 #include "ROL_SeparableConstraint.hpp"
 #include "ROL_OED_IndependentFactors.hpp"
 
-namespace ROL {
-namespace OED {
+namespace ROL::OED {
 
 template<typename Real>
 IndependentMomentOperator<Real>::IndependentMomentOperator(const std::vector<Ptr<MomentOperator<Real>>> &Mvec)
@@ -55,18 +54,13 @@ template<typename Real>
 void IndependentMomentOperator<Real>::generateFactors(const Ptr<Constraint<Real>>      &model,
                                                       const Ptr<Vector<Real>>          &theta,
                                                       const Ptr<Vector<Real>>          &obs,
-                                                      const Ptr<SampleGenerator<Real>> &sampler,
-                                                      bool                              storage,
-                                                      const Ptr<Vector<Real>>          &c,
-                                                      bool                              ortho) {
+                                                      const Ptr<SampleGenerator<Real>> &sampler) {
   auto pmodel = staticPtrCast<SeparableConstraint<Real>>(model);
   auto ptheta = staticPtrCast<PartitionedVector<Real>>(theta);
   auto pobs   = staticPtrCast<PartitionedVector<Real>>(obs);
   std::vector<Ptr<Factors<Real>>> factors(numOp_);
   for (unsigned i = 0u; i < numOp_; ++i) {
-    Ptr<Vector<Real>> ci = nullPtr;
-    if (c!=nullPtr) ci = staticPtrCast<PartitionedVector<Real>>(c)->get(i);
-    Mvec_[i]->generateFactors(pmodel->get(i),ptheta->get(i),pobs->get(i),sampler,storage,ci,ortho);
+    Mvec_[i]->generateFactors(pmodel->get(i),ptheta->get(i),pobs->get(i),sampler);
     factors[i] = Mvec_[i]->getFactors();
   }
   MomentOperator<Real>::setFactors(makePtr<IndependentFactors<Real>>(factors));
@@ -75,14 +69,12 @@ void IndependentMomentOperator<Real>::generateFactors(const Ptr<Constraint<Real>
 template<typename Real>
 void IndependentMomentOperator<Real>::generateFactors(const Ptr<Objective<Real>>       &model,
                                                       const Ptr<Vector<Real>>          &theta,
-                                                      const Ptr<SampleGenerator<Real>> &sampler,
-                                                      bool                              storage,
-                                                      bool                              ortho) {
+                                                      const Ptr<SampleGenerator<Real>> &sampler) {
   auto pmodel = staticPtrCast<SeparableObjective<Real>>(model);
   auto ptheta = staticPtrCast<PartitionedVector<Real>>(theta);
   std::vector<Ptr<Factors<Real>>> factors(numOp_);
   for (unsigned i = 0u; i < numOp_; ++i) {
-    Mvec_[i]->generateFactors(pmodel->get(i),ptheta->get(i),sampler,storage,ortho);
+    Mvec_[i]->generateFactors(pmodel->get(i),ptheta->get(i),sampler);
     factors[i] = Mvec_[i]->getFactors();
   }
   MomentOperator<Real>::setFactors(makePtr<IndependentFactors<Real>>(factors));
@@ -157,8 +149,14 @@ void IndependentMomentOperator<Real>::setNoise(const Ptr<Noise<Real>> &noise, bo
 }
 
 template<typename Real>
-Real IndependentMomentOperator<Real>::getNoise(int k) const {
-  return Mvec_[0]->getNoise(k);
+void IndependentMomentOperator<Real>::applyNoise(Vector<Real>& Nx, const Vector<Real>& x, int i) const {
+  startTimer("applyNoise");
+  for (unsigned i = 0u; i < numOp_; ++i) {
+    Ptr<Vector<Real>>       Nxi = dynamic_cast<PartitionedVector<Real>&>(Nx).get(i);
+    Ptr<const Vector<Real>>  xi = dynamic_cast<const PartitionedVector<Real>&>(x).get(i);
+    Mvec_[i]->applyNoise(*Nxi,*xi,i);
+  }
+  stopTimer("applyNoise");
 }
 
 template<typename Real>
@@ -177,7 +175,6 @@ Real IndependentMomentOperator<Real>::logDeterminant(const Vector<Real> &z) {
   return val;
 }
 
-} // End OED Namespace
-} // End ROL Namespace
+} // End ROL::OED Namespace
 
 #endif
