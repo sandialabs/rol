@@ -37,7 +37,7 @@ private:
     const unsigned N(2*nx_);
     const Real sd0(1.0/dx_), sd(2.0/dx_), so(-1.0/dx_);    // Stiffness matrix
     const Real md0(dx_/6.0), md(dx_*2.0/3.0), mo(dx_/6.0); // Mass matrix
-    const Real k2(k*k), kc(k*c), one(1), six(6);
+    const Real k2(k*k), kc(k*c), one(1);
     ROL::LA::Matrix<Real> K(N,N);
     data_.reshape(N,4);
     data_.putScalar(0.0);
@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
     std::ofstream ptfile, wtfile;
     ptfile.open("points.txt");
     wtfile.open("weights.txt");
-    for (unsigned i = 0; i < nsamp; ++i) {
+    for (int i = 0; i < nsamp; ++i) {
       ptfile << static_cast<RealT>(i+1) / static_cast<RealT>(nsamp+1) << std::endl;
       wtfile << static_cast<RealT>(1) / static_cast<RealT>(nsamp) << std::endl;
     }

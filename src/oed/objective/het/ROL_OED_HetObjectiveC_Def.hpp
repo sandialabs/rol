@@ -48,24 +48,27 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
   M1_->update(z,type,iter);
   if (storage_) {
     switch(type) {
-      case ROL::UpdateType::Initial:
+      case ROL::UpdateType::Initial: {
         isStateComputed_   = false;
         isStateCached_     = false;
         isAdjointComputed_ = false;
         isAdjointCached_   = false;
-      case ROL::UpdateType::Trial:
+      }
+      case ROL::UpdateType::Trial: {
         isStateCached_     = isStateComputed_;
         isAdjointCached_   = isAdjointComputed_;
         isStateComputed_   = false;
         isAdjointComputed_ = false;
-      case ROL::UpdateType::Accept:
+      }
+      case ROL::UpdateType::Accept: {
         if (isStateComputed_) {
           ucache_->set(*u_);
           Mucache_->set(*Mu_);
         }
         if (isAdjointComputed_)
           pcache_->set(*p_);
-      case ROL::UpdateType::Revert:
+      }
+      case ROL::UpdateType::Revert: {
         if (isStateCached_) {
           u_->set(*ucache_);
 	  Mu_->set(*Mucache_);
@@ -79,10 +82,15 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
         }
         else
           isAdjointComputed_ = false;
-      case ROL::UpdateType::Temp:
-      default:
+      }
+      case ROL::UpdateType::Temp: {
         isStateComputed_   = false;
         isAdjointComputed_ = false;
+      }
+      default: {
+        isStateComputed_   = false;
+        isAdjointComputed_ = false;
+      }
     }
   }
   else {

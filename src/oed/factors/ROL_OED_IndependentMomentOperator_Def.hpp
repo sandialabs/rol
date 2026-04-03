@@ -151,10 +151,10 @@ void IndependentMomentOperator<Real>::setNoise(const Ptr<Noise<Real>> &noise, bo
 template<typename Real>
 void IndependentMomentOperator<Real>::applyNoise(Vector<Real>& Nx, const Vector<Real>& x, int i) const {
   startTimer("applyNoise");
-  for (unsigned i = 0u; i < numOp_; ++i) {
-    Ptr<Vector<Real>>       Nxi = dynamic_cast<PartitionedVector<Real>&>(Nx).get(i);
-    Ptr<const Vector<Real>>  xi = dynamic_cast<const PartitionedVector<Real>&>(x).get(i);
-    Mvec_[i]->applyNoise(*Nxi,*xi,i);
+  for (unsigned j = 0u; j < numOp_; ++i) {
+    Ptr<Vector<Real>>       Nxj = dynamic_cast<PartitionedVector<Real>&>(Nx).get(j);
+    Ptr<const Vector<Real>>  xj = dynamic_cast<const PartitionedVector<Real>&>(x).get(j);
+    Mvec_[j]->applyNoise(*Nxj,*xj,i);
   }
   stopTimer("applyNoise");
 }
