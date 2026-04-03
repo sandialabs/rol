@@ -36,14 +36,17 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
       case ROL::UpdateType::Initial: {
         isStateComputed_ = false;
         isStateCached_   = false;
+	break;
       }
       case ROL::UpdateType::Trial: {
         isStateCached_   = isStateComputed_;
         isStateComputed_ = false;
+	break;
       }
       case ROL::UpdateType::Accept: {
         if (isStateComputed_)
           ucache_->set(*u_);
+	break;
       }
       case ROL::UpdateType::Revert: {
         if (isStateCached_) {
@@ -52,12 +55,15 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
         }
         else
           isStateComputed_ = false;
+	break;
       }
       case ROL::UpdateType::Temp: {
         isStateComputed_ = false;
+	break;
       }
       default: {
         isStateComputed_ = false;
+	break;
       }
     }
   }

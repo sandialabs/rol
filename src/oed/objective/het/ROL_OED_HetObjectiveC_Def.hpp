@@ -53,12 +53,14 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
         isStateCached_     = false;
         isAdjointComputed_ = false;
         isAdjointCached_   = false;
+	break;
       }
       case ROL::UpdateType::Trial: {
         isStateCached_     = isStateComputed_;
         isAdjointCached_   = isAdjointComputed_;
         isStateComputed_   = false;
         isAdjointComputed_ = false;
+	break;
       }
       case ROL::UpdateType::Accept: {
         if (isStateComputed_) {
@@ -67,6 +69,7 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
         }
         if (isAdjointComputed_)
           pcache_->set(*p_);
+	break;
       }
       case ROL::UpdateType::Revert: {
         if (isStateCached_) {
@@ -82,14 +85,17 @@ void ObjectiveC<Real>::update( const Vector<Real>& z, UpdateType type, int iter)
         }
         else
           isAdjointComputed_ = false;
+	break;
       }
       case ROL::UpdateType::Temp: {
         isStateComputed_   = false;
         isAdjointComputed_ = false;
+	break;
       }
       default: {
         isStateComputed_   = false;
         isAdjointComputed_ = false;
+	break;
       }
     }
   }
