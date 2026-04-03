@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
     // Build nonlinear model and parameter vector
     auto theta = ROL::makePtr<ROL::StdVector<RealT>>(numSides,1);
     auto model = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obs,con,up,theta,up,false);
-    auto obs   = ROL::makePtr<ROL::SingletonVector<RealT>>(1);
+    auto obsv  = ROL::makePtr<ROL::SingletonVector<RealT>>(1);
 
     /*************************************************************************/
     /******* BUILD EXPERIMENTAL DESIGN PROBLEM AND SOLVE *********************/
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
       auto factors = factory->getFactors(theta);
       for (int i = 0; i < dsampler->numMySamples(); ++i) {
         pt = dsampler->getMyPoint(i);
-        factors->applyAdjoint(*Fp,*obs,pt);
+        factors->applyAdjoint(*Fp,*obsv,pt);
         for (int j = 0; j < numSides; ++j) {
           factFile_d << std::right << std::setw(25)
                      << (*ROL::dynamicPtrCast<ROL::StdVector<RealT>>(Fp)->getVector())[j];
@@ -286,7 +286,7 @@ int main(int argc, char *argv[]) {
       noisFile_o << std::scientific << std::setprecision(15);
       for (int i = 0; i < osampler->numMySamples(); ++i) {
         pt = osampler->getMyPoint(i);
-        factors->applyAdjoint(*Fp,*obs,pt);
+        factors->applyAdjoint(*Fp,*obsv,pt);
         for (int j = 0; j < numSides; ++j) {
           factFile_o << std::right << std::setw(25)
                      << (*ROL::dynamicPtrCast<ROL::StdVector<RealT>>(Fp)->getVector())[j];
