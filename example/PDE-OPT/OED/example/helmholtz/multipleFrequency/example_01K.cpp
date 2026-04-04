@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
     regType  = parlist->sublist("Problem").get("Regression Type","Least Squares"); 
     auto type    = ROL::OED::StringToRegressionType(regType);
     auto noise   = ROL::makePtr<Helmholtz_Noise<RealT>>();
-    auto cov     = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
+    auto cov     = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise ? ROL::nullPtr : noise);
     auto factory = ROL::makePtr<ROL::OED::Factory<RealT>>(model,dsampler,theta,ovec,cov,*parlist);
     obman->barrier();
 
