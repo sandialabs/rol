@@ -13,67 +13,51 @@
 #include "ROL_OED_Factors.hpp"
 #include <vector>
 
-namespace ROL {
-namespace OED {
+namespace ROL::OED {
 
 template<typename Real>
 class IndependentFactors : public Factors<Real> {
 protected:
   std::vector<Ptr<Factors<Real>>> factors_;
-  std::vector<Ptr<Vector<Real>>>  Fk_;
-  unsigned                        numOp_;
+  unsigned numOp_, nobs_, nfact_;
 
   //using ProfiledClass<Real,std::string>::startTimer;
   //using ProfiledClass<Real,std::string>::stopTimer;
 
 public:
-  IndependentFactors(const Ptr<Objective<Real>>       &model,
-                     const Ptr<Vector<Real>>          &theta,
-                     const Ptr<SampleGenerator<Real>> &sampler,
-                     bool                              storage = true,
-                     bool                              ortho = false);
-  IndependentFactors(const std::vector<Ptr<Factors<Real>>> &factors);
-
-  void setPredictionVector(const Vector<Real> &c);
-  void getPredictionVector(Vector<Real> &c) const;
+  IndependentFactors(const Ptr<Objective<Real>>& model,
+                     const Ptr<const Vector<Real>>& theta,
+                     const Ptr<SampleGenerator<Real>>& sampler);
+  IndependentFactors(const std::vector<Ptr<Factors<Real>>>& factors);
 
   // Create a vector in the parameter space
-  Ptr<Vector<Real>> createParameterVector(bool dual=false) const;
+  Ptr<Vector<Real>> createParameterVector(bool dual=false) const override;
 
   // Create a vector in the observation space
-  Ptr<Vector<Real>> createObservationVector(bool dual=false) const;
-
-  // Compute c^T F[k] x
-  Real apply(const Vector<Real> &x, int k) const;
+  Ptr<Vector<Real>> createObservationVector(bool dual=false) const override;
 
   // Compute Fx = F[k] x
-  void apply(Vector<Real> &Fx, const Vector<Real> &x, int k) const;
+  void apply(Vector<Real> &Fx, const Vector<Real> &x, int k) const override;
+  void apply(Vector<Real> &Fx, const Vector<Real> &x, const std::vector<Real>& pt) const override;
 
-  // Compute Mx = F[k]^T R F[k] x
-  void applyProduct(Vector<Real> &Mx, const Vector<Real> &x, int k) const;
+  // Compute Fx = F[k]* x
+  void applyAdjoint(Vector<Real> &Fx, const Vector<Real> &x, int k) const override;
+  void applyAdjoint(Vector<Real> &Fx, const Vector<Real> &x, const std::vector<Real>& pt) const override;
 
-  // Compute y^T F[k]^T R F[k] x
-  Real applyProduct2(const Vector<Real> &x, const Vector<Real> &y, int k) const;
+  int numFactors() const override { return nfact_; }
 
-  // Get F[k]^T c
-  const Ptr<const Vector<Real>> get(int k) const;
+  int numObservations() const override { return nobs_; }
 
-  // Compute F(param)^T c
-  void evaluate(Vector<Real> &F, const std::vector<Real> &param) const;
+  int numMySamples() const override { return factors_[0]->numMySamples(); }
 
-  // void sumAll(Real *in, Real *out, int size) const;
+  std::vector<Real> getSample(int k) const override { return factors_[0]->getSample(k); }
 
-  int numFactors() const;
+  const Ptr<const Vector<Real>> getTheta() const override { return factors_[0]->getTheta(); }
 
-  int numMySamples() const;
-
-  std::vector<Real> getSample(int k) const;
-
-  const Ptr<Factors<Real>> getFactors(unsigned i) const;
+  const Ptr<Factors<Real>> getFactors(unsigned i) const { return factors_[i]; }
 }; // class Factors
 
-} // End OED Namespace
-} // End ROL Namespace
+} // End ROL::OED Namespace
 
 #include "ROL_OED_IndependentFactors_Def.hpp"
 

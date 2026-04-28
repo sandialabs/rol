@@ -20,6 +20,16 @@
 #include "ROL_OED_Factory.hpp"
 #include "ROL_OED_StdMomentOperator.hpp"
 
+#include "ROL_OED_HomObjectiveA.hpp"
+#include "ROL_OED_HomObjectiveC.hpp"
+#include "ROL_OED_HomObjectiveD.hpp"
+#include "ROL_OED_HomObjectiveI.hpp"
+
+#include "ROL_OED_HetObjectiveA.hpp"
+#include "ROL_OED_HetObjectiveC.hpp"
+#include "ROL_OED_HetObjectiveD.hpp"
+#include "ROL_OED_HetObjectiveI.hpp"
+
 #include "ROL_GlobalMPISession.hpp"
 
 #include <iostream>
@@ -61,6 +71,8 @@ public:
   Real evaluate(const std::vector<Real> &x) const override {
     return std::exp(alpha_ * std::abs(x[0])) / std::exp(alpha_);
   }
+
+  bool isHomoscedastic() const override { return false; }
 };
 
 template<typename Real>
@@ -144,7 +156,7 @@ int main(int argc, char *argv[]) {
     std::string regType = "Least Squares";
     std::string ocType = parlist->sublist("OED").get("Optimality Type","A");
     auto type = ROL::OED::StringToRegressionType(regType);
-    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
+    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,(homNoise ? ROL::nullPtr : noise));
     bool addTik = parlist->sublist("Problem").get("Use Tikhonov",false);
     if (addTik) {
       RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",1e-4);
@@ -178,6 +190,99 @@ int main(int argc, char *argv[]) {
     auto test = factory->getDesign()->clone();
     test->randomize(1,2);
     problem->check(true,*outStream,test,0.1);
+
+    auto dir1 = test->clone();
+    auto dir2 = test->clone();
+    dir1->randomize(-1,1);
+    dir2->randomize(-1,1);
+
+    auto ts = ROL::makePtr<ROL::OED::TraceSampler<RealT>>(theta);
+    auto MA = M->clone();
+    MA->generateFactors(model,theta,sampler);
+    std::vector<RealT> wts(deg+1,1);
+    auto Aobj = ROL::makePtr<ROL::OED::Hom::ObjectiveA<RealT>>(MA,theta,ts,wts,true);
+    Aobj->checkGradient(*test,*dir1,true,*outStream);
+    Aobj->checkHessVec(*test,*dir1,true,*outStream);
+    Aobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto c  = theta->clone();
+    c->setScalar(static_cast<RealT>(1));
+    auto MC = M->clone();
+    MC->generateFactors(model,theta,sampler);
+    auto Cobj = ROL::makePtr<ROL::OED::Hom::ObjectiveC<RealT>>(MC,c,true);
+    Cobj->checkGradient(*test,*dir1,true,*outStream);
+    Cobj->checkHessVec(*test,*dir1,true,*outStream);
+    Cobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto MD = M->clone();
+    MD->generateFactors(model,theta,sampler);
+    auto Dobj = ROL::makePtr<ROL::OED::Hom::ObjectiveD<RealT>>(MD,theta,true);
+    Dobj->checkGradient(*test,*dir1,true,*outStream);
+    Dobj->checkHessVec(*test,*dir1,true,*outStream);
+    Dobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto MI = M->clone();
+    MI->generateFactors(model,theta,sampler);
+    auto FI = ROL::makePtr<ROL::OED::Factors<RealT>>(model,theta,sampler);
+    auto Itobj = ROL::makePtr<ROL::OED::Hom::ObjectiveI<RealT>>(MI,FI,sampler,true,false);
+    Itobj->checkGradient(*test,*dir1,true,*outStream);
+    Itobj->checkHessVec(*test,*dir1,true,*outStream);
+    Itobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+    auto Ibobj = ROL::makePtr<ROL::OED::Hom::ObjectiveI<RealT>>(MI,FI,sampler,true,true);
+    Ibobj->checkGradient(*test,*dir1,true,*outStream);
+    Ibobj->checkHessVec(*test,*dir1,true,*outStream);
+    Ibobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto M0 = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,noise);
+    if (addTik) {
+      RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",1e-4);
+      auto P = ROL::makePtr<RegularizationOperator<RealT>>(beta);
+      M0->setPerturbation(P);
+    }
+    auto M1 = M0->clone();
+    M0->setMatrixNumber(0);
+    M1->setMatrixNumber(1);
+
+    auto MA0 = M0->clone();
+    auto MA1 = M1->clone();
+    MA0->generateFactors(model,theta,sampler);
+    MA1->generateFactors(model,theta,sampler);
+    auto AHobj = ROL::makePtr<ROL::OED::Het::ObjectiveA<RealT>>(MA0,MA1,theta,ts,wts,true);
+    AHobj->checkGradient(*test,*dir1,true,*outStream);
+    AHobj->checkHessVec(*test,*dir1,true,*outStream);
+    AHobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto MC0 = M0->clone();
+    auto MC1 = M1->clone();
+    MC0->generateFactors(model,theta,sampler);
+    MC1->generateFactors(model,theta,sampler);
+    auto CHobj = ROL::makePtr<ROL::OED::Het::ObjectiveC<RealT>>(MC0,MC1,c,true);
+    CHobj->checkGradient(*test,*dir1,true,*outStream);
+    CHobj->checkHessVec(*test,*dir1,true,*outStream);
+    CHobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto MD0 = M0->clone();
+    auto MD1 = M1->clone();
+    MD0->generateFactors(model,theta,sampler);
+    MD1->generateFactors(model,theta,sampler);
+    auto DHobj = ROL::makePtr<ROL::OED::Het::ObjectiveD<RealT>>(MC0,MC1,theta,true);
+    DHobj->checkGradient(*test,*dir1,true,*outStream);
+    DHobj->checkHessVec(*test,*dir1,true,*outStream);
+    DHobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
+    auto MI0 = M0->clone();
+    auto MI1 = M1->clone();
+    MI0->generateFactors(model,theta,sampler);
+    MI1->generateFactors(model,theta,sampler);
+    auto ItHobj = ROL::makePtr<ROL::OED::Het::ObjectiveI<RealT>>(MI0,MI1,FI,sampler,true,false);
+    ItHobj->checkGradient(*test,*dir1,true,*outStream);
+    ItHobj->checkHessVec(*test,*dir1,true,*outStream);
+    ItHobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+    auto IbHobj = ROL::makePtr<ROL::OED::Het::ObjectiveI<RealT>>(MI0,MI1,FI,sampler,true,true);
+    IbHobj->checkGradient(*test,*dir1,true,*outStream);
+    IbHobj->checkHessVec(*test,*dir1,true,*outStream);
+    IbHobj->checkHessSym(*test,*dir1,*dir2,true,*outStream);
+
 
     // Setup ROL solver
     std::clock_t timer = std::clock();

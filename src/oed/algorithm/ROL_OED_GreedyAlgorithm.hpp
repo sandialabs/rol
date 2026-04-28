@@ -14,6 +14,9 @@
 
 #include "ROL_Ptr.hpp"
 #include "ROL_ParameterList.hpp"
+#include "ROL_LinearAlgebra.hpp"
+#include "ROL_BLAS.hpp"
+#include "ROL_LAPACK.hpp"
 
 #include "ROL_Vector.hpp"
 #include "ROL_Objective.hpp"
@@ -26,7 +29,6 @@
 #include "ROL_OED_MomentOperator.hpp"
 #include "ROL_OED_TraceSampler.hpp"
 #include "ROL_OED_Radamacher.hpp"
-#include "ROL_OED_D_HomObjective.hpp"
 
 namespace ROL::OED {
 
@@ -39,7 +41,15 @@ public:
   const bool useDeletion;
 
   GreedyObjective(const Ptr<MomentOperator<Real>>& cov_, bool useDeletion_)
-    : cov(cov_), factors(cov_->getFactors()), useDeletion(useDeletion_) {}
+    : cov(cov_), factors(cov_->getFactors()), useDeletion(useDeletion_),
+      lapack(makePtr<LAPACK<int,Real>>()), blas(makePtr<BLAS<int,Real>>()),
+      nobs(cov->getFactors()->numObservations()) {
+    obs.resize(nobs);
+    for (unsigned i=0u; i<nobs; ++i) {
+      obs[i] = factors->createObservationVector(true);
+      obs[i]->set(*obs[i]->basis(i));
+    }
+  }
   virtual ~GreedyObjective() {}
   virtual void update(const Vector<Real>& x, int iter=-1) {
     cov->update(x,UpdateType::Trial,iter);
@@ -47,6 +57,12 @@ public:
   virtual Real value(const Vector<Real>& x) const = 0;
   virtual Real computeIncrement(const Vector<Real>& x, unsigned ind) const = 0;
   virtual std::string getName() const { return "Undefined"; }
+
+protected:
+  const Ptr<LAPACK<int,Real>> lapack;
+  const Ptr<BLAS<int,Real>> blas;
+  const unsigned nobs;
+  std::vector<Ptr<Vector<Real>>> obs;
 };
 
 template<typename Real>
@@ -56,9 +72,17 @@ public:
     : GreedyObjective<Real>(cov_,useDeletion_), tsampler_(tsampler),
       weight_(weight), size_(weight.size()),
       stateStore_(makePtr<VectorController<Real,unsigned>>()),
-      uvec_(cov_->getFactors()->get(0)->dual().clone()),
-      rhs_(cov_->getFactors()->get(0)->clone()),
-      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {}
+      uvec_(cov_->getFactors()->createParameterVector(false)),
+      rhs_(uvec_->dual().clone()) {
+    X_.resize(nobs);
+    Y_.resize(nobs);
+    XY_.reshape(nobs,nobs);
+    YY_.reshape(nobs,nobs);
+    for (unsigned i=0; i<nobs; ++i) {
+      X_[i] = GreedyObjective<Real>::factors->createParameterVector(true);
+      Y_[i] = GreedyObjective<Real>::factors->createParameterVector(false);
+    }
+  }
   void update(const Vector<Real>& x, int iter=-1) override final {
     GreedyObjective<Real>::update(x,iter);
     stateStore_->objectiveUpdate(UpdateType::Trial);
@@ -74,17 +98,25 @@ public:
     return val_;
   }
   Real computeIncrement(const Vector<Real>& x, unsigned ind) const override final {
-    const auto& fj = GreedyObjective<Real>::factors->get(ind);
-    GreedyObjective<Real>::cov->applyInverse(*invMfj_,*fj,x);
-    Real denom(1);
-    if (GreedyObjective<Real>::useDeletion) denom -= fj->apply(*invMfj_);
-    else                                    denom += fj->apply(*invMfj_);
-    Real fjMc(0), inc(0);
-    for (unsigned i=0; i<size_; ++i) {
-      stateStore_->get(*uvec_,i);
-      fjMc = fj->apply(*uvec_);
-      inc += weight_[i] * fjMc*fjMc/denom;
+    const Real one(1);
+    const Real scal(GreedyObjective<Real>::useDeletion ? -one : one);
+    for (unsigned i=0; i<nobs; ++i) {
+      GreedyObjective<Real>::factors->applyAdjoint(*X_[i],*obs[i],ind); // Can Compute X offline
+      GreedyObjective<Real>::cov->applyInverse(*Y_[i],*X_[i],x);
+      XY_(i,i) = one + scal*X_[i]->apply(*Y_[i]);
+      YY_(i,i) = Y_[i]->dot(*Y_[i]);
+      for (unsigned j=0u; j<i; ++j) {
+        XY_(i,j) = scal*X_[i]->apply(*Y_[j]);
+        YY_(i,j) = Y_[i]->dot(*Y_[j]);
+        YY_(j,i) = YY_(i,j);
+      }
     }
+    int info;
+    lapack->POTRF('L',nobs,XY_.values(),nobs,&info);
+    lapack->POTRS('L',nobs,nobs,XY_.values(),nobs,YY_.values(),nobs,&info);
+    Real inc(0);
+    for (unsigned i=0u; i<nobs; ++i)
+      inc += YY_(i,i);
     return inc;
   }
   std::string getName() const override final { return "A-Optimality"; }
@@ -93,8 +125,14 @@ private:
   const std::vector<Real> weight_;
   const unsigned size_;
   const Ptr<VectorController<Real,unsigned>> stateStore_;
-  const Ptr<Vector<Real>> uvec_, rhs_, invMfj_;
+  const Ptr<Vector<Real>> uvec_, rhs_;
   Real val_;
+  std::vector<Ptr<Vector<Real>>> X_, Y_;
+  mutable LA::Matrix<Real> XY_, YY_;
+
+  using GreedyObjective<Real>::lapack;
+  using GreedyObjective<Real>::nobs;
+  using GreedyObjective<Real>::obs;
 };
 
 template<typename Real>
@@ -102,8 +140,15 @@ struct GreedyObjectiveC : public GreedyObjective<Real> {
 public:
   GreedyObjectiveC(const Ptr<MomentOperator<Real>>& cov_, const Ptr<Vector<Real>>& c, bool useDeletion_)
     : GreedyObjective<Real>(cov_,useDeletion_), c_(c),
-      uvec_(c->dual().clone()),
-      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {}
+      uvec_(cov_->getFactors()->createParameterVector(false)),
+      Y_(cov_->getFactors()->createParameterVector(false)) {
+    X_.resize(nobs);
+    XY_.reshape(nobs,nobs);
+    Yc_.resize(nobs);
+    SYc_.resize(nobs);
+    for (unsigned i=0; i<nobs; ++i)
+      X_[i] = GreedyObjective<Real>::factors->createParameterVector(true);
+  }
   void update(const Vector<Real>& x, int iter=-1) {
     GreedyObjective<Real>::update(x,iter);
     GreedyObjective<Real>::cov->applyInverse(*uvec_,*c_,x);
@@ -112,19 +157,33 @@ public:
     return c_->apply(*uvec_);
   }
   Real computeIncrement(const Vector<Real>& x, unsigned ind) const override final {
-    const auto& fj = GreedyObjective<Real>::factors->get(ind);
-    GreedyObjective<Real>::cov->applyInverse(*invMfj_,*fj,x);
-    Real fjMc = fj->apply(*uvec_);
-    Real denom(1);
-    if (GreedyObjective<Real>::useDeletion) denom -= fj->apply(*invMfj_);
-    else                                    denom += fj->apply(*invMfj_);
-    return fjMc*fjMc/denom;
+    const Real one(1);
+    const Real scal(GreedyObjective<Real>::useDeletion ? -one : one);
+    for (unsigned i=0; i<nobs; ++i) {
+      GreedyObjective<Real>::factors->applyAdjoint(*X_[i],*obs[i],ind); // Can Compute X offline
+      GreedyObjective<Real>::cov->applyInverse(*Y_,*X_[i],x);
+      Yc_(i) = c_->apply(*Y_);
+      SYc_(i) = Yc_(i);
+      for (unsigned j=0u; j<=i; ++j)
+        XY_(i,j) = scal*Y_->apply(*X_[j]);
+      XY_(i,i) += one;
+    }
+    int info;
+    lapack->POTRF('L',nobs,XY_.values(),nobs,&info);
+    lapack->POTRS('L',nobs,1,XY_.values(),nobs,SYc_.values(),nobs,&info);
+    return blas->DOT(nobs,Yc_.values(),1,SYc_.values(),1);
   }
   std::string getName() const override final { return "C-Optimality"; }
 private:
-  const Ptr<Vector<Real>> c_;
-  const Ptr<Vector<Real>> uvec_;
-  const Ptr<Vector<Real>> invMfj_;
+  const Ptr<Vector<Real>> c_, uvec_, Y_;
+  std::vector<Ptr<Vector<Real>>> X_;
+  mutable LA::Matrix<Real> XY_;
+  mutable LA::Vector<Real> Yc_, SYc_;
+
+  using GreedyObjective<Real>::lapack;
+  using GreedyObjective<Real>::blas;
+  using GreedyObjective<Real>::nobs;
+  using GreedyObjective<Real>::obs;
 };
 
 template<typename Real>
@@ -132,18 +191,41 @@ struct GreedyObjectiveD : public GreedyObjective<Real> {
 public:
   GreedyObjectiveD(const Ptr<MomentOperator<Real>>& cov_, bool useDeletion_)
     : GreedyObjective<Real>(cov_,useDeletion_),
-      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {}
+      Y_(cov_->getFactors()->createParameterVector(false)) {
+    X_.resize(nobs);
+    XY_.reshape(nobs,nobs);
+    for (unsigned i=0; i<nobs; ++i)
+      X_[i] = GreedyObjective<Real>::factors->createParameterVector(true);
+  }
   Real value(const Vector<Real>& x) const override final {
     return -GreedyObjective<Real>::cov->logDeterminant(x);
   }
   Real computeIncrement(const Vector<Real>& x, unsigned ind) const override final {
-    const auto& fj = GreedyObjective<Real>::factors->get(ind);
-    GreedyObjective<Real>::cov->applyInverse(*invMfj_,*fj,x);
-    return fj->apply(*invMfj_);
+    const Real one(1);
+    const Real scal(GreedyObjective<Real>::useDeletion ? -one : one);
+    for (unsigned i=0; i<nobs; ++i) {
+      GreedyObjective<Real>::factors->applyAdjoint(*X_[i],*obs[i],ind); // Can Compute X offline
+      GreedyObjective<Real>::cov->applyInverse(*Y_,*X_[i],x);
+      for (unsigned j=0u; j<=i; ++j)
+        XY_(i,j) = scal*Y_->apply(*X_[j]);
+      XY_(i,i) += one;
+    }
+    int info;
+    lapack->POTRF('L',nobs,XY_.values(),nobs,&info);
+    Real inc(1);
+    for (unsigned i=0u; i<nobs; ++i)
+      inc *= XY_(i,i)*XY_(i,i);
+    return -scal*(one-inc);
   }
   std::string getName() const override final { return "D-Optimality"; }
 private:
-  const Ptr<Vector<Real>> invMfj_;
+  const Ptr<Vector<Real>> Y_;
+  std::vector<Ptr<Vector<Real>>> X_;
+  mutable LA::Matrix<Real> XY_;
+
+  using GreedyObjective<Real>::lapack;
+  using GreedyObjective<Real>::nobs;
+  using GreedyObjective<Real>::obs;
 };
 
 template<typename Real>
@@ -154,63 +236,91 @@ public:
                    const Ptr<TraceSampler<Real>>& tsampler, std::vector<Real> weight,
                          bool useDeletion_)
     : GreedyObjective<Real>(cov_,useDeletion_), tsampler_(tsampler),
-      weight_(weight), size_(weight.size()),
-      stateStore_(makePtr<VectorController<Real,unsigned>>()),
-      uvec_(cov_->getFactors()->get(0)->dual().clone()),
-      rhs_(cov_->getFactors()->get(0)->clone()),
-      invMfj_(cov_->getFactors()->get(0)->dual().clone()) {
-    auto F = uvec_->dual().clone();
+      size_(weight.size()),
+      uStateStore_(makePtr<VectorController<Real,unsigned>>()),
+      vStateStore_(makePtr<VectorController<Real,unsigned>>()),
+      uvec_(cov_->getFactors()->getTheta()->clone()),
+      vvec_(uvec_->clone()), rhs_(uvec_->dual().clone()),
+      Y_(uvec_->clone()) {
+    auto F = PVfactors->createParameterVector(true);
     auto b = F->clone();
+    auto obs0 = PVfactors->createObservationVector(false);
     b_.clear(); b_.resize(size_);
     for (unsigned i=0u; i<size_; ++i) {
       b->zero();
       b_[i] = b->clone();
       tsampler->get(*rhs_,{static_cast<Real>(i)});
       for (int j = 0; j < sampler->numMySamples(); ++j) {
-        PVfactors->evaluate(*F,sampler->getMyPoint(j));
-        b->axpy(F->dot(*rhs_)*sampler->getMyWeight(j),*F);
+        PVfactors->apply(*obs0,rhs_->dual(),sampler->getMyPoint(j));
+	PVfactors->applyAdjoint(*F,obs0->dual(),sampler->getMyPoint(j));
+        b->axpy(weight[i]*sampler->getMyWeight(j),*F);
       }
       sampler->sumAll(*b,*b_[i]);
     }
+    X_.resize(nobs);
+    XY_.reshape(nobs,nobs);
+    Xu_.resize(nobs);
+    Xv_.resize(nobs);
+    for (unsigned i=0; i<nobs; ++i)
+      X_[i] = GreedyObjective<Real>::factors->createParameterVector(true);
   }
   void update(const Vector<Real>& x, int iter=-1) override final {
     GreedyObjective<Real>::update(x,iter);
-    stateStore_->objectiveUpdate(UpdateType::Trial);
+    uStateStore_->objectiveUpdate(UpdateType::Trial);
+    vStateStore_->objectiveUpdate(UpdateType::Trial);
     val_ = static_cast<Real>(0);
     for (unsigned i = 0; i < size_; ++i) {
       tsampler_->get(*rhs_,{static_cast<Real>(i)});
       GreedyObjective<Real>::cov->applyInverse(*uvec_,*rhs_,x);
-      stateStore_->set(*uvec_,i);
-      val_ += weight_[i] * b_[i]->apply(*uvec_);
+      uStateStore_->set(*uvec_,i);
+      val_ += b_[i]->apply(*uvec_);
+      GreedyObjective<Real>::cov->applyInverse(*vvec_,*b_[i],x);
+      vStateStore_->set(*vvec_,i);
     }
   }
   Real value(const Vector<Real>& x) const override final {
     return val_;
   }
   Real computeIncrement(const Vector<Real>& x, unsigned ind) const override final {
-    const auto& fj = GreedyObjective<Real>::factors->get(ind);
-    GreedyObjective<Real>::cov->applyInverse(*invMfj_,*fj,x);
-    Real denom(1);
-    if (GreedyObjective<Real>::useDeletion) denom -= fj->apply(*invMfj_);
-    else                                    denom += fj->apply(*invMfj_);
-    Real fjMa(0), fjMb(0), inc(0);
-    for (unsigned i=0; i<size_; ++i) {
-      stateStore_->get(*uvec_,i);
-      fjMa = fj->apply(*uvec_);
-      fjMb = b_[i]->apply(*invMfj_);
-      inc += weight_[i] * fjMa*fjMb/denom;
+    const Real one(1);
+    const Real scal(GreedyObjective<Real>::useDeletion ? -one : one);
+    for (unsigned i=0u; i<nobs; ++i) {
+      GreedyObjective<Real>::factors->applyAdjoint(*X_[i],*obs[i],ind); // Can Compute X offline
+      GreedyObjective<Real>::cov->applyInverse(*Y_,*X_[i],x);
+      for (unsigned j=0u; j<=i; ++j)
+        XY_(i,j) = scal*Y_->apply(*X_[j]);
+      XY_(i,i) += one;
+    }
+    int infoF, infoS;
+    lapack->POTRF('L',nobs,XY_.values(),nobs,&infoF);
+    Real inc(0);
+    for (unsigned i=0u; i<size_; ++i) {
+      uStateStore_->get(*uvec_,i);
+      vStateStore_->get(*vvec_,i);
+      for (unsigned j=0u; j<nobs; ++j) {
+        Xu_(j) = X_[j]->apply(*uvec_);
+        Xv_(j) = X_[j]->apply(*vvec_);
+      }
+      lapack->POTRS('L',nobs,1,XY_.values(),nobs,Xu_.values(),nobs,&infoS);
+      inc += blas->DOT(nobs,Xu_.values(),1,Xv_.values(),1);
     }
     return inc;
   }
   std::string getName() const override final { return "I-Optimality"; }
 private:
   const Ptr<TraceSampler<Real>> tsampler_;
-  const std::vector<Real> weight_;
   const unsigned size_;
-  const Ptr<VectorController<Real,unsigned>> stateStore_;
-  const Ptr<Vector<Real>> uvec_, rhs_, invMfj_;
-  std::vector<Ptr<Vector<Real>>> b_;
+  const Ptr<VectorController<Real,unsigned>> uStateStore_, vStateStore_;
+  const Ptr<Vector<Real>> uvec_, vvec_, rhs_, Y_;
+  std::vector<Ptr<Vector<Real>>> b_, X_;
   Real val_;
+  mutable LA::Matrix<Real> XY_;
+  mutable LA::Vector<Real> Xv_, Xu_;
+
+  using GreedyObjective<Real>::lapack;
+  using GreedyObjective<Real>::blas;
+  using GreedyObjective<Real>::nobs;
+  using GreedyObjective<Real>::obs;
 };
 
 // General Greedy Algorithm Implementation

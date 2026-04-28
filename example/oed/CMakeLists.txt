@@ -52,6 +52,12 @@ ROL_ADD_EXECUTABLE(
   ADD_DIR_TO_NAME
   )
 
+ROL_ADD_EXECUTABLE(
+  MultiDimensionalData
+  SOURCES example_09.cpp
+  ADD_DIR_TO_NAME
+  )
+
 ROL_COPY_FILES_TO_BINARY_DIR(
   OEDExampleDataCopy
   SOURCE_FILES

@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
     const bool homNoise = parlist->sublist("Problem").get("Homoscedastic Noise", true);
     const std::string regType = "Least Squares";
     auto type = ROL::OED::StringToRegressionType(regType);
-    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
+    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,(homNoise ? ROL::nullPtr : noise));
     bool addTik = parlist->sublist("Problem").get("Use Tikhonov",false);
     if (addTik) {
       RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",1e-4);

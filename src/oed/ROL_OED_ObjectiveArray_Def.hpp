@@ -14,17 +14,25 @@
 #include "ROL_OED_BilinearConstraint.hpp"
 #include "ROL_OED_LinearObjective.hpp"
 #include "ROL_OED_QuadraticObjective.hpp"
-#include "ROL_OED_A_HomObjective.hpp"
-#include "ROL_OED_C_HomObjective.hpp"
-#include "ROL_OED_D_HomObjective.hpp"
-#include "ROL_OED_I_HomObjective.hpp"
-#include "ROL_OED_Itrace_HomObjective.hpp"
-#include "ROL_OED_A_HetObjective.hpp"
-#include "ROL_OED_C_HetObjective.hpp"
-#include "ROL_OED_D_HetObjective.hpp"
-#include "ROL_OED_I_HetObjective.hpp"
-#include "ROL_OED_Itrace_HetObjective.hpp"
+//#include "ROL_OED_A_HomObjective.hpp"
+//#include "ROL_OED_C_HomObjective.hpp"
+//#include "ROL_OED_D_HomObjective.hpp"
+//#include "ROL_OED_I_HomObjective.hpp"
+//#include "ROL_OED_Itrace_HomObjective.hpp"
+//#include "ROL_OED_A_HetObjective.hpp"
+//#include "ROL_OED_C_HetObjective.hpp"
+//#include "ROL_OED_D_HetObjective.hpp"
+//#include "ROL_OED_I_HetObjective.hpp"
+//#include "ROL_OED_Itrace_HetObjective.hpp"
 #include "ROL_OED_Radamacher.hpp"
+#include "ROL_OED_HomObjectiveA.hpp"
+#include "ROL_OED_HomObjectiveC.hpp"
+#include "ROL_OED_HomObjectiveD.hpp"
+#include "ROL_OED_HomObjectiveI.hpp"
+#include "ROL_OED_HetObjectiveA.hpp"
+#include "ROL_OED_HetObjectiveC.hpp"
+#include "ROL_OED_HetObjectiveD.hpp"
+#include "ROL_OED_HetObjectiveI.hpp"
 
 namespace ROL {
 namespace OED {
@@ -84,19 +92,24 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHomObjective(ParameterList &plis
   type_ = plist.sublist("OED").get("Optimality Type","C");
   Ptr<Objective<Real>> obj, sobj;
   bool useTrace = plist.sublist("OED").sublist("I-Optimality").get("Use Trace Form",false);
-  if ((type_ == "I" && !useTrace) || type_ == "R") {
-    Ptr<BilinearConstraint<Real>> covar0;
-    Ptr<LinearObjective<Real>> lobj;
-    if (predFun == nullPtr) {
-      covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_);
-      lobj   = makePtr<LinearObjective<Real>>(factors,type_);
-    }
-    else {
-      auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
-      covar0 = makePtr<BilinearConstraint<Real>>(factorsPV,cov0,type_);
-      lobj   = makePtr<LinearObjective<Real>>(factorsPV,type_);
-    }
-    obj     = makePtr<Hom::I_Objective<Real>>(covar0,lobj,theta0,useStorage_);
+  if (type_ == "R") {
+  //if ((type_ == "I" && !useTrace) || type_ == "R") {
+  //  Ptr<BilinearConstraint<Real>> covar0;
+  //  Ptr<LinearObjective<Real>> lobj;
+  //  if (predFun == nullPtr) {
+  //    covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_);
+  //    lobj   = makePtr<LinearObjective<Real>>(factors,type_);
+  //  }
+  //  else {
+  //    auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+  //    covar0 = makePtr<BilinearConstraint<Real>>(factorsPV,cov0,type_);
+  //    lobj   = makePtr<LinearObjective<Real>>(factorsPV,type_);
+  //  }
+  //  obj     = makePtr<Hom::I_Objective<Real>>(covar0,lobj,theta0,useStorage_);
+    auto factorsPV = factors;
+    if (predFun != nullPtr)
+      factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+    obj = makePtr<Hom::ObjectivePV<Real>>(cov0,factorsPV,useStorage_);
     int dim = sampler_->getMyPoint(0).size();
     Real wt = 0.0;
     std::vector<Real> sum(dim,0.0), mean(dim,0.0), pt(dim,0.0);
@@ -112,14 +125,16 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHomObjective(ParameterList &plis
     Ptr<Vector<Real>> c = theta0->dual().clone();
     Real cval = plist.sublist("OED").sublist("C-Optimality").get("C Value",1.0);
     c->setScalar(cval);
-    auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
-    auto lobj   = makePtr<LinearObjective<Real>>(c);
-    obj         = makePtr<Hom::C_Objective<Real>>(covar0,lobj,theta0,useStorage_);
+    //auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
+    //auto lobj   = makePtr<LinearObjective<Real>>(c);
+    //obj         = makePtr<Hom::C_Objective<Real>>(covar0,lobj,theta0,useStorage_);
+    obj = makePtr<Hom::ObjectiveC<Real>>(cov0,c,useStorage_);
   }
   else if (type_ == "D") {
-    auto traceSampler = makePtr<TraceSampler<Real>>(theta0);
-    auto covar0       = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
-    obj               = makePtr<Hom::D_Objective<Real>>(covar0,theta0,useStorage_);
+    //auto traceSampler = makePtr<TraceSampler<Real>>(theta0);
+    //auto covar0       = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+    //obj               = makePtr<Hom::D_Objective<Real>>(covar0,theta0,useStorage_);
+    obj = makePtr<Hom::ObjectiveD<Real>>(cov0,theta0,useStorage_);
   }
   else if (type_ == "A") {
     bool useRandomTrace = plist.sublist("OED").sublist("A-Optimality").get("Randomized Trace Estimation",false);
@@ -132,38 +147,58 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHomObjective(ParameterList &plis
     const int one(1);
     Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
     std::vector<Real> weight(size,val);
-    auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
-    auto lobj   = makePtr<LinearObjective<Real>>(theta0,traceSampler);
-    obj         = makePtr<Hom::A_Objective<Real>>(covar0,lobj,theta0,weight,useStorage_);
-    obj->setParameter({static_cast<Real>(0)});
+    //auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+    //auto lobj   = makePtr<LinearObjective<Real>>(theta0,traceSampler);
+    //obj         = makePtr<Hom::A_Objective<Real>>(covar0,lobj,theta0,weight,useStorage_);
+    //obj->setParameter({static_cast<Real>(0)});
+    obj = makePtr<Hom::ObjectiveA<Real>>(cov0,theta0,traceSampler,weight,useStorage_);
   }
-  else if (type_ == "I" && useTrace) {
-    bool useRandomTrace = plist.sublist("OED").sublist("I-Optimality").get("Randomized Trace Estimation",false);
-    int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
-    int nfactors        = theta0->dimension();
-    int size            = (useRandomTrace ? nRandomTrace : nfactors);
-    Ptr<TraceSampler<Real>> traceSampler;
-    if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
-    else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
-    const int one(1);
-    Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
-    std::vector<Real> weight(size,val);
-    Ptr<BilinearConstraint<Real>> covar0;
-    if (predFun == nullPtr) {
-      covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+  else if (type_ == "I") {
+  //else if (type_ == "I" && useTrace) {
+  //  bool useRandomTrace = plist.sublist("OED").sublist("I-Optimality").get("Randomized Trace Estimation",false);
+  //  int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
+  //  int nfactors        = theta0->dimension();
+  //  int size            = (useRandomTrace ? nRandomTrace : nfactors);
+  //  Ptr<TraceSampler<Real>> traceSampler;
+  //  if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
+  //  else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
+  //  const int one(1);
+  //  Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
+  //  std::vector<Real> weight(size,val);
+  //  Ptr<BilinearConstraint<Real>> covar0;
+  //  if (predFun == nullPtr) {
+  //    covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+  //  }
+  //  else {
+  //    auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+  //    covar0 = makePtr<BilinearConstraint<Real>>(factorsPV,cov0,type_,traceSampler);
+  //  }
+  //  auto lobj = makePtr<LinearObjective<Real>>(theta0,traceSampler);
+  //  obj       = makePtr<Hom::Itrace_Objective<Real>>(covar0,lobj,theta0,sampler,weight,useStorage_);
+  //  obj->setParameter({static_cast<Real>(0)});
+    auto factorsPV = factors;
+    if (predFun != nullPtr)
+      factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+    if (useTrace) {
+      bool useRandomTrace = plist.sublist("OED").sublist("I-Optimality").get("Randomized Trace Estimation",false);
+      int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
+      int nfactors        = theta0->dimension();
+      int size            = (useRandomTrace ? nRandomTrace : nfactors);
+      Ptr<TraceSampler<Real>> traceSampler;
+      if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
+      else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
+      const int one(1);
+      Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
+      std::vector<Real> weight(size,val);
+      obj = makePtr<Hom::ObjectiveI<Real>>(cov0,factorsPV,sampler,traceSampler,weight,useStorage_);
     }
-    else {
-      auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
-      covar0 = makePtr<BilinearConstraint<Real>>(factorsPV,cov0,type_,traceSampler);
-    }
-    auto lobj = makePtr<LinearObjective<Real>>(theta0,traceSampler);
-    obj       = makePtr<Hom::Itrace_Objective<Real>>(covar0,lobj,theta0,sampler,weight,useStorage_);
-    obj->setParameter({static_cast<Real>(0)});
+    else
+      obj = makePtr<Hom::ObjectiveI<Real>>(cov0,factorsPV,sampler,useStorage_,true);
   }
   else {
     throw Exception::NotImplemented(">>> OED::Factory : Optimality type not implemented!");
   }
-  auto obj0 = obj;
+  Ptr<Objective<Real>> obj0 = obj;
   if (theta_ != nullPtr) {
     PFop_ = makePtr<DiagonalOperator<Real>>(*theta);
     PFvc_ = theta->clone(); PFvc_->zero();
@@ -174,17 +209,18 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHomObjective(ParameterList &plis
 }
 
 template<typename Real>
-Ptr<Objective<Real>> ObjectiveArray<Real>::buildHomObjective(const Ptr<Vector<Real>> &c,
+Ptr<Objective<Real>> ObjectiveArray<Real>::buildHomObjective(const Ptr<const Vector<Real>> &c,
                                                              const Ptr<Factors<Real>> &factors,
                                                              const Ptr<MomentOperator<Real>> &cov0,
                                                              const Ptr<Vector<Real>> &theta) {
-  Ptr<Vector<Real>> theta0 = theta;
-  if (theta_ != nullPtr) theta0 = theta_;
+  //Ptr<Vector<Real>> theta0 = theta;
+  //if (theta_ != nullPtr) theta0 = theta_;
 
-  auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
-  auto lobj   = makePtr<LinearObjective<Real>>(c);
-  auto obj    = makePtr<Hom::C_Objective<Real>>(covar0,lobj,theta0,useStorage_);
-  auto obj0   = obj;
+  //auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
+  //auto lobj   = makePtr<LinearObjective<Real>>(c);
+  //auto obj    = makePtr<Hom::C_Objective<Real>>(covar0,lobj,theta0,useStorage_);
+  auto obj = makePtr<Hom::ObjectiveC<Real>>(cov0,c,useStorage_);
+  Ptr<Objective<Real>> obj0 = obj;
   if (theta_ != nullPtr) {
     PFop_ = makePtr<DiagonalOperator<Real>>(*theta);
     PFvc_ = theta->clone(); PFvc_->zero();
@@ -210,26 +246,41 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
   Ptr<BilinearConstraint<Real>> covar0, covar1;
   Ptr<QuadraticObjective<Real>> qobj;
   bool useTrace = plist.sublist("OED").sublist("I-Optimality").get("Use Trace Form",false);
-  if ((type_ == "I" && !useTrace) || type_ == "R") {
-    covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_);
-    if (predFun == nullPtr) {
-      covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,type_);
-    }
-    else {
-      auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
-      covar1 = makePtr<BilinearConstraint<Real>>(factorsPV,cov1,type_);
-    }
-    qobj     = makePtr<QuadraticObjective<Real>>(covar0);
-    obj      = makePtr<Het::I_Objective<Real>>(covar1,qobj,theta0,useStorage_);
-    int dim  = sampler_->getMyPoint(0).size();
-    Real wt(0);
+  //if ((type_ == "I" && !useTrace) || type_ == "R") {
+  //  covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_);
+  //  if (predFun == nullPtr) {
+  //    covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,type_);
+  //  }
+  //  else {
+  //    auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+  //    covar1 = makePtr<BilinearConstraint<Real>>(factorsPV,cov1,type_);
+  //  }
+  //  qobj     = makePtr<QuadraticObjective<Real>>(covar0);
+  //  obj      = makePtr<Het::I_Objective<Real>>(covar1,qobj,theta0,useStorage_);
+  //  int dim  = sampler_->getMyPoint(0).size();
+  //  Real wt(0);
+  //  std::vector<Real> sum(dim,0.0), mean(dim,0.0), pt(dim,0.0);
+  //  for (int i = 0; i < sampler_->numMySamples(); ++i) {
+  //    pt = sampler_->getMyPoint(i);
+  //    wt = sampler_->getMyWeight(i);
+  //    for (int j = 0; j < dim; ++j) {
+  //      sum[j] += wt*pt[j];
+  //    }
+  //  }
+  //  sampler_->sumAll(&sum[0],&mean[0],dim);
+  //  obj->setParameter(mean);
+  if (type_ == "R") {
+    auto factorsPV = factors;
+    if (predFun != nullPtr)
+      factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+    obj = makePtr<Het::ObjectivePV<Real>>(cov0,cov1,factorsPV,useStorage_);
+    int dim = sampler_->getMyPoint(0).size();
+    Real wt = 0.0;
     std::vector<Real> sum(dim,0.0), mean(dim,0.0), pt(dim,0.0);
     for (int i = 0; i < sampler_->numMySamples(); ++i) {
       pt = sampler_->getMyPoint(i);
       wt = sampler_->getMyWeight(i);
-      for (int j = 0; j < dim; ++j) {
-        sum[j] += wt*pt[j];
-      }
+      for (int j = 0; j < dim; ++j) sum[j] += wt*pt[j];
     }
     sampler_->sumAll(&sum[0],&mean[0],dim);
     obj->setParameter(mean);
@@ -238,16 +289,18 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
     Ptr<Vector<Real>> c = theta0->dual().clone();
     Real cval = plist.sublist("OED").sublist("C-Optimality").get("C Value",1.0);
     c->setScalar(cval);
-    covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
-    covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,c);
-    qobj   = makePtr<QuadraticObjective<Real>>(covar0);
-    obj    = makePtr<Het::C_Objective<Real>>(covar1,qobj,theta0,useStorage_);
+    //covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
+    //covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,c);
+    //qobj   = makePtr<QuadraticObjective<Real>>(covar0);
+    //obj    = makePtr<Het::C_Objective<Real>>(covar1,qobj,theta0,useStorage_);
+    obj = makePtr<Het::ObjectiveC<Real>>(cov0,cov1,c,useStorage_);
   }
   else if (type_ == "D") {
-    auto traceSampler = makePtr<TraceSampler<Real>>(theta0);
-    covar0            = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
-    covar1            = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
-    obj               = makePtr<Het::D_Objective<Real>>(covar0,covar1,theta0,useStorage_);
+    //auto traceSampler = makePtr<TraceSampler<Real>>(theta0);
+    //covar0            = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+    //covar1            = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
+    //obj               = makePtr<Het::D_Objective<Real>>(covar0,covar1,theta0,useStorage_);
+    obj = makePtr<Het::ObjectiveD<Real>>(cov0,cov1,theta0,useStorage_);
   }
   else if (type_ == "A") {
     bool useRandomTrace = plist.sublist("OED").sublist("A-Optimality").get("Randomized Trace Estimation",false);
@@ -260,39 +313,59 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
     const int one(1);
     Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
     std::vector<Real> weight(size,val);
-    covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
-    covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
-    qobj   = makePtr<QuadraticObjective<Real>>(covar0);
-    obj    = makePtr<Het::A_Objective<Real>>(covar1,qobj,theta0,weight,useStorage_);
-    obj->setParameter({static_cast<Real>(0)});
+    //covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+    //covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
+    //qobj   = makePtr<QuadraticObjective<Real>>(covar0);
+    //obj    = makePtr<Het::A_Objective<Real>>(covar1,qobj,theta0,weight,useStorage_);
+    //obj->setParameter({static_cast<Real>(0)});
+    obj = makePtr<Het::ObjectiveA<Real>>(cov0,cov1,theta0,traceSampler,weight,useStorage_);
   }
-  else if (type_ == "I" && useTrace) {
-    bool useRandomTrace = plist.sublist("OED").sublist("I-Optimality").get("Randomized Trace Estimation",false);
-    int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
-    int nfactors = theta0->dimension();
-    int size = (useRandomTrace ? nRandomTrace : nfactors);
-    Ptr<TraceSampler<Real>> traceSampler;
-    if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
-    else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
-    const int one(1);
-    Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
-    std::vector<Real> weight(size,val);
-    covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
-    if (predFun == nullPtr) {
-      covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
+  //else if (type_ == "I" && useTrace) {
+  //  bool useRandomTrace = plist.sublist("OED").sublist("I-Optimality").get("Randomized Trace Estimation",false);
+  //  int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
+  //  int nfactors = theta0->dimension();
+  //  int size = (useRandomTrace ? nRandomTrace : nfactors);
+  //  Ptr<TraceSampler<Real>> traceSampler;
+  //  if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
+  //  else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
+  //  const int one(1);
+  //  Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
+  //  std::vector<Real> weight(size,val);
+  //  covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,type_,traceSampler);
+  //  if (predFun == nullPtr) {
+  //    covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,type_,traceSampler);
+  //  }
+  //  else {
+  //    auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+  //    covar1 = makePtr<BilinearConstraint<Real>>(factorsPV,cov1,type_,traceSampler);
+  //  }
+  //  qobj = makePtr<QuadraticObjective<Real>>(covar0);
+  //  obj  = makePtr<Het::Itrace_Objective<Real>>(covar1,qobj,theta0,sampler,weight,useStorage_);
+  //  obj->setParameter({static_cast<Real>(0)});
+  else if (type_ == "I") {
+    auto factorsPV = factors;
+    if (predFun != nullPtr)
+      factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
+    if (useTrace) {
+      bool useRandomTrace = plist.sublist("OED").sublist("I-Optimality").get("Randomized Trace Estimation",false);
+      int nRandomTrace    = plist.sublist("OED").sublist("I-Optimality").get("Number of Samples",100);
+      int nfactors        = theta0->dimension();
+      int size            = (useRandomTrace ? nRandomTrace : nfactors);
+      Ptr<TraceSampler<Real>> traceSampler;
+      if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta0,size);
+      else                traceSampler = makePtr<TraceSampler<Real>>(theta0);
+      const int one(1);
+      Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
+      std::vector<Real> weight(size,val);
+      obj = makePtr<Het::ObjectiveI<Real>>(cov0,cov1,factorsPV,sampler,traceSampler,weight,useStorage_);
     }
-    else {
-      auto factorsPV = makePtr<Factors<Real>>(predFun,theta0,sampler);
-      covar1 = makePtr<BilinearConstraint<Real>>(factorsPV,cov1,type_,traceSampler);
-    }
-    qobj = makePtr<QuadraticObjective<Real>>(covar0);
-    obj  = makePtr<Het::Itrace_Objective<Real>>(covar1,qobj,theta0,sampler,weight,useStorage_);
-    obj->setParameter({static_cast<Real>(0)});
+    else
+      obj = makePtr<Het::ObjectiveI<Real>>(cov0,cov1,factorsPV,sampler,useStorage_,true);
   }
   else {
     throw Exception::NotImplemented(">>> OED::Factory : Optimality type not implemented!");
   }
-  auto obj0 = obj;
+  Ptr<Objective<Real>> obj0 = obj;
   if (theta_ != nullPtr) {
     PFop_ = makePtr<DiagonalOperator<Real>>(*theta);
     PFvc_ = theta->clone(); PFvc_->zero();
@@ -303,19 +376,20 @@ Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(ParameterList &plis
 }
 
 template<typename Real>
-Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(const Ptr<Vector<Real>> &c,
+Ptr<Objective<Real>> ObjectiveArray<Real>::buildHetObjective(const Ptr<const Vector<Real>> &c,
                                                              const Ptr<Factors<Real>> &factors,
                                                              const Ptr<MomentOperator<Real>> &cov0,
                                                              const Ptr<MomentOperator<Real>> &cov1,
                                                              const Ptr<Vector<Real>> &theta) {
-  Ptr<Vector<Real>> theta0 = theta;
-  if (theta_ != nullPtr) theta0 = theta_;
+  //Ptr<Vector<Real>> theta0 = theta;
+  //if (theta_ != nullPtr) theta0 = theta_;
 
-  auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
-  auto covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,c);
-  auto qobj   = makePtr<QuadraticObjective<Real>>(covar0);
-  auto obj    = makePtr<Het::C_Objective<Real>>(covar1,qobj,theta,useStorage_);
-  auto obj0   = obj;
+  //auto covar0 = makePtr<BilinearConstraint<Real>>(factors,cov0,c);
+  //auto covar1 = makePtr<BilinearConstraint<Real>>(factors,cov1,c);
+  //auto qobj   = makePtr<QuadraticObjective<Real>>(covar0);
+  //auto obj    = makePtr<Het::C_Objective<Real>>(covar1,qobj,theta,useStorage_);
+  auto obj = makePtr<Het::ObjectiveC<Real>>(cov0,cov1,c,useStorage_);
+  Ptr<Objective<Real>> obj0 = obj;
   if (theta_ != nullPtr) {
     PFop_ = makePtr<DiagonalOperator<Real>>(*theta);
     PFvc_ = theta->clone(); PFvc_->zero();
@@ -363,8 +437,8 @@ void ObjectiveArray<Real>::addObjective(const Ptr<Vector<Real>>          &theta,
 
 template<typename Real>
 void ObjectiveArray<Real>::addObjective(const Ptr<Vector<Real>> &theta,
-                                        const Ptr<Vector<Real>> &c,
-                                        Real                     weight) {
+                                        const Ptr<const Vector<Real>> &c,
+                                        Real weight) {
   Ptr<Vector<Real>> theta0 = theta;
   if (theta_ != nullPtr) theta0 = theta_;
 
