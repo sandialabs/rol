@@ -10,6 +10,7 @@
 #ifndef ROL_STORMALGORITHM_HPP
 #define ROL_STORMALGORITHM_HPP
 
+#include "ROL_RiskNeutralObjective.hpp"
 #include "ROL_SampleGenerator.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_Algorithm.hpp"
@@ -88,12 +89,34 @@ private:
 
   // Problem information
   const Ptr<Problem<Real>> input_;
-  const Ptr<SampleGenerator<Real>> sampler_;
+  Ptr<RiskNeutralObjective<Real>> riskNeutralObjective_;
+  const Ptr<SampleGenerator<Real>> vsampler_;
+  const Ptr<SampleGenerator<Real>> gsampler_;
+  const Ptr<SampleGenerator<Real>> hsampler_;
   ParameterList parlist_;
+
+  // STORM parameters
+  Real alpha_; /// Required accuracy probability for gradient. See eq. 12
+  /// in ProxSTORM paper.
+  Real beta_; /// Required accuracy probability for computed reduction. See 
+  /// Assumption 4 in ProxSTORM paper.
+  Real scaleGradTol_;
+  Real scaleValTol_;
 
 public:
   STORMAlgorithm(const Ptr<Problem<Real>> &input,
-                 const Ptr<SampleGenerator<Real>> &sampler,
+                 const Ptr<SampleGenerator<Real>> &vsampler,
+                 const Ptr<SampleGenerator<Real>> &gsampler,
+                 const Ptr<SampleGenerator<Real>> &hsampler,
+                 ParameterList &parlist);
+
+  STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                 const Ptr<SampleGenerator<Real>> &vsampler,
+                 const Ptr<SampleGenerator<Real>> &gsampler,
+                 ParameterList &parlist);
+
+  STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                 const Ptr<SampleGenerator<Real>> &vsampler,
                  ParameterList &parlist);
 
   using TypeP::TrustRegionAlgorithm<Real>::initialize;  

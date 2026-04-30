@@ -10,6 +10,8 @@
 #ifndef ROL_STORMALGORITHM_DEF_HPP
 #define ROL_STORMALGORITHM_DEF_HPP
 
+#include <cassert>
+#include "ROL_RiskNeutralObjective.hpp"
 #include "ROL_STORMAlgorithm.hpp"
 #include "ROL_TrustRegion_P_Factory.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
@@ -19,13 +21,22 @@
 #include "ROL_Types.hpp"
 #include <deque>
 
-namespace ROL {
+// temp
+#include "ROL_StdVector.hpp"
 
+namespace ROL {
 template<typename Real>
 STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
-                                     const Ptr<SampleGenerator<Real>> &sampler,
+                                     const Ptr<SampleGenerator<Real>> &vsampler,
+                                     const Ptr<SampleGenerator<Real>> &gsampler,
+                                     const Ptr<SampleGenerator<Real>> &hsampler,
                                      ParameterList &parlist)
-    : TypeP::TrustRegionAlgorithm<Real>(parlist), input_(input), sampler_(sampler), parlist_(parlist) {
+    : TypeP::TrustRegionAlgorithm<Real>(parlist), 
+      input_(input), 
+      vsampler_(vsampler), 
+      gsampler_(gsampler),
+      hsampler_(hsampler),
+      parlist_(parlist) {
   // Set status test
   status_->reset();
   status_->add(makePtr<StatusTest<Real>>(parlist));
@@ -53,7 +64,7 @@ STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
   L_      = 0;
   // Algorithm-Specific Parameters
   ROL::ParameterList &lmlist = trlist.sublist("TRN");
-  mu0_               = lmlist.get("Sufficient Decrease Parameter",                             1e-2);
+  mu0_               = lmlist.get("Sufficient Decrease Parameter",        1e-2);
 
   interpRad_         = trlist.get("Use Radius Interpolation",             false);
   verbosity_         = trlist.sublist("General").get("Output Level",      0);
@@ -90,7 +101,39 @@ STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
   // Initialize trust region model
   model_ = makePtr<TrustRegionModel_U<Real>>(parlist);
   writeHeader_ = verbosity_ > 2;
+
+  // STORM parameters
+  ParameterList &stormlist = parlist.sublist("SOL").sublist("STORM");
+  alpha_ = stormlist.get("Gradient Required Accuracy Probability", static_cast<Real>(0.75));
+  beta_ = stormlist.get("Computed Reduction Required Accuracy Probability", static_cast<Real>(0.75));
+  scaleValTol_ = stormlist.get("Scale Value Tolerance", static_cast<Real>(1.e-1));
+  scaleGradTol_ = stormlist.get("Scale Gradient Tolerance", static_cast<Real>(1.e1));
+
+  if (vsampler_ != nullptr) {
+    riskNeutralObjective_ = makePtr<RiskNeutralObjective<Real>>(
+      input->getObjective(),
+      vsampler_,
+      gsampler_,
+      hsampler_
+    );
+  } else {
+    riskNeutralObjective_ = nullPtr;
+  }
+
 }
+
+template<typename Real>
+STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                                     const Ptr<SampleGenerator<Real>> &vsampler,
+                                     const Ptr<SampleGenerator<Real>> &gsampler,
+                                     ParameterList &parlist)
+    : STORMAlgorithm(input, vsampler, gsampler, gsampler, parlist){}
+
+template<typename Real>
+STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                                     const Ptr<SampleGenerator<Real>> &vsampler,
+                                     ParameterList &parlist)
+    : STORMAlgorithm(input, vsampler, vsampler, vsampler, parlist){}
 
 template<typename Real>
 void STORMAlgorithm<Real>::writeName( std::ostream& os ) const {
@@ -124,16 +167,35 @@ Real STORMAlgorithm<Real>::computeValue(Real inTol,
                                         const Vector<Real> &x,
                                         const Vector<Real> &xold,
                                         Objective<Real>    &sobj) {
+  const Real one(1);
   outTol = std::sqrt(ROL_EPSILON<Real>());
-  if ( useInexact_[0] ) {
-    int two(2); 
-    outTol   = scale_*static_cast<Real>(0.999)*std::pow(del, two);
-    fold     = sobj.value(xold,outTol); state_->nsval++;
-  }
-  // Evaluate objective function at new iterate
   sobj.update(x,UpdateType::Trial);
-  Real fval = sobj.value(x,outTol); state_->nsval++;
-  return fval;
+  if (vsampler_ != nullptr) {
+    if ( useInexact_[0] ) {
+      throw std::logic_error("Not Implemented: STORM with inexactness coming \
+      from both sampling and function/gradient evaluations");
+    }
+
+    // Calculate RHS of equation 15 in Proxstorm paper.
+    Real eta    = static_cast<Real>(0.999)*std::min(eta1_,one-eta2_);
+    Real samplingTol = eta*pRed*std::sqrt(one-beta_);
+
+    vsampler_ -> update(x);
+    riskNeutralObjective_ -> update(x);
+    Real fval = riskNeutralObjective_->value(x, samplingTol);
+    state_->nsval++;
+    return fval;
+  } else {
+    if ( useInexact_[0] ) {
+      int two(2); 
+      outTol   = scale_*static_cast<Real>(0.999)*std::pow(del, two);
+      fold     = sobj.value(xold,outTol); state_->nsval++;
+    }
+    // Evaluate objective function at new iterate
+    sobj.update(x,UpdateType::Trial);
+    Real fval = sobj.value(x,outTol); state_->nsval++;
+    return fval;
+  }
 }
 
 template<typename Real>
@@ -149,20 +211,34 @@ void STORMAlgorithm<Real>::computeGradient(const Vector<Real> &x,
                                                  Real &gtol,
                                                  Real &gnorm,
                                                  std::ostream &outStream) const {
-  if ( useInexact_[1] ) {
-    Real gtol0 = scale0_*static_cast<Real>(0.999)*del;
-    sobj.gradient(g,x,gtol0); state_->ngrad++;
-  }
-  else {
-    if (accept) {
-      gtol = std::sqrt(ROL_EPSILON<Real>());
-      sobj.gradient(g,x,gtol); state_->ngrad++;
+  if (gsampler_ != nullptr) {
+    if ( useInexact_[0] ) {
+      throw std::logic_error("Not Implemented: STORM with inexactness coming \
+      from both sampling and function/gradient evaluations");
+    }
+
+    Real samplingTol = scaleGradTol_*std::abs(del)*(1-alpha_);
+
+    gsampler_ -> update(x);
+    riskNeutralObjective_->update(x);
+    riskNeutralObjective_->gradient(g, x, samplingTol);
+  } else {
+    if ( useInexact_[1] ) {
+      Real gtol0 = scale0_*static_cast<Real>(0.999)*del;
+      sobj.gradient(g,x,gtol0); state_->ngrad++;
+    }
+    else {
+      if (accept) {
+        gtol = std::sqrt(ROL_EPSILON<Real>());
+        sobj.gradient(g,x,gtol); state_->ngrad++;
+      }
     }
   }
   dg.set(g.dual());
   solver_->pgstep(px, step, nobj, x, dg, t0_, gtol); state_->nprox++; // gtol for prox might be different 
   gnorm = step.norm() / t0_;
 }
+
 
 template<typename Real>
 void STORMAlgorithm<Real>::stepUpdate(Vector<Real>               &x, 
@@ -224,9 +300,18 @@ void STORMAlgorithm<Real>::stepUpdate(Vector<Real>               &x,
 
 template<typename Real>
 void STORMAlgorithm<Real>::run(std::ostream &outStream) {
-  TypeP::TrustRegionAlgorithm<Real>::run(
-    *input_, outStream
-  );
+  if (vsampler_ != nullptr) {
+    TypeP::TrustRegionAlgorithm<Real>::run(
+      *(input_->getPrimalOptimizationVector()),
+      *riskNeutralObjective_,
+      *(input_->getProximableObjective()),
+      outStream
+    );
+  } else {
+    TypeP::TrustRegionAlgorithm<Real>::run(
+      *input_, outStream
+    );
+  }
 } // run function
 
 } // namespace ROL
