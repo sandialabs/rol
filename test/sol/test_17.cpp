@@ -167,7 +167,7 @@ int main(int argc, char *argv[]) {
 
     ROL::STORMAlgorithm<RealT> solverspg(
         problem,
-        nullptr,
+        ROL::nullPtr,
         list
     );
     begin = std::chrono::high_resolution_clock::now();
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
     sol->zero();
     ROL::STORMAlgorithm<RealT> solverspg2(
         problem,
-        nullptr,
+        ROL::nullPtr,
         list
     );
     begin = std::chrono::high_resolution_clock::now();
@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
     sol->zero();
     ROL::STORMAlgorithm<RealT> solverncg(
         problem,
-        nullptr,
+        ROL::nullPtr,
         list
     );
     begin = std::chrono::high_resolution_clock::now();
