@@ -109,7 +109,7 @@ STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
   scaleValTol_ = stormlist.get("Scale Value Tolerance", static_cast<Real>(1.e-1));
   scaleGradTol_ = stormlist.get("Scale Gradient Tolerance", static_cast<Real>(1.e1));
 
-  if (vsampler_ != nullptr) {
+  if (vsampler_) {
     riskNeutralObjective_ = makePtr<RiskNeutralObjective<Real>>(
       input->getObjective(),
       vsampler_,
@@ -170,7 +170,7 @@ Real STORMAlgorithm<Real>::computeValue(Real inTol,
   const Real one(1);
   outTol = std::sqrt(ROL_EPSILON<Real>());
   sobj.update(x,UpdateType::Trial);
-  if (vsampler_ != nullptr) {
+  if (vsampler_) {
     if ( useInexact_[0] ) {
       throw std::logic_error("Not Implemented: STORM with inexactness coming \
       from both sampling and function/gradient evaluations");
@@ -211,7 +211,7 @@ void STORMAlgorithm<Real>::computeGradient(const Vector<Real> &x,
                                                  Real &gtol,
                                                  Real &gnorm,
                                                  std::ostream &outStream) const {
-  if (gsampler_ != nullptr) {
+  if (gsampler_) {
     if ( useInexact_[0] ) {
       throw std::logic_error("Not Implemented: STORM with inexactness coming \
       from both sampling and function/gradient evaluations");
@@ -300,7 +300,7 @@ void STORMAlgorithm<Real>::stepUpdate(Vector<Real>               &x,
 
 template<typename Real>
 void STORMAlgorithm<Real>::run(std::ostream &outStream) {
-  if (vsampler_ != nullptr) {
+  if (vsampler_) {
     TypeP::TrustRegionAlgorithm<Real>::run(
       *(input_->getPrimalOptimizationVector()),
       *riskNeutralObjective_,
