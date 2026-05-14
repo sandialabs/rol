@@ -2,7 +2,7 @@
 // @HEADER
 
 /*! \file  example_01.cpp
-    \brief Shows how to minimize a function with binary (0/1) constraints.
+    \brief Logistic regression example with L1 penalty.
 */
 
 #include "ROL_Bounds.hpp"
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
     parlist->sublist("Status Test").set("Constraint Tolerance",1e-8);
     parlist->sublist("Status Test").set("Step Tolerance",1e-12);
     parlist->sublist("Status Test").set("Iteration Limit", 10000);
-    parlist->sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");  
+    parlist->sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");
     
     // set up objective
     int dim = nVars + 1 ; 
@@ -184,8 +184,8 @@ int main(int argc, char *argv[]) {
     ROL::Ptr<ROL::StdVector<RealT>> wts = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0); 
     ROL::Ptr<ROL::StdVector<RealT>> x = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0); 
     ROL::Ptr<ROL::StdVector<RealT>> xy = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0); 
-    wts->setScalar(1.0);   
-    x->randomize();  
+    wts->setScalar(0.05); // Note: A relatively small weight is needed to get a solution that isn't just zero.
+    x->randomize();
     xy->randomize(); 
     nobj = ROL::makePtr<ROL::l1Objective<RealT>>(wts); 
 
@@ -204,6 +204,10 @@ int main(int argc, char *argv[]) {
     
     //std::clock_t timer = std::clock(); 
     algo_nonsmooth_tr->run(*xy, *obj, *nobj, *outStream); // nonsmooth tr 
+    *outStream << "xy = ";
+    for (int i=0; i<dim; ++i) {
+      *outStream << (*xy)[i] << " ";
+    }
 
     // Set up and run proxstorm
     ROL::Ptr<ROL::Problem<RealT>> problem = ROL::makePtr<ROL::Problem<RealT>>(
@@ -218,6 +222,18 @@ int main(int argc, char *argv[]) {
       *parlist
     );
     algo_storm->run(*outStream); // storm
+
+    *outStream << "x = ";
+    for (int i=0; i<dim; ++i) {
+      *outStream << (*x)[i] << " ";
+    }
+
+    ROL::Ptr<std::vector<RealT>> d_ptr  = ROL::makePtr<std::vector<RealT>>(dim,0.0);
+    ROL::Ptr<ROL::Vector<RealT>> d      = ROL::makePtr<ROL::StdVector<RealT>>(d_ptr);
+    d->set(*x); d->axpy(-1.0,*xy);
+    RealT err = d->norm();
+    *outStream << std::endl << "Norm of difference: " << err<< std::endl <<std::endl;
+    errorFlag += (err > 1e-2 ? 1 : 0);
   }
   catch (std::logic_error& err) {
     *outStream << err.what() << "\n";

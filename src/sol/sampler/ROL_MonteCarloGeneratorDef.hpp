@@ -200,7 +200,7 @@ void MonteCarloGenerator<Real>::update( const Vector<Real> &x ) {
   sum_val_  = static_cast<Real>(0);
   sum_val2_ = static_cast<Real>(0);
   sum_ng_   = static_cast<Real>(0);
-  sum_ng_   = static_cast<Real>(0);
+  sum_ng2_  = static_cast<Real>(0);
   if ( use_SA_ ) sample(nSamp_,true,true);
 }
 

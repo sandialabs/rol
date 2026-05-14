@@ -101,7 +101,7 @@
       <Parameter name="Maximum Radius"                       type="double" value="5.e8"         />
       <Parameter name="Step Acceptance Threshold"            type="double" value="0.05"         />
       <Parameter name="Radius Shrinking Threshold"           type="double" value="0.05"         />
-      <Parameter name="Radius Growing Threshold"             type="double" value="0.9"          />
+      <Parameter name="Radius Growing Threshold"             type="double" value="1.e-3"          />
       <Parameter name="Radius Shrinking Rate (Negative rho)" type="double" value="0.0625"       />
       <Parameter name="Radius Shrinking Rate (Positive rho)" type="double" value="0.25"         />
       <Parameter name="Radius Growing Rate"                  type="double" value="2.5"          />
