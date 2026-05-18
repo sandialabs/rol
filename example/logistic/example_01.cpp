@@ -19,7 +19,7 @@
 #include "ROL_TypeP_TrustRegionAlgorithm_Def.hpp"
 #include "ROL_ScalarLinearConstraint.hpp"
 #include "ROL_l1Objective.hpp"
-
+#include "data_generator.cpp"
 
 #include <iostream>
 #include <random>
@@ -145,28 +145,37 @@ int main(int argc, char *argv[]) {
     std::string filename = "input.xml";
     auto parlist = ROL::getParametersFromXmlFile(filename);
 
-    // initialize data
+    // Generate data, then save down to a text file.
+    int nInstances(1000);
+    std::string dataFileName("data.txt");
+    std::vector<RealT> slopes = {-0.1, 1.5, 0.1, 0.05, -1.9, -0.01};
+    int nVars = slopes.size() - 1;
+
+    LogisticDataGenerator<RealT> dataGenerator{};
+    dataGenerator.generate_and_save_data(
+      nInstances,
+      slopes,
+      dataFileName,
+      *outStream
+    );
+
+    // Read in text file and initialize data.
     std::vector<RealT> b;
     std::vector<std::vector<RealT>> A; 
-    int nVars, nInstances; 
-    //input data
-    std::ifstream fileD, fileX, fileY;
-    fileD.open("info.txt");
-    fileX.open("data_matrix.txt");
-    fileY.open("label_vector.txt");
-    fileD >> nInstances; 
-    fileD >> nVars; 
+    std::ifstream file;
+    file.open(dataFileName);
+
     A.resize(nInstances);
     b.resize(nInstances,0.0);
-    for (int i = 0; i < nInstances; ++i) {
-      fileY >> b[i];
+    for (int i=0; i < nInstances; ++i) {
       A[i].resize(nVars);
-      for (int j = 0; j < nVars; ++j) fileX >> A[i][j];
+      for (int j=0; j<nVars; ++j) {
+        file >> A[i][j];
+      }
+      file >> b[i];
     }
-    fileD.close();
-    fileX.close();
-    fileY.close();
-    
+    file.close();
+
     //ROL::Ptr<ROL::ParameterList> parlist = ROL::getParametersFromXmlFile("input.xml");
     //ROL::ParameterList list;
     parlist->sublist("General").set("Output Level",iprint);
@@ -178,13 +187,13 @@ int main(int argc, char *argv[]) {
     parlist->sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");
     
     // set up objective
-    int dim = nVars + 1 ; 
+    int dim = nVars + 1 ; // The optimization variable has size nVars + 1 because of the intercept term.
     ROL::Ptr<LogisticObjective<RealT>>  obj = ROL::makePtr<LogisticObjective<RealT>>(A,b);
     ROL::Ptr<ROL::l1Objective<RealT>> nobj; 
     ROL::Ptr<ROL::StdVector<RealT>> wts = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0); 
     ROL::Ptr<ROL::StdVector<RealT>> x = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0); 
     ROL::Ptr<ROL::StdVector<RealT>> xy = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0); 
-    wts->setScalar(0.05); // Note: A relatively small weight is needed to get a solution that isn't just zero.
+    wts->setScalar(.1); // Note: A relatively small weight is needed to get a solution that isn't just zero.
     x->randomize();
     xy->randomize(); 
     nobj = ROL::makePtr<ROL::l1Objective<RealT>>(wts); 

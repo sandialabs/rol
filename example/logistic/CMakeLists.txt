@@ -15,10 +15,6 @@ ROL_COPY_FILES_TO_BINARY_DIR(
   StochProx_Logistic
   SOURCE_FILES
     input.xml
-    label_vector.txt 
-    info.txt 
-    data_matrix.txt
-    data_with_labels.txt
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
   DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}"
 )

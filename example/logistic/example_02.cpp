@@ -21,7 +21,7 @@
 #include "ROL_ScalarLinearConstraint.hpp"
 #include "ROL_l1Objective.hpp"
 #include "ROL_MonteCarloDataGenerator.hpp"
-
+#include "data_generator.cpp"
 
 #include <iostream>
 #include <random>
@@ -130,7 +130,6 @@ int main(int argc, char *argv[]) {
   // *** Example body.
  
   try {
-    int dim = 68;
     /*** Read in XML input ***/
     std::string filename = "input.xml";
     auto parlist = ROL::getParametersFromXmlFile(filename);
@@ -145,27 +144,42 @@ int main(int argc, char *argv[]) {
     parlist->sublist("Status Test").set("Iteration Limit", 10000);
     parlist->sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");  
     
+    // Generate data, then save down to a text file.
+    int nInstances(1000);
+    std::string dataFileName("data.txt");
+    std::vector<RealT> slopes = {-0.1, 1.5, 0.1, 0.05, -1.9, -0.01};
+    int nVars = slopes.size() - 1;
+    int dim = nVars + 1; // The optimization variable has size nVars + 1 because of the intercept term.
+
+    LogisticDataGenerator<RealT> dataGenerator{};
+    dataGenerator.generate_and_save_data(
+      nInstances,
+      slopes,
+      dataFileName,
+      *outStream
+    );
+
     // set up objective
     ROL::Ptr<ParametrizedLogisticObjective<RealT>>  obj = ROL::makePtr<ParametrizedLogisticObjective<RealT>>();
     ROL::Ptr<ROL::l1Objective<RealT>> nobj; 
     ROL::Ptr<ROL::StdVector<RealT>> wts = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0);
     ROL::Ptr<ROL::StdVector<RealT>> x = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0);
     ROL::Ptr<ROL::StdVector<RealT>> xy = ROL::makePtr<ROL::StdVector<RealT>>(dim, 0);
-    wts->setScalar(0.05); // Note: A relatively small weight is needed to get a solution that isn't just zero.
+    wts->setScalar(0.1); // Note: A relatively small weight is needed to get a solution that isn't just zero.
     x->randomize();
     nobj = ROL::makePtr<ROL::l1Objective<RealT>>(wts); 
 
     // Set up samplers
-    int nSamp = 10000;
-    int nNewSamp = 1000;
-    std::string file = "data_with_labels.txt";
+    int nInitialSamp = 100;
+    int nNewSamp = 100;
+    // std::string file = "data_with_labels.txt";
+    std::string file = "data.txt";
     ROL::Ptr<ROL::BatchManager<RealT> > bman =
       ROL::makePtr<ROL::BatchManager<RealT>>();
     ROL::Ptr<ROL::SampleGenerator<RealT> > sampler =
       ROL::makePtr<ROL::MonteCarloDataGenerator<RealT>>(
-        nSamp,
-        dim+1, // Dim is the number of features. We need dim+1 because 
-        // data_with_labels.txt contains the features and the label.
+        nInitialSamp,
+        dim, // Note that this is nFeatures + 1. This is because the file format contains the n features and the label.
         file,
         bman,
         true,
@@ -204,7 +218,10 @@ int main(int argc, char *argv[]) {
     for (int i=0; i<dim; ++i) {
       *outStream << (*x)[i] << " ";
     }
-
+    *outStream << "\n";
+    *outStream << "Number of data samples used = " << sampler->numMySamples() 
+               << "/" << nInstances << "\n"; 
+               // This can be less than nInstances, but doesn't have to be.
   }
   catch (std::logic_error& err) {
     *outStream << err.what() << "\n";

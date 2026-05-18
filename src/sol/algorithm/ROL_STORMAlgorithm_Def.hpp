@@ -117,7 +117,7 @@ STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
       hsampler_
     );
   } else {
-    riskNeutralObjective_ = nullPtr;
+    riskNeutralObjective_ = ROL::nullPtr;
   }
 
 }
