@@ -88,13 +88,13 @@ public:
   void hessVec(std::vector<Real> &hv, const std::vector<Real> &v, const std::vector<Real> &x, Real &tol) {
     hv.assign(x.size(),static_cast<Real>(0));
     Real one(1);
-    Real sv(0);
     Real tmp(x[0]);
     Real tmpv(v[0]);
 
     std::vector<Real> a_b = this->getParameter();
     Real b = a_b.back();
     int nfeatures = a_b.size() - 1;
+    int xsize = x.size();
 
     for (int i=0; i<nfeatures; ++i) {
       tmp += a_b[i]*x[i+1];
@@ -103,7 +103,7 @@ public:
     tmp *= -b;
     tmp = std::exp(tmp);
     tmp = (tmpv*b*b*tmp) / ((one + tmp) * (one + tmp));    
-    for (int i = 0; i < x.size(); ++i) {
+    for (int i = 0; i < xsize; ++i) {
       if (i == 0) hv[i] = tmp;
       else {
         hv[i] += a_b[i-1]*tmp;
