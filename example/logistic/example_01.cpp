@@ -227,7 +227,7 @@ int main(int argc, char *argv[]) {
 
     ROL::Ptr<ROL::STORMAlgorithm<RealT>> algo_storm = ROL::makePtr<ROL::STORMAlgorithm<RealT>>(
       problem,
-      nullptr,
+      ROL::nullPtr,
       *parlist
     );
     algo_storm->run(*outStream); // storm
