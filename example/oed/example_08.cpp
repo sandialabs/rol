@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
     auto type = ROL::OED::StringToRegressionType(regType);
     bool alwaysUseSVD = parlist->sublist("Problem").get("Use SVD",false);
     RealT SVDtol = parlist->sublist("Problem").get("SVD Tolerance",1e-10);
-    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise,alwaysUseSVD,SVDtol);
+    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,(homNoise ? ROL::nullPtr : noise),alwaysUseSVD,SVDtol);
     bool addTik = parlist->sublist("Problem").get("Use Tikhonov",false);
     if (addTik) {
       RealT beta  = parlist->sublist("Problem").get("Tikhonov Parameter",1e-4);

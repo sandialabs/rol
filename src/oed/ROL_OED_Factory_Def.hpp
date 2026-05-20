@@ -537,43 +537,43 @@ void Factory<Real>::printDesign(const std::string &name, const std::string &ext)
 template<typename Real>
 void Factory<Real>::printPredictionVariance(const Ptr<SampleGenerator<Real>> &sampler,
                              const std::string &name, const std::string &ext) const {
-  Ptr<Objective<Real>> obj;
-  auto factors = objArray_->getFactors(theta_);
-  auto cov00 = objArray_->getBaseMomentOperator()->clone();
-  cov00->setFactors(factors);
-  cov00->setMatrixNumber(0);
-  if (isHom_) {
-    Ptr<BilinearConstraint<Real>> cov = makePtr<BilinearConstraint<Real>>(factors,cov00,"I");
-    Ptr<LinearObjective<Real>> lobj = makePtr<LinearObjective<Real>>(factors,"I");
-    obj = makePtr<Hom::I_Objective<Real>>(cov,lobj,theta_,useStorage_);
-  }
-  else {
-    auto cov01 = objArray_->getBaseMomentOperator()->clone();
-    cov01->setFactors(factors);
-    cov01->setMatrixNumber(1);
-    Ptr<BilinearConstraint<Real>> cov0 = makePtr<BilinearConstraint<Real>>(factors,cov00,"I");
-    Ptr<BilinearConstraint<Real>> cov1 = makePtr<BilinearConstraint<Real>>(factors,cov01,"I");
-    Ptr<QuadraticObjective<Real>> qobj = makePtr<QuadraticObjective<Real>>(cov0);
-    obj = makePtr<Het::I_Objective<Real>>(cov1,qobj,theta_,useStorage_);
-  }
-  Real tol(1e-8);
-  obj->update(*p_);
-  int myRank = sampler->batchID();
-  std::stringstream filename;
-  filename << name << "_" << myRank << ext;
-  std::ofstream file;
-  file.open(filename.str());
-  file << std::scientific << std::setprecision(15);
-  for (int i = 0; i < sampler->numMySamples(); ++i) {
-    std::vector<Real> param = sampler->getMyPoint(i);
-    obj->setParameter(param);
-    Real val = obj->value(*p_,tol);
-    for (int j = 0; j < static_cast<int>(param.size()); ++j) {
-      file << std::right << std::setw(25) << param[j];
-    }
-    file << std::right << std::setw(25) << val << std::endl;
-  }
-  file.close();
+  //Ptr<Objective<Real>> obj;
+  //auto factors = objArray_->getFactors(theta_);
+  //auto cov00 = objArray_->getBaseMomentOperator()->clone();
+  //cov00->setFactors(factors);
+  //cov00->setMatrixNumber(0);
+  //if (isHom_) {
+  //  Ptr<BilinearConstraint<Real>> cov = makePtr<BilinearConstraint<Real>>(factors,cov00,"I");
+  //  Ptr<LinearObjective<Real>> lobj = makePtr<LinearObjective<Real>>(factors,"I");
+  //  obj = makePtr<Hom::I_Objective<Real>>(cov,lobj,theta_,useStorage_);
+  //}
+  //else {
+  //  auto cov01 = objArray_->getBaseMomentOperator()->clone();
+  //  cov01->setFactors(factors);
+  //  cov01->setMatrixNumber(1);
+  //  Ptr<BilinearConstraint<Real>> cov0 = makePtr<BilinearConstraint<Real>>(factors,cov00,"I");
+  //  Ptr<BilinearConstraint<Real>> cov1 = makePtr<BilinearConstraint<Real>>(factors,cov01,"I");
+  //  Ptr<QuadraticObjective<Real>> qobj = makePtr<QuadraticObjective<Real>>(cov0);
+  //  obj = makePtr<Het::I_Objective<Real>>(cov1,qobj,theta_,useStorage_);
+  //}
+  //Real tol(1e-8);
+  //obj->update(*p_);
+  //int myRank = sampler->batchID();
+  //std::stringstream filename;
+  //filename << name << "_" << myRank << ext;
+  //std::ofstream file;
+  //file.open(filename.str());
+  //file << std::scientific << std::setprecision(15);
+  //for (int i = 0; i < sampler->numMySamples(); ++i) {
+  //  std::vector<Real> param = sampler->getMyPoint(i);
+  //  obj->setParameter(param);
+  //  Real val = obj->value(*p_,tol);
+  //  for (int j = 0; j < static_cast<int>(param.size()); ++j) {
+  //    file << std::right << std::setw(25) << param[j];
+  //  }
+  //  file << std::right << std::setw(25) << val << std::endl;
+  //}
+  //file.close();
 }
 
 template<typename Real>

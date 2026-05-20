@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
     std::string regType = "Least Squares";
     std::string ocType  = parlist->sublist("OED").get("Optimality Type","A");
     auto type = ROL::OED::StringToRegressionType(regType);
-    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
+    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,(homNoise ? ROL::nullPtr : noise));
     std::vector<ROL::Ptr<ROL::Vector<RealT>>> pvec(numDrop,ROL::nullPtr);
     std::vector<RealT> weights(numDrop,static_cast<RealT>(1));
     auto factory = ROL::makePtr<ROL::OED::Factory<RealT>>(model,sampler,theta,M,*parlist);

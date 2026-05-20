@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
     std::string regType = "Least Squares";
     std::string ocType  = parlist->sublist("OED").get("Optimality Type","A");
     auto type = ROL::OED::StringToRegressionType(regType);
-    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,homNoise,noise);
+    auto M = ROL::makePtr<ROL::OED::StdMomentOperator<RealT>>(type,(homNoise ? ROL::nullPtr : noise));
     std::vector<ROL::Ptr<ROL::Vector<RealT>>> thetas(numTheta,ROL::nullPtr);
     std::vector<RealT> weights(numTheta,static_cast<RealT>(1));
     if (numTheta == 1u) {

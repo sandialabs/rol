@@ -31,20 +31,23 @@ public:
   virtual Ptr<MomentOperator<Real>> clone() const;
   void setMatrixNumber(int matNum);
   virtual void update(const Vector<Real> &p, UpdateType type, int iter = -1); 
-  virtual void setFactors(const Ptr<Factors<Real>> &factors);
+
   virtual void generateFactors(const Ptr<Constraint<Real>>      &model,
                                const Ptr<Vector<Real>>          &theta,
                                const Ptr<Vector<Real>>          &obs,
-                               const Ptr<SampleGenerator<Real>> &sampler,
-                               bool                              storage = true,
-                               const Ptr<Vector<Real>>          &c = nullPtr,
-                               bool                              ortho = false);
+                               const Ptr<SampleGenerator<Real>> &sampler);
   virtual void generateFactors(const Ptr<Objective<Real>>       &model,
                                const Ptr<Vector<Real>>          &theta,
-                               const Ptr<SampleGenerator<Real>> &sampler,
-                               bool                              storage = true,
-                               bool                              ortho = false);
+                               const Ptr<SampleGenerator<Real>> &sampler);
+
+  virtual void setFactors(const Ptr<Factors<Real>> &factors);
   virtual void setPerturbation(const Ptr<LinearOperator<Real>> &pOp);
+  void setNoise(const Ptr<Noise<Real>> &noise, bool isHom = false);
+
+  void getRegressionInfo(RegressionType &regType, bool &homNoise,
+                         Ptr<Noise<Real>> &noise) const;
+  //virtual const Ptr<Factors<Real>> getFactors() const;
+  //virtual const Ptr<LinearOperator<Real>> getPerturbation() const;
 
   // Compute M(p)x where M(p) = p_1 X_1 S_1 X_1' + ... + p_N X_N S_N X_N'
   virtual void apply(Vector<Real> &Mx,
@@ -64,12 +67,7 @@ public:
 
   virtual void applySampleMatrices(Vector<Real> &uXv, const Vector<Real> &u, const Vector<Real> &v);
 
-  void setNoise(const Ptr<Noise<Real>> &noise, bool isHom = false);
-
-  Real getNoise(int k) const;
-
-  void getRegressionInfo(RegressionType &regType, bool &homNoise,
-                         Ptr<Noise<Real>> &noise) const;
+  virtual void applyNoise(Vector<Real>& Nx, const Vector<Real>& x, int i) const;
 
   virtual Real logDeterminant(const Vector<Real> &z);
 

@@ -50,7 +50,7 @@ private:
                                          const Ptr<Vector<Real>>& theta,
                                          const Ptr<SampleGenerator<Real>>& sampler = nullPtr,
                                          const Ptr<Objective<Real>>& predFun = nullPtr);
-  Ptr<Objective<Real>> buildHomObjective(const Ptr<Vector<Real>>& c,
+  Ptr<Objective<Real>> buildHomObjective(const Ptr<const Vector<Real>>& c,
                                          const Ptr<Factors<Real>>& factors,
                                          const Ptr<MomentOperator<Real>>& cov0,
                                          const Ptr<Vector<Real>>& theta);
@@ -61,7 +61,7 @@ private:
                                          const Ptr<Vector<Real>>& theta,
                                          const Ptr<SampleGenerator<Real>>& sampler = nullPtr,
                                          const Ptr<Objective<Real>>& predFun = nullPtr);
-  Ptr<Objective<Real>> buildHetObjective(const Ptr<Vector<Real>>& c,
+  Ptr<Objective<Real>> buildHetObjective(const Ptr<const Vector<Real>>& c,
                                          const Ptr<Factors<Real>>& factors,
                                          const Ptr<MomentOperator<Real>>& cov0,
                                          const Ptr<MomentOperator<Real>>& cov1,
@@ -90,7 +90,7 @@ public:
                     const Ptr<Objective<Real>>& predFunc = nullPtr);
 
   void addObjective(const Ptr<Vector<Real>>& theta,
-                    const Ptr<Vector<Real>>& c,
+                    const Ptr<const Vector<Real>>& c,
                     Real weight = Real(1));
 
   const Ptr<Objective<Real>> getObjective(unsigned k) const;
