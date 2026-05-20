@@ -41,6 +41,7 @@ cmake -D CMAKE_BUILD_TYPE:STRING=RELEASE \
       -D ENABLE_EXAMPLES:BOOL=ON \
       -D ENABLE_TESTS:BOOL=ON \
       -B build \
+      -D CMAKE_INSTALL_PREFIX=build/install \
       .
 ```
 
@@ -49,6 +50,11 @@ to the build directory and running `make`
 ```
 cd build
 make
+```
+
+One can then install it 
+```
+make install
 ```
 
 
