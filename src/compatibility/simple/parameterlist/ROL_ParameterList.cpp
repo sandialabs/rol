@@ -21,6 +21,7 @@ template class PList<std::vector<double>>;
 template class PList<std::vector<std::string>>;
 } // namespace detail
 
+/*
 ParameterList& 
 ParameterList::sublist( ParameterList::key_type key, 
                         bool                    mustAlreadyExist ) {
@@ -30,7 +31,7 @@ ParameterList::sublist( ParameterList::key_type key,
   
   return *(sublists_.at(key));
 }
-
+*/
 //std::ostream& operator << ( std::ostream& os, ParameterList& parlist ) {
 //
 //  detail::operator << ( os , parlist );
