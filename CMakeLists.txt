@@ -137,7 +137,6 @@ if( STANDALONE_ROL )
           CONFIGURE_DEPENDS
           "${dir}/*.h"
           "${dir}/*.hpp"
-          "${dir}/*.cpp" #only ROL_ParameterList.cpp for now
           "${dir}/*.hh"
           "${dir}/*.hxx"
       )
