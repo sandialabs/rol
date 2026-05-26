@@ -386,7 +386,6 @@ void writeParameterListToXmlFile(const ParameterList& params, const std::string&
 
 } // namespace ROL
 
-//#include "ROL_ParameterList.cpp"
 #include "ROL_XMLReader.hpp"
 
 namespace ROL{
