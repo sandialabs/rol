@@ -57,6 +57,45 @@ One can then install it
 make install
 ```
 
+## Building against ROL
+Assuming we have a directory called 'roltest' which contains files we would like to run using ROL. 
+In /dir/to/roltest, create a CMakeLists.txt with
+the following: 
+
+```
+cmake_minimum_required(VERSION 3.10)  
+project(test)
+set(CMAKE_CXX_STANDARD 17) 
+
+enable_language(C)
+enable_language(CXX)
+
+message(STATUS "ROL directory is: ${ROL_DIR}/include")
+include_directories("${ROL_DIR}/include") #one down for all files
+include_directories("${ROL_DIR}/lib/librol.so") 
+add_executable(ROLtest mytest.cpp)
+```
+The file in mytest then simply tests that it can find a 
+basic ROL type:  
+```
+#include<iostream>
+#include "ROL_Ptr.hpp"
+
+int main() {
+    ROL::Ptr<int> p; 
+    std::cout << "Hello from ROL" << std::endl;
+}
+```
+Compiling and executing should then be a matter of: 
+```
+$ cmake . -DROL_DIR=/Users/../path/to/rol/build/install
+$ make
+$ ./ROLtest
+Hello from ROL
+
+```
+
+
 ## Python Interface
 The python pip package rol-python is the official python interface to ROL.
 It is available at https://pypi.org/project/rol-python/ and can be installed via
