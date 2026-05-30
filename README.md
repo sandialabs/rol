@@ -72,18 +72,32 @@ enable_language(CXX)
 
 message(STATUS "ROL directory is: ${ROL_DIR}/include")
 include_directories("${ROL_DIR}/include") #one down for all files
-include_directories("${ROL_DIR}/lib/librol.so") 
+find_library(ROL_LIB NAMES rol librol PATHS ${ROL_DIR}/lib NO_DEFAULT_PATH)
+if(ROL_LIB)
+  message(STATUS "We found ROL!")
+else()
+  message(FATAL_ERROR "ROL library not found!")
+endif()
+
+add_library(rol::rol UNKNOWN IMPORTED)
+set_target_properties(rol::rol PROPERTIES IMPORTED_LOCATION "${ROL_LIB}")
+add_executable(ROLtest mytest.cpp)
+target_link_libraries(ROLtest PRIVATE rol::rol) 
+
 add_executable(ROLtest mytest.cpp)
 ```
 The file in mytest then simply tests that it can find a 
 basic ROL type:  
 ```
-#include<iostream>
-#include "ROL_Ptr.hpp"
+#include "ROL_StdVector.hpp"
+typedef double RealT;
 
 int main() {
-    ROL::Ptr<int> p; 
-    std::cout << "Hello from ROL" << std::endl;
+  int dim = 100; 
+
+  ROL::StdVector<RealT> x(dim);
+  x.randomize(-1.0, 1.0);
+  std::cout << "What's the norm of x? " << x.norm() << std::endl;
 }
 ```
 Compiling and executing should then be a matter of: 
@@ -91,8 +105,7 @@ Compiling and executing should then be a matter of:
 $ cmake . -DROL_DIR=/Users/../path/to/rol/build/install
 $ make
 $ ./ROLtest
-Hello from ROL
-
+What's the norm of x? "some random number"
 ```
 
 
