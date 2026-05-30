@@ -171,7 +171,7 @@ if( STANDALONE_ROL )
   foreach(hdr IN LISTS PROJECT_HEADERS)
       install(FILES "${hdr}" DESTINATION include)
   endforeach()
-
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ROL_config.h" DESTINATION include)
 else() # Build with Trilinos
   include(cmake/TrilinosROL.cmake)
 endif()
