@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v3
     - name: Clone Trilinos
       if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
-      run: git clone https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
+      run: git clone https://github.com/trilinos/Trilinos.git --branch develop --depth 1 ../trilinos
     - name: Copy ROL into Trilinos
       if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
       run: |
