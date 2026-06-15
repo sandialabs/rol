@@ -253,6 +253,6 @@ class TensorDictVector(PythonVector):
             self[i] = op.apply(self[i])
 
     @torch.no_grad()
-    def applyBinary(self, other, op):
+    def applyBinary(self, op, other):
         for i in range(self.dimension()):
             self[i] = op.apply(self[i], other[i])
