@@ -171,7 +171,8 @@ TRIBITS_INCLUDE_DIRECTORIES(${DIR}
                     ${DIR}/TypeU/bundle
                     ${DIR}/TypeU/linesearch
                     ${DIR}/TypeU/linesearch/descent
-                    ${DIR}/TypeU/trustregion)
+                    ${DIR}/TypeU/trustregion
+                    ${DIR}/TypeP/trustregion)
 APPEND_GLOB(HEADERS ${DIR}/*.hpp
                     ${DIR}/TypeB/*.hpp
                     ${DIR}/TypeE/*.hpp
@@ -187,7 +188,8 @@ APPEND_GLOB(HEADERS ${DIR}/*.hpp
                     ${DIR}/TypeU/bundle/*.hpp
                     ${DIR}/TypeU/linesearch/*.hpp
                     ${DIR}/TypeU/linesearch/descent/*.hpp
-                    ${DIR}/TypeU/trustregion/*.hpp)
+                    ${DIR}/TypeU/trustregion/*.hpp
+                    ${DIR}/TypeP/trustregion/*.hpp)
 
 #
 # parameterlist headers

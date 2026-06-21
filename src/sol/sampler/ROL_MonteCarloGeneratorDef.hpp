@@ -52,7 +52,7 @@ std::vector<std::vector<Real>> MonteCarloGenerator<Real>::sample(int nSamp, bool
       if ( !useDist_ ) {
         for (int j = 0; j < dim; ++j) {
           if ( use_normal_ )
-            pts[j + i*dim] = std::sqrt(two*(data_[j])[1])*ierf(two*random()-one) + (data_[j])[0];
+            pts[j + i*dim] = std::sqrt(two)*(data_[j])[1]*ierf(two*random()-one) + (data_[j])[0];
           else
             pts[j + i*dim] = ((data_[j])[1]-(data_[j])[0])*random()+(data_[j])[0];
         }
@@ -200,7 +200,7 @@ void MonteCarloGenerator<Real>::update( const Vector<Real> &x ) {
   sum_val_  = static_cast<Real>(0);
   sum_val2_ = static_cast<Real>(0);
   sum_ng_   = static_cast<Real>(0);
-  sum_ng_   = static_cast<Real>(0);
+  sum_ng2_  = static_cast<Real>(0);
   if ( use_SA_ ) sample(nSamp_,true,true);
 }
 
@@ -208,7 +208,7 @@ template<typename Real>
 Real MonteCarloGenerator<Real>::computeError( std::vector<Real> &vals ) {
   Real err(0);
   if ( adaptive_ && !use_SA_ ) {
-    const Real zero(0), one(1), tol(1e-8);
+    const Real zero(0), one(1);
     // Compute unbiased sample variance
     int cnt = 0;
     for ( int i = SampleGenerator<Real>::start(); i < SampleGenerator<Real>::numMySamples(); ++i ) {
@@ -220,12 +220,12 @@ Real MonteCarloGenerator<Real>::computeError( std::vector<Real> &vals ) {
     Real mean   = zero;
     SampleGenerator<Real>::sumAll(&mymean,&mean,1);
 
-    Real myvar  = (sum_val2_ - mean*mean)/(static_cast<Real>(nSamp_)-one);
+    Real myvar  = (sum_val2_ - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     Real var    = zero;
     SampleGenerator<Real>::sumAll(&myvar,&var,1);
     // Return Monte Carlo error
     vals.clear();
-    err = std::sqrt(var/static_cast<Real>(nSamp_))*tol;
+    err = std::sqrt(var/static_cast<Real>(nSamp_));
   }
   else {
     vals.clear();
@@ -238,7 +238,7 @@ Real MonteCarloGenerator<Real>::computeError( std::vector<Ptr<Vector<Real>>> &va
                                               const Vector<Real> &x ) {
   Real err(0);
   if ( adaptive_ && !use_SA_ ) {
-    const Real zero(0), one(1), tol(1e-4);
+    const Real zero(0), one(1);
     // Compute unbiased sample variance
     int cnt = 0;
     Real ng = zero;
@@ -252,12 +252,12 @@ Real MonteCarloGenerator<Real>::computeError( std::vector<Ptr<Vector<Real>>> &va
     Real mean   = zero;
     SampleGenerator<Real>::sumAll(&mymean,&mean,1);
 
-    Real myvar  = (sum_ng2_ - mean*mean)/(static_cast<Real>(nSamp_)-one);
+    Real myvar  = (sum_ng2_ - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     Real var    = zero;
     SampleGenerator<Real>::sumAll(&myvar,&var,1);
     // Return Monte Carlo error
     vals.clear();
-    err = std::sqrt(var/static_cast<Real>(nSamp_))*tol;
+    err = std::sqrt(var/static_cast<Real>(nSamp_));
   }
   else {
     vals.clear();
