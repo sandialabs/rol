@@ -23,6 +23,17 @@ if( STANDALONE_ROL )
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
 
+  # ---- Optional real MPI for the PinT validation target (OFF => serial, unchanged) ----
+  option(ENABLE_MPI "Enable real MPI (native Teuchos-free ROL::GlobalMPISession + PinT)" OFF)
+  if(ENABLE_MPI)
+    find_package(MPI REQUIRED COMPONENTS CXX)
+    message(STATUS "ROL: MPI enabled (CXX compiler: ${MPI_CXX_COMPILER})")
+    # adapters/mpi is header-only; expose its include dirs for the example target.
+    set(ROL_MPI_ADAPTER_INCLUDES
+        ${PROJECT_SOURCE_DIR}/adapters/mpi/src/vector
+        ${PROJECT_SOURCE_DIR}/adapters/mpi/src/function)
+  endif()
+
   if(NOT CMAKE_BUILD_TYPE)
       set(CMAKE_BUILD_TYPE RELEASE CACHE STRING "Build type" FORCE)
   endif()
@@ -59,11 +70,18 @@ if( STANDALONE_ROL )
 
   set(SRC ${PROJECT_SOURCE_DIR}/src)
 
-  # Set up compatibility includes (specific directories to avoid conflicts)
+  # Set up compatibility includes (specific directories to avoid conflicts).
+  # real/mpi and simple/mpi BOTH define guard ROL_GlobalMPISession_HPP, so exactly ONE
+  # of them may be on the include path. ENABLE_MPI selects which.
+  if(ENABLE_MPI)
+    set(ROL_MPI_COMPAT_DIR ${SRC}/compatibility/real/mpi)
+  else()
+    set(ROL_MPI_COMPAT_DIR ${SRC}/compatibility/simple/mpi)
+  endif()
   set(ROL_COMPATIBILITY_INCLUDES ${SRC}/compatibility/teuchos/blas
                                  ${SRC}/compatibility/teuchos/la
                                  ${SRC}/compatibility/simple/lapack
-                                 ${SRC}/compatibility/simple/mpi
+                                 ${ROL_MPI_COMPAT_DIR}
                                  ${SRC}/compatibility/simple/parameterlist
                                  ${SRC}/compatibility/std/shared_ptr
                                  ${SRC}/compatibility/teuchos/stacktrace

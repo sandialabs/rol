@@ -8,3 +8,6 @@
 *.pyc
 __pycache__
 
+# CMake build directories
+build*/
+
