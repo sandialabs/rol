@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
       auto P = ROL::makePtr<RegularizationOperator<RealT>>(beta);
       M->setPerturbation(P);
     }
-    parlist->sublist("OED").set("Use Binary Penalty Transformation",true);
+    parlist->sublist("OED").set("Use Binary Penalty Transformation",false);
     parlist->sublist("OED").sublist("Binary Penalty Transformation").set("Type",1);
     parlist->sublist("OED").sublist("Binary Penalty Transformation").set("Strength Value",5.0);
     auto factory = ROL::makePtr<ROL::OED::Factory<RealT>>(model,sampler,theta,M,*parlist);
@@ -166,6 +166,7 @@ int main(int argc, char *argv[]) {
 
     parlist->sublist("OED").set("Use Binary Penalty Transformation",false);
     auto factory1 = ROL::makePtr<ROL::OED::Factory<RealT>>(model,sampler,theta,M,*parlist);
+    factory1->setBudgetConstraint(cost,budget,true);
     auto problem1 = factory1->get(*parlist,sampler);
     problem1->setProjectionAlgorithm(*parlist);
     problem1->finalize(false,true,*outStream);
@@ -204,6 +205,27 @@ int main(int argc, char *argv[]) {
     xbin->axpy(-1.0,*x);
     *outStream << "Distance to Binary: " << xbin->norm() << std::endl;
 
+    std::multimap<RealT,int> vals;
+    for (int i=0; i<x->dimension(); ++i)
+      vals.insert(std::pair<RealT,int>((*ROL::staticPtrCast<ROL::StdVector<RealT>>(x)->getVector())[i],i));
+    unsigned cnt(0);
+    for (auto it = vals.rbegin(); it != vals.rend(); ++it) {
+      if (cnt < budget) (*ROL::staticPtrCast<ROL::StdVector<RealT>>(x)->getVector())[it->second] = 1.0;
+      else              (*ROL::staticPtrCast<ROL::StdVector<RealT>>(x)->getVector())[it->second] = 0.0;
+      cnt++;
+    }
+    x->print(*outStream);
+
+    RealT tol(1e-10);
+    bincon->value(*res,*x,tol);
+    lcon->value(*lres,*x,tol);
+    *outStream << "  Linear Constraint Residual:      " << lres->norm() << std::endl;
+    *outStream << "  Nonlinear Constraint Residual:   " << res->norm() << std::endl;
+    auto pcon = ROL::makePtr<ROL::Constraint_Partitioned<RealT>>({lcon,bincon});
+    auto pvec = ROL::makePtr<ROL::PartitionedVector<RealT>>({lres,res});
+    pcon->value(*pvec,*x,tol);
+    *outStream << "  Partitioned Constraint Residual: " << pvec->norm() << std::endl;
+
     auto problem = ROL::makePtr<ROL::Problem<RealT>>(obj,x);
     problem->addLinearConstraint("Budget",lcon,lmul,lres);
     problem->addConstraint("Binary",bincon,res,mul);
@@ -213,9 +235,14 @@ int main(int argc, char *argv[]) {
     test->randomize(0,1);
     problem->check(true,*outStream,test,0.1);
 
+    auto eres = problem->getResidualVector()->clone();
+    auto econ = problem->getConstraint();
+    econ->value(*eres,*x,tol);
+    *outStream << x->norm() << "  " << eres->norm() << std::endl;
+
     // Solve binary constrained problem
     timer = std::clock();
-    x->applyUnary(ROL::Elementwise::Round<RealT>());
+    //x->applyUnary(ROL::Elementwise::Round<RealT>());
     x->print(*outStream);
     solver = ROL::makePtr<ROL::Solver<RealT>>(problem,*parlist);
     solver->solve(*outStream);
