@@ -89,7 +89,7 @@ if( STANDALONE_ROL )
   # Configure the config header
   configure_file("${PROJECT_SOURCE_DIR}/cmake/ROL_config.h.in" ROL_config.h @ONLY)
 
-  add_library(rol SHARED)
+  add_library(rol)
 
   set(SRC ${PROJECT_SOURCE_DIR}/src)
 
