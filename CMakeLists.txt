@@ -85,6 +85,10 @@ if( STANDALONE_ROL )
   endif()
 
   include(ROLUtils)
+  
+  option(ROL_ENABLE_TEUCHOS_LITE_OBJECTS
+    "Compile Teuchos-lite object implementations into standalone ROL"
+    ON)
 
   # Configure the config header
   configure_file("${PROJECT_SOURCE_DIR}/cmake/ROL_config.h.in" ROL_config.h @ONLY)
@@ -110,9 +114,11 @@ if( STANDALONE_ROL )
                                  ${SRC}/compatibility/teuchos/stacktrace
                                  ${SRC}/compatibility/teuchos-lite)
 
-  add_library(Teuchos_BLAS OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_BLAS.cpp)
-  add_library(Teuchos_CompObject OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_CompObject.cpp)
-  add_library(Teuchos_TestForException OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_TestForException.cpp)
+  if(ROL_ENABLE_TEUCHOS_LITE_OBJECTS)
+    add_library(Teuchos_BLAS OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_BLAS.cpp)
+    add_library(Teuchos_CompObject OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_CompObject.cpp)
+    add_library(Teuchos_TestForException OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_TestForException.cpp)
+  endif()
 
   # Use GLOB_RECURSE to find all directories in core components
   set(ROL_CORE_DIRS ${SRC}/algorithm
@@ -154,12 +160,20 @@ if( STANDALONE_ROL )
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-  target_sources(rol
-    PRIVATE
-     $<TARGET_OBJECTS:Teuchos_BLAS>
-     $<TARGET_OBJECTS:Teuchos_CompObject>
-     $<TARGET_OBJECTS:Teuchos_TestForException>
-  )
+  if(ROL_ENABLE_TEUCHOS_LITE_OBJECTS)
+    target_sources(rol
+      PRIVATE
+        $<TARGET_OBJECTS:Teuchos_BLAS>
+        $<TARGET_OBJECTS:Teuchos_CompObject>
+        $<TARGET_OBJECTS:Teuchos_TestForException>
+    )
+  else()
+    # guard against risk that CMake will complain about not having any compiled sources:
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/rol_empty.cpp"
+      "namespace { const int rol_empty_translation_unit = 0; }
+")
+    target_sources(rol PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/rol_empty.cpp")
+  endif()
 
   target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
                                     ${ROL_PUGIXML_TARGET})
