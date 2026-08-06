@@ -106,7 +106,12 @@ void LinMoreAlgorithm<Real>::initialize(Vector<Real>          &x,
   nhess_ = 0;
   // Update approximate gradient and approximate objective function.
   Real ftol = static_cast<Real>(0.1)*ROL_OVERFLOW<Real>(); 
-  proj_->project(x,outStream); state_->nproj++;
+  
+  int proj_iter = 0;
+  proj_->project(x, outStream, &proj_iter);
+  state_->nproj++;
+  state_->nprojIter += proj_iter;
+
   state_->iterateVec->set(x);
   obj.update(x,UpdateType::Initial,state_->iter);
   state_->value = obj.value(x,ftol); 
@@ -449,7 +454,12 @@ Real LinMoreAlgorithm<Real>::dgpstep(Vector<Real> &s, const Vector<Real> &w,
                                  const Vector<Real> &x, const Real alpha,
                                  std::ostream &outStream) const {
   s.set(x); s.axpy(alpha,w);
-  proj_->project(s,outStream); state_->nproj++;
+
+  int proj_iter = 0;
+  proj_->project(s, outStream, &proj_iter);
+  state_->nproj++;
+  state_->nprojIter += proj_iter;
+
   s.axpy(static_cast<Real>(-1),x);
   return s.norm();
 }

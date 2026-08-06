@@ -55,7 +55,9 @@ Real Algorithm<Real>::optimalityCriterion(const Vector<Real> &x,
   const Real one(1);
   primal.set(x);
   primal.axpy(-one,g.dual());
-  proj_->project(primal,outStream); state_->nproj++;
+  int proj_iter = 0;
+  proj_->project(primal,outStream, &proj_iter); state_->nproj++;
+  state_->nprojIter += proj_iter;
   primal.axpy(-one,x);
   return primal.norm();
 }
@@ -245,6 +247,7 @@ template<typename Real>
 void Algorithm<Real>::writeOutput( std::ostream& os, bool write_header ) const {
   std::ios_base::fmtflags osFlags(os.flags());
   os << std::scientific << std::setprecision(6);
+  /*
   if ( write_header ) writeHeader(os);
   if ( state_->iter == 0 ) {
     os << "  ";
@@ -263,6 +266,7 @@ void Algorithm<Real>::writeOutput( std::ostream& os, bool write_header ) const {
     os << std::setw(10) << std::left << state_->ngrad;              
     os << std::endl;
   }
+    */
   os.flags(osFlags);
 }
 
@@ -272,6 +276,7 @@ void Algorithm<Real>::writeExitStatus( std::ostream& os ) const {
   os << "Optimization Terminated with Status: ";
   os << EExitStatusToString(state_->statusFlag);
   os << std::endl;
+  os << "Total Projection Iterations: " << state_->nprojIter << std::endl;
   os.flags(osFlags);
 }
 

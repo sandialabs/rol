@@ -30,12 +30,14 @@ struct AlgorithmState : public ROL::AlgorithmState<Real> {
   Ptr<Vector<Real>> stepVec;
   Ptr<Vector<Real>> gradientVec;
   int nproj;
+  int nprojIter;
 
   AlgorithmState()
     : searchSize(1),
       stepVec(nullPtr),
       gradientVec(nullPtr),
-      nproj(0) {}
+      nproj(0),
+      nprojIter(0) {}
 
   void reset() {
     ROL::AlgorithmState<Real>::reset();
@@ -43,6 +45,7 @@ struct AlgorithmState : public ROL::AlgorithmState<Real> {
     if (stepVec != nullPtr) stepVec->zero();
     if (gradientVec != nullPtr) gradientVec->zero();
     nproj = 0;
+    nprojIter = 0;
   }
 };
 

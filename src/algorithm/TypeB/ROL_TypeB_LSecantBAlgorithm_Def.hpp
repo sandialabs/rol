@@ -69,7 +69,12 @@ void LSecantBAlgorithm<Real>::initialize(Vector<Real>          &x,
   TypeB::Algorithm<Real>::initialize(x,g);
   // Update approximate gradient and approximate objective function.
   Real ftol = static_cast<Real>(0.1)*ROL_OVERFLOW<Real>(); 
-  proj_->project(x,outStream); state_->nproj++;
+
+  int proj_iter = 0;
+  proj_->project(x, outStream, &proj_iter);
+  state_->nproj++;
+  state_->nprojIter += proj_iter;
+
   state_->iterateVec->set(x);
   obj.update(x,UpdateType::Initial,state_->iter);
   state_->value = obj.value(x,ftol); state_->nfval++;
@@ -205,7 +210,12 @@ Real LSecantBAlgorithm<Real>::dgpstep(Vector<Real> &s, const Vector<Real> &w,
                                 std::ostream &outStream) const {
   const Real one(1);
   s.set(x); s.axpy(alpha,w);
-  proj_->project(s,outStream); state_->nproj++;
+
+  int proj_iter = 0;
+  proj_->project(s, outStream, &proj_iter);
+  state_->nproj++;
+  state_->nprojIter += proj_iter;
+
   s.axpy(-one,x);
   return s.norm();
 }
