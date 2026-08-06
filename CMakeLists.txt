@@ -154,9 +154,15 @@ if( STANDALONE_ROL )
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
+  target_sources(rol
+    PRIVATE
+     $<TARGET_OBJECTS:Teuchos_BLAS>
+     $<TARGET_OBJECTS:Teuchos_CompObject>
+     $<TARGET_OBJECTS:Teuchos_TestForException>
+  )
+
   target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
                                     ${ROL_PUGIXML_TARGET})
-  target_link_libraries(rol PUBLIC Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
 
   add_library(rol::rol ALIAS rol)
   add_library(ROL::rol ALIAS rol)
