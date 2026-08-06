@@ -41,6 +41,8 @@ public:
                        const Vector<Real>               &res);
 
   virtual void project(Vector<Real> &x, std::ostream &stream = std::cout);
+  
+  virtual void project(Vector<Real> &x, std::ostream &stream, int *proj_iter);
 
   virtual void applyJacobian(Vector<Real> &v, const Vector<Real> &x);
 

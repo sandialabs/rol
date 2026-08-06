@@ -58,6 +58,8 @@ public:
 
   void project(Vector<Real> &x, std::ostream &stream = std::cout) override;
 
+  void project(Vector<Real> &x, std::ostream &stream, int *proj_iter) override;
+
 private:
 
   // Jv = inv(A DP(y) A^T) v
@@ -121,7 +123,8 @@ private:
   void project_ssn(Vector<Real> &x,
                    Vector<Real> &lam,
                    Vector<Real> &dlam,
-                   std::ostream &stream = std::cout) const;
+                   std::ostream &stream = std::cout,
+                   int *proj_iter = nullptr) const;
 
    Real compute_tolerance() const;
 

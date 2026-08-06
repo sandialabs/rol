@@ -35,7 +35,13 @@ PolyhedralProjection<Real>::PolyhedralProjection(const Vector<Real>             
 }
 
 template<typename Real>
-void PolyhedralProjection<Real>::project(Vector<Real> &x, std::ostream &stream) {
+void PolyhedralProjection<Real>::project(Vector<Real> &x,
+                                         std::ostream &stream) {
+  project(x, stream, nullptr);
+}
+
+template<typename Real>
+void PolyhedralProjection<Real>::project(Vector<Real> &x, std::ostream &stream,  int *proj_iter) {
   if (con_ == nullPtr) {
     bnd_->project(x);
   }

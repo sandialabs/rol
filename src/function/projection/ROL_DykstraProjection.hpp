@@ -54,6 +54,8 @@ public:
 
   void project(Vector<Real> &x, std::ostream &stream = std::cout) override;
 
+  void project(Vector<Real> &x, std::ostream &stream, int *proj_iter) override;
+
 private:
 
   Real residual_1d(const Vector<Real> &x) const;
@@ -64,7 +66,7 @@ private:
 
   void project_con(Vector<Real> &x, const Vector<Real> &y) const;
 
-  void project_Dykstra(Vector<Real> &x, std::ostream &stream = std::cout) const;
+  void project_Dykstra(Vector<Real> &x, std::ostream &stream,  int *proj_iter = nullptr) const;
 
 }; // class DykstraProjection
 

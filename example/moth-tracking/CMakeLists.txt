@@ -1,0 +1,18 @@
+
+ROL_ADD_EXECUTABLE_AND_TEST(
+  MothTrackingPrimal
+  SOURCES moth_example_primal.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+)
+
+ROL_ADD_EXECUTABLE_AND_TEST(
+  MothTrackingDual
+  SOURCES moth_example_dual.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+)

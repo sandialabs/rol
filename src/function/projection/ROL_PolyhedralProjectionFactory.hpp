@@ -11,6 +11,7 @@
 #define ROL_POLYHEDRALPROJECTIONFACTORY_H
 
 #include "ROL_DaiFletcherProjection.hpp"
+#include "ROL_RowWiseDaiFletcherProjection.hpp"
 #include "ROL_DykstraProjection.hpp"
 #include "ROL_DouglasRachfordProjection.hpp"
 #include "ROL_SemismoothNewtonProjection.hpp"
@@ -29,6 +30,7 @@ namespace ROL {
  */
 enum EPolyProjAlgo{
   PPA_DAIFLETCHER = 0,
+  PPA_ROWDAIFLETCHER,
   PPA_DYKSTRA,
   PPA_DOUGLASRACHFORD,
   PPA_NEWTON,
@@ -40,14 +42,15 @@ enum EPolyProjAlgo{
 inline std::string EPolyProjAlgoToString(EPolyProjAlgo alg) {
   std::string retString;
   switch(alg) {
-    case PPA_DAIFLETCHER:     retString = "Dai-Fletcher";      break;
-    case PPA_DYKSTRA:         retString = "Dysktra";           break;
-    case PPA_DOUGLASRACHFORD: retString = "Douglas-Rachford";  break;
-    case PPA_NEWTON:          retString = "Semismooth Newton"; break;
-    case PPA_RIDDERS:         retString = "Ridders";           break;
-    case PPA_BRENTS:          retString = "Brents";            break;
-    case PPA_LAST:            retString = "Last Type (Dummy)"; break;
-    default:                  retString = "INVALID EPolyProjAlgo";
+    case PPA_DAIFLETCHER:       retString = "Dai-Fletcher";           break;
+    case PPA_ROWDAIFLETCHER:    retString = "Row-Wise-Dai-Fletcher";  break;
+    case PPA_DYKSTRA:           retString = "Dysktra";                break;
+    case PPA_DOUGLASRACHFORD:   retString = "Douglas-Rachford";       break;
+    case PPA_NEWTON:            retString = "Semismooth Newton";      break;
+    case PPA_RIDDERS:           retString = "Ridders";                break;
+    case PPA_BRENTS:            retString = "Brents";                 break;
+    case PPA_LAST:              retString = "Last Type (Dummy)";      break;
+    default:                    retString = "INVALID EPolyProjAlgo";
   }
   return retString;
 }
@@ -59,6 +62,7 @@ inline std::string EPolyProjAlgoToString(EPolyProjAlgo alg) {
   */
 inline int isValidPolyProjAlgo(EPolyProjAlgo alg){
   return( (alg == PPA_DAIFLETCHER)     ||
+          (alg == PPA_ROWDAIFLETCHER)  ||
           (alg == PPA_DYKSTRA)         ||
           (alg == PPA_DOUGLASRACHFORD) ||
           (alg == PPA_NEWTON)          ||
@@ -113,13 +117,14 @@ inline Ptr<PolyhedralProjection<Real>> PolyhedralProjectionFactory(const Vector<
     projectionType = (res.dimension() == 1) ? "Dai-Fletcher" : "Dykstra";
   EPolyProjAlgo ealg = StringToEPolyProjAlgo(projectionType);
   switch(ealg) {
-    case PPA_DAIFLETCHER:     return makePtr<DaiFletcherProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);      break;
-    case PPA_DYKSTRA:         return makePtr<DykstraProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);          break;
-    case PPA_DOUGLASRACHFORD: return makePtr<DouglasRachfordProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);  break;
-    case PPA_NEWTON:          return makePtr<SemismoothNewtonProjection<Real>>(xprim,xdual,bnd,con,mul,res,list); break;
-    case PPA_RIDDERS:         return makePtr<RiddersProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);          break;
-    case PPA_BRENTS:          return makePtr<BrentsProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);           break;
-    default:                  return nullPtr;
+    case PPA_DAIFLETCHER:       return makePtr<DaiFletcherProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);                  break;
+    case PPA_ROWDAIFLETCHER:    return makePtr<RowWiseDaiFletcherProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);    break;
+    case PPA_DYKSTRA:           return makePtr<DykstraProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);                      break;
+    case PPA_DOUGLASRACHFORD:   return makePtr<DouglasRachfordProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);              break;
+    case PPA_NEWTON:            return makePtr<SemismoothNewtonProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);             break;
+    case PPA_RIDDERS:           return makePtr<RiddersProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);                      break;
+    case PPA_BRENTS:            return makePtr<BrentsProjection<Real>>(xprim,xdual,bnd,con,mul,res,list);                       break;
+    default:                    return nullPtr;
   }
 }
 } // namespace ROL

@@ -69,7 +69,17 @@ void DykstraProjection<Real>::project(Vector<Real> &x, std::ostream &stream) {
     bnd_->project(x);
   }
   else {
-    project_Dykstra(x, stream);
+    project_Dykstra(x, stream, nullptr);
+  }
+}
+
+template<typename Real>
+void DykstraProjection<Real>::project(Vector<Real> &x, std::ostream &stream, int *proj_iter) {
+  if (con_ == nullPtr) {
+    bnd_->project(x);
+  }
+  else {
+    project_Dykstra(x, stream, proj_iter);
   }
 }
 
@@ -109,7 +119,7 @@ void DykstraProjection<Real>::project_con(Vector<Real> &x, const Vector<Real> &y
 }
 
 template<typename Real>
-void DykstraProjection<Real>::project_Dykstra(Vector<Real> &x, std::ostream &stream) const {
+void DykstraProjection<Real>::project_Dykstra(Vector<Real> &x, std::ostream &stream, int *proj_iter) const {
   const Real one(1), xnorm(x.norm()), ctol(std::min(atol_,rtol_*xnorm));
   Real norm1(0), norm2(0), rnorm(0);
   p_->zero(); q_->zero();
@@ -126,7 +136,8 @@ void DykstraProjection<Real>::project_Dykstra(Vector<Real> &x, std::ostream &str
     stream << std::setw(15) << std::left << "tol";
     stream << std::endl;
   }
-  for (int cnt=0; cnt < maxit_; ++cnt) {
+  int cnt=0;
+  for (cnt=0; cnt < maxit_; ++cnt) {
     // Constraint projection
     tmp_->set(x);   tmp_->plus(*p_);
     project_con(*y_,*tmp_);
@@ -155,6 +166,9 @@ void DykstraProjection<Real>::project_Dykstra(Vector<Real> &x, std::ostream &str
       stream << std::endl;
     }
     if (rnorm <= ctol) break;
+  }
+  if (proj_iter != nullptr) {
+    *proj_iter = cnt;
   }
   if (verbosity_ > 2) {
     stream << std::endl;

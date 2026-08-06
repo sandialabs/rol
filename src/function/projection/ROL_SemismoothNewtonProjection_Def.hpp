@@ -48,7 +48,7 @@ SemismoothNewtonProjection<Real>::SemismoothNewtonProjection(const Vector<Real> 
   dlam_  = mul.clone();
   
   ParameterList list;
-  list.sublist("General").sublist("Krylov").set("Type",               "Conjugate Gradients");
+  list.sublist("General").sublist("Krylov").set("Type", "Conjugate Gradients");
   list.sublist("General").sublist("Krylov").set("Absolute Tolerance", 1e-6);
   list.sublist("General").sublist("Krylov").set("Relative Tolerance", 1e-4);
   list.sublist("General").sublist("Krylov").set("Iteration Limit",    dim_);
@@ -121,7 +121,17 @@ void SemismoothNewtonProjection<Real>::project(Vector<Real> &x, std::ostream &st
     bnd_->project(x);
   }
   else {
-    project_ssn(x, *mul_, *dlam_, stream);
+    project_ssn(x, *mul_, *dlam_, stream, nullptr);
+  }
+}
+
+template<typename Real>
+void SemismoothNewtonProjection<Real>::project(Vector<Real> &x, std::ostream &stream, int *proj_iter) {
+  if (con_ == nullPtr) {
+    bnd_->project(x);
+  }
+  else {
+    project_ssn(x, *mul_, *dlam_, stream, proj_iter);
   }
 }
 
@@ -162,7 +172,8 @@ template<typename Real>
 void SemismoothNewtonProjection<Real>::project_ssn(Vector<Real> &x,
                                                    Vector<Real> &lam,
                                                    Vector<Real> &dlam,
-                                                   std::ostream &stream) const {
+                                                   std::ostream &stream,
+                                                  int *proj_iter) const {
   const Real zero(0), half(0.5), one(1);
   // Compute initial residual
   update_primal(*xnew_,x,lam);
@@ -189,7 +200,8 @@ void SemismoothNewtonProjection<Real>::project_ssn(Vector<Real> &x,
     stream << std::setw(8)  << std::left << "kflag";
     stream << std::endl;
   }
-  for (int cnt = 0; cnt < maxit_; ++cnt) {
+  int cnt = 0;
+  for (cnt = 0; cnt < maxit_; ++cnt) {
     // Compute Newton step
     mu  = regscale_*std::max(rnorm,std::sqrt(rnorm));
     rho = std::min(half,errscale_*std::min(std::sqrt(rnorm),rnorm));
@@ -243,6 +255,9 @@ void SemismoothNewtonProjection<Real>::project_ssn(Vector<Real> &x,
     }
     if (rnorm <= ctol_) break;
     alpha = one;
+  }
+  if (proj_iter != nullptr) {
+    *proj_iter = cnt;
   }
   if (verbosity_ > 2) {
     stream << std::endl;
