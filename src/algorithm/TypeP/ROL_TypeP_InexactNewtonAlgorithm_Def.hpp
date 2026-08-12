@@ -14,7 +14,6 @@
 #include "ROL_TypeP_SpectralGradientAlgorithm.hpp"
 #include "ROL_TypeP_iPianoAlgorithm.hpp"
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
-#include "ROL_TrustRegion_P_Factory.hpp"
 
 namespace ROL {
 namespace TypeP {
