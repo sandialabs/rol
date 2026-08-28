@@ -114,7 +114,7 @@ jobs:
         package-dir: ${{ env.SDIST_NAME }}
       env:
         CIBW_BUILD: "cp3*"
-        CIBW_SKIP: "*i686 *musllinux*"
+        CIBW_SKIP: "cp3??t-* *i686 *musllinux*"
         CIBW_BUILD_VERBOSITY: 1
         CIBW_BEFORE_ALL_LINUX: |
           yum install -y openblas-devel ninja-build
