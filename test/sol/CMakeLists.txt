@@ -147,6 +147,24 @@ ROL_ADD_EXECUTABLE_AND_TEST(
   ADD_DIR_TO_NAME
   )
 
+  ROL_ADD_EXECUTABLE_AND_TEST(
+    TestProxstormNoStochasticity 
+    SOURCES test_17.cpp
+    ARGS PrintItAll
+    NUM_MPI_PROCS 1
+    PASS_REGULAR_EXPRESSION "TEST PASSED"
+    ADD_DIR_TO_NAME
+   )
+
+   ROL_ADD_EXECUTABLE_AND_TEST(
+    TestProxstorm
+    SOURCES test_18.cpp
+    ARGS PrintItAll
+    NUM_MPI_PROCS 1
+    PASS_REGULAR_EXPRESSION "TEST PASSED"
+    ADD_DIR_TO_NAME
+   )
+
 ROL_COPY_FILES_TO_BINARY_DIR(
   solDataCopy
   SOURCE_FILES
@@ -160,6 +178,7 @@ ROL_COPY_FILES_TO_BINARY_DIR(
     input_14.xml
     input_15.xml
     input_16.xml
+    input_18.xml
     points.txt
     weights.txt
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"

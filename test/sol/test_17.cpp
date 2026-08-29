@@ -7,11 +7,13 @@
 // *****************************************************************************
 // @HEADER
 
-/*! \file  test_03.cpp
-    \brief Validate Trust Region algorithm.
+/*! \file  Copied form test/algorithm/TypeP/test_08.cpp and adjusted for 
+           Proxstorm with no stochasticity
+    \brief Validate Proxstorm with no stochasticity
 */
 
 #include "ROL_TypeP_TrustRegionAlgorithm.hpp"
+#include "ROL_STORMAlgorithm.hpp"
 #include "ROL_StdObjective.hpp"
 #include "ROL_l1Objective.hpp"
 #include "ROL_Solver.hpp"
@@ -91,6 +93,8 @@ int main(int argc, char *argv[]) {
     list.sublist("Status Test").set("Constraint Tolerance",1e-1*tol);
     list.sublist("Status Test").set("Step Tolerance",1e-3*tol);
     list.sublist("Status Test").set("Iteration Limit", 100);
+    list.sublist("SOL").sublist("STORM").set("Accuracy Probability", 0.75); // Needed 
+    // for STORM algorithm, but unused in setting with no sampling.
     int dim = 5;
     ROL::Ptr<ROL::StdVector<RealT>>        sol, wts, y;
     ROL::Ptr<QuadraticTypeP_Test01<RealT>> sobj;
@@ -160,9 +164,14 @@ int main(int argc, char *argv[]) {
 
     list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");  
     sol->zero();
-    ROL::Solver<RealT> solverspg(problem, list); 	
+
+    ROL::STORMAlgorithm<RealT> solverspg(
+        problem,
+        ROL::nullPtr,
+        list
+    );
     begin = std::chrono::high_resolution_clock::now();
-    solverspg.solve(*outStream);
+    solverspg.run(*outStream);
     end   = std::chrono::high_resolution_clock::now();
     *outStream << "  Optimization Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count() << " microseconds" << std::endl;
 
@@ -184,9 +193,13 @@ int main(int argc, char *argv[]) {
     
     list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG2");  
     sol->zero();
-    ROL::Solver<RealT> solverspg2(problem, list); 	
+    ROL::STORMAlgorithm<RealT> solverspg2(
+        problem,
+        ROL::nullPtr,
+        list
+    );
     begin = std::chrono::high_resolution_clock::now();
-    solverspg2.solve(*outStream);
+    solverspg2.run(*outStream);
     end   = std::chrono::high_resolution_clock::now();
     *outStream << "  Optimization Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count() << " microseconds" << std::endl;
 
@@ -208,9 +221,13 @@ int main(int argc, char *argv[]) {
 
     list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", "NCG");  
     sol->zero();
-    ROL::Solver<RealT> solverncg(problem, list); 	
+    ROL::STORMAlgorithm<RealT> solverncg(
+        problem,
+        ROL::nullPtr,
+        list
+    );
     begin = std::chrono::high_resolution_clock::now();
-    solverncg.solve(*outStream);
+    solverncg.run(*outStream);
     end   = std::chrono::high_resolution_clock::now();
     *outStream << "  Optimization Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count() << " microseconds" << std::endl;
 
