@@ -160,14 +160,17 @@ public:
     Real myval(0), ptval(0), val(0), one(1), two(2), error(two*tol + one);
     std::vector<Real> ptvals;
     while ( error > tol ) {
-      ValueSampler_->refine();
-      for ( int i = ValueSampler_->start(); i < ValueSampler_->numMySamples(); ++i ) {
+      myval = 0;
+      for ( int i = 0; i < ValueSampler_->numMySamples(); ++i ) {
         getValue(ptval,x,ValueSampler_->getMyPoint(i),tol);
         myval += ValueSampler_->getMyWeight(i)*ptval;
         ptvals.push_back(ptval);
       }
       error = ValueSampler_->computeError(ptvals);
       ptvals.clear();
+      if (error > tol) {
+        ValueSampler_->refine();
+      }
     }
     ValueSampler_->sumAll(&myval,&val,1);
     value_ += val;
@@ -182,18 +185,17 @@ public:
     std::vector<Ptr<Vector<Real>>> ptgs;
     Real one(1), two(2), error(two*tol + one);
     while ( error > tol ) {
-      GradientSampler_->refine();
-      for ( int i = GradientSampler_->start(); i < GradientSampler_->numMySamples(); ++i ) {
+      for ( int i = 0; i < GradientSampler_->numMySamples(); ++i ) {
         getGradient(*pointDual_,x,GradientSampler_->getMyPoint(i),tol);
         sumDual_->axpy(GradientSampler_->getMyWeight(i),*pointDual_);
         ptgs.push_back(pointDual_->clone());
         (ptgs.back())->set(*pointDual_);
       }
       error = GradientSampler_->computeError(ptgs,x);
-//if (GradientSampler_->batchID()==0) {
-//  std::cout << "IN GRADIENT: ERROR = " << error << "  TOL = " << tol << std::endl;  
-//}
       ptgs.clear();
+      if (error > tol) {
+        GradientSampler_->refine();
+      }
     }
     GradientSampler_->sumAll(*sumDual_,g);
     gradient_->plus(g);

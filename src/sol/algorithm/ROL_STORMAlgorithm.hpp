@@ -7,25 +7,27 @@
 // *****************************************************************************
 // @HEADER
 
-#ifndef ROL_TYPEP_TRUSTREGIONALGORITHM_HPP
-#define ROL_TYPEP_TRUSTREGIONALGORITHM_HPP
+#ifndef ROL_STORMALGORITHM_HPP
+#define ROL_STORMALGORITHM_HPP
 
+#include "ROL_RiskNeutralObjective.hpp"
+#include "ROL_SampleGenerator.hpp"
+#include "ROL_TypeP_TrustRegionAlgorithm.hpp"
 #include "ROL_TypeP_Algorithm.hpp"
 #include "ROL_TrustRegion_P_Types.hpp"
 #include "ROL_TrustRegion_P.hpp"
 #include "ROL_TrustRegionModel_U.hpp"
 #include "ROL_TrustRegionUtilities.hpp"
-#include "ROL_Secant.hpp"
+#include "ROL_Types.hpp"
 
 /** \class ROL::TypeP::TrustRegionAlgorithm
-    \brief Provides an interface to run the regularized trust-region algorithm.
+    \brief Provides an interface to run the storm trust-region algorithm.
 */
 
 namespace ROL {
-namespace TypeP {
 
 template<typename Real>
-class TrustRegionAlgorithm : public Algorithm<Real> {
+class STORMAlgorithm : public TypeP::TrustRegionAlgorithm<Real> {
 private:
   // TRUST REGION INFORMATION
   Ptr<TrustRegion_P<Real>>      solver_; ///< Container for trust-region solver object 
@@ -77,40 +79,55 @@ private:
   int updateIter_;
   Real forceFactor_;
   Real gtol_;
-  
-  // VERBOSITY SETTING
-  int verbosity_; ///< Output level (default: 0)
-  mutable int nhess_;  ///< Number of Hessian applications
-  bool writeHeader_;   ///< Flag to write header at every iteration
-  
+
   bool initProx_;
   Real t0_; 
+  
+  mutable int nhess_;  ///< Number of Hessian applications
+  unsigned verbosity_; ///< Output level (default: 0)
+  bool writeHeader_;   ///< Flag to write header at every iteration
+
+  // Problem information
+  const Ptr<Problem<Real>> input_;
+  Ptr<RiskNeutralObjective<Real>> riskNeutralObjective_;
+  const Ptr<SampleGenerator<Real>> vsampler_;
+  const Ptr<SampleGenerator<Real>> gsampler_;
+  const Ptr<SampleGenerator<Real>> hsampler_;
+  ParameterList parlist_;
+
+  // STORM parameters
+  Real alpha_; /// Required accuracy probability for gradient. See eq. 12
+  /// in ProxSTORM paper.
+  Real beta_; /// Required accuracy probability for computed reduction. See 
+  /// Assumption 4 in ProxSTORM paper.
 
 public:
-  TrustRegionAlgorithm( ParameterList &parlist, 
-     const Ptr<Secant<Real>> &secant = nullPtr);
+  STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                 const Ptr<SampleGenerator<Real>> &vsampler,
+                 const Ptr<SampleGenerator<Real>> &gsampler,
+                 const Ptr<SampleGenerator<Real>> &hsampler,
+                 ParameterList &parlist);
 
-  void initialize(Vector<Real>        &x,
-                  const Vector<Real>  &g,
-                  Real                 ftol,
-                  Objective<Real>     &sobj,
-                  Objective<Real>     &nobj,
-                  Vector<Real>        &px, 
-                  Vector<Real>        &dg,
-                  std::ostream        &outStream = std::cout); 
+  STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                 const Ptr<SampleGenerator<Real>> &vsampler,
+                 const Ptr<SampleGenerator<Real>> &gsampler,
+                 ParameterList &parlist);
 
-  using Algorithm<Real>::pgstep;
-  using Algorithm<Real>::run;
-  void run( Vector<Real>       &x,
-            const Vector<Real> &g, 
-            Objective<Real>    &sobj,
-						Objective<Real>    &nobj,
-            std::ostream       &outStream = std::cout) override;
+  STORMAlgorithm(const Ptr<Problem<Real>> &input,
+                 const Ptr<SampleGenerator<Real>> &vsampler,
+                 ParameterList &parlist);
 
-  void writeHeader( std::ostream& os ) const override;
+  using TypeP::TrustRegionAlgorithm<Real>::initialize;  
+  using TypeP::TrustRegionAlgorithm<Real>::writeHeader;  
+  using TypeP::TrustRegionAlgorithm<Real>::writeOutput;  
+  using TypeP::Algorithm<Real>::state_;
+  using TypeP::Algorithm<Real>::status_;
+  using TypeP::Algorithm<Real>::pgstep;
 
-  void writeName( std::ostream& os ) const override;
-  void writeOutput( std::ostream& os, bool write_header = false ) const override;
+  // Q: Should we keep this? The other run options allow for 
+  // using TypeP::Algorithm<Real>::run;
+
+  virtual void run(std::ostream &outStream = std::cout);
 
 protected:
 
@@ -119,12 +136,12 @@ protected:
   Real eta0_;       ///< Step acceptance threshold (default: 0.05)
   Real eta1_;       ///< Radius decrease threshold (default: 0.05)
   Real eta2_;       ///< Radius increase threshold (default: 0.9)
-  Real gamma0_;     ///< Radius decrease rate (negative rho) (default: 0.0625)
+  Real gamma0_;     ///< Radius decrease rate (negative rho) (default: 0.2)
   Real gamma1_;     ///< Radius decrease rate (positive rho) (default: 0.25)
-  Real gamma2_;     ///< Radius increase rate (default: 2.5)
+  Real gamma2_;     ///< Radius increase rate (default: 5)
   bool interpRad_;  ///< Interpolate the trust-region radius if ratio is negative (default: false)
-  using Algorithm<Real>::state_;
-  using Algorithm<Real>::status_;
+  
+  void writeName( std::ostream& os ) const;
   
   virtual Real computeValue(Real inTol,
                     Real &outTol,
@@ -149,6 +166,7 @@ protected:
                        Real &gnorm,
                        std::ostream &outStream = std::cout) const;
 
+
   virtual void stepUpdate(Vector<Real>             &x, 
                           Vector<Real>             &g,
                           Vector<Real>             &px,             
@@ -165,15 +183,15 @@ protected:
                           Real                     &gtol,
                           Real                     &inTol,
                           Real                     &outTol,
-                          Vector<Real>             &pwa,
-                          Vector<Real>             &dwa,
+                          Vector<Real>             &pwa1,
+                          Vector<Real>             &dwa1,
                           std::ostream             &outStream = std::cout
       ) ;
 
 }; // class ROL::TypeP::TrustRegionAlgorithm
-} // namespace TypeP
+
 } // namespace ROL
 
-#include "ROL_TypeP_TrustRegionAlgorithm_Def.hpp"
+#include "ROL_STORMAlgorithm_Def.hpp"
 
 #endif
