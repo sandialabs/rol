@@ -109,20 +109,24 @@ namespace ROL {
     Real relTol  = parlist.sublist("General").sublist("Krylov").get("Relative Tolerance", em2);
     int  maxit   = parlist.sublist("General").sublist("Krylov").get("Iteration Limit", 20);
     bool inexact = parlist.sublist("General").get("Inexact Hessian-Times-A-Vector",false);
+    int  verb    = parlist.sublist("General").sublist("Krylov").get("Verbosity", 0);
+    Ptr<Krylov<Real>> krylov;
     switch(ekv) {
       case KRYLOV_CR: 
-        return makePtr<ConjugateResiduals<Real>>(absTol,relTol,maxit,inexact);
+        krylov = makePtr<ConjugateResiduals<Real>>(absTol,relTol,maxit,inexact); break;
       case KRYLOV_CG: 
-        return makePtr<ConjugateGradients<Real>>(absTol,relTol,maxit,inexact);
+        krylov = makePtr<ConjugateGradients<Real>>(absTol,relTol,maxit,inexact); break;
       case KRYLOV_GMRES:
-        return makePtr<GMRES<Real>>(parlist);
+        krylov = makePtr<GMRES<Real>>(parlist); break;
       case KRYLOV_MINRES:
-        return makePtr<MINRES<Real>>(absTol,relTol,maxit,inexact);
+        krylov = makePtr<MINRES<Real>>(absTol,relTol,maxit,inexact); break;
       case KRYLOV_BICGSTAB:
-        return makePtr<BiCGSTAB<Real>>(absTol,relTol,maxit,inexact);
+        krylov = makePtr<BiCGSTAB<Real>>(absTol,relTol,maxit,inexact); break;
       default:
         return nullPtr;
     }
+    krylov->resetVerbosity(verb);
+    return krylov;
   }
 
 }

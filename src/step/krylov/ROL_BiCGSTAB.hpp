@@ -14,6 +14,7 @@
     \brief Provides definitions of the Conjugate Gradient solver.
 */
 
+#include "ROL_IterationPrinter.hpp"
 #include "ROL_Krylov.hpp"
 #include "ROL_Types.hpp"
 
@@ -34,7 +35,7 @@ public:
     : Krylov<Real>(parlist), isInitialized_(false), useInexact_(useInexact) {}
 
   Real run( Vector<Real> &x, LinearOperator<Real> &A, const Vector<Real> &b, LinearOperator<Real> &M,
-            int &iter, int &flag ) {
+            int &iter, int &flag, std::ostream &outStream = std::cout ) {
     if ( !isInitialized_ ) {
       r_ = b.clone(); r1_ = b.clone(); p_ = b.clone();
       v_ = b.clone(); s_  = b.clone(); t_ = b.clone();
@@ -46,7 +47,15 @@ public:
     Real rnorm = b.norm();
     Real itol = std::sqrt(ROL_EPSILON<Real>());
     const Real rtol = std::min(Krylov<Real>::getAbsoluteTolerance(),Krylov<Real>::getRelativeTolerance()*rnorm);
-    if (rnorm <= rtol) return rnorm;
+
+    IterationPrinter<Real> out("BiCGSTAB",Krylov<Real>::getVerbosity(),{"rnorm","alpha","omega"},outStream);
+    out.writeRow(0,{rnorm});
+    if (rnorm <= rtol) {
+      iter = 0;
+      flag = 0;
+      out.writeSummary(iter,flag);
+      return rnorm;
+    }
 
     x.zero();
     v_->zero();
@@ -78,6 +87,7 @@ public:
       rnorm = s_->norm();
       if (rnorm <= rtol) {
         x.set(*h_);
+        out.writeRow(iter+1,{rnorm,alpha},flag);
         break;
       }
 
@@ -93,6 +103,7 @@ public:
       r_->axpy(-omega,*t_);
 
       rnorm = r_->norm();
+      out.writeRow(iter+1,{rnorm,alpha,omega},flag);
       if (rnorm <= rtol) break;
 
       rho = rho1;
@@ -103,6 +114,7 @@ public:
     else {
       iter++;
     }
+    out.writeSummary(iter,flag);
     return rnorm;
   }
 };

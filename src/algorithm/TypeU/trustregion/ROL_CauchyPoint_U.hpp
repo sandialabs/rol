@@ -35,7 +35,7 @@ public:
 
   void solve( Vector<Real> &s, Real &snorm, Real &pRed,
               int &iflag, int &iter, const Real del,
-              TrustRegionModel_U<Real> &model) {
+              TrustRegionModel_U<Real> &model, std::ostream & = std::cout) {
     const Real zero(0), half(0.5);
     Real tol = std::sqrt(ROL_EPSILON<Real>());
     // Set step to (projected) gradient

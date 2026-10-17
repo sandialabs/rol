@@ -135,7 +135,7 @@ void NewtonKrylovAlgorithm<Real>::run( Vector<Real>          &x,
                                   state_->iterateVec,state_->gradientVec,state_->gnorm,
                                   secant_,useSecantPrecond_,pwa1);
     flagKrylov_ = 0;
-    krylov_->run(*s,*hessian,*state_->gradientVec,*precond,iterKrylov_,flagKrylov_);
+    krylov_->run(*s,*hessian,*state_->gradientVec,*precond,iterKrylov_,flagKrylov_,outStream);
     if (flagKrylov_ == 2 && iterKrylov_ <= 1) {
       s->set(*gp);
     }
