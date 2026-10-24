@@ -261,7 +261,6 @@ public:
   }
   Real computeIncrement(const Vector<Real>& x, unsigned ind) const override final {
     const Real one(1), scal(GreedyObjective<Real>::useDeletion ? -one : one);
-    const Real phi(1.0);
     Real lamMax0 = powerit_inc(*vinc_,x,ind);
     return scal*(lamMax_-lamMax0);
     //return scal*(one-lamMax0/lamMax_);
