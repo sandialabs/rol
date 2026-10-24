@@ -233,8 +233,8 @@ struct GreedyObjectiveE : public GreedyObjective<Real> {
 public:
   GreedyObjectiveE(const Ptr<MomentOperator<Real>>& cov_, bool useDeletion_, unsigned maxit=0u, Real tol=Real(-1))
     : GreedyObjective<Real>(cov_,useDeletion_),
-      Mv_(cov_->getFactors()->createParameterVector(true)),
       vmax_(cov_->getFactors()->createParameterVector(false)),
+      Mv_(cov_->getFactors()->createParameterVector(true)),
       vinc_(cov_->getFactors()->createParameterVector(false)),
       a_(cov_->getFactors()->createParameterVector(true)),
       lamMax_(0),
@@ -316,11 +316,10 @@ private:
   }
 
   const Ptr<Vector<Real>> vmax_;
-  mutable Ptr<Vector<Real>> Mv_, vinc_, a_, vMaxNew_;
+  mutable Ptr<Vector<Real>> Mv_, vinc_, a_;
   mutable std::vector<Ptr<Vector<Real>>> X_, Y_;
   mutable LA::Matrix<Real> XY_;
   mutable LA::Vector<Real> SXa_;
-  mutable Real lamMaxNew_, maxInc_;
   Real lamMax_;
   const unsigned maxit_;
   const Real tol_;
