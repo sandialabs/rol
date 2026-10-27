@@ -72,7 +72,7 @@ TrustRegionAlgorithm<Real>::TrustRegionAlgorithm( ParameterList &parlist,
   // Initialize Trust Region Subproblem Solver Object
   std::string solverName = trlist.get("Subproblem Solver", "Cauchy Point");
   algSelect_ = StringToETrustRegionP(solverName);
-  solver_    = TrustRegionFactory<Real>(parlist);
+  solver_    = ROL::TypeP::TrustRegionFactory<Real>(parlist);
   verbosity_ = glist.get("Output Level", 0);
   // Secant Information
   useSecantPrecond_ = glist.sublist("Secant").get("Use as Preconditioner", false);
