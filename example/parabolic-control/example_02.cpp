@@ -286,7 +286,7 @@ public:
         std::vector<Real> tmp(nx_,0.0);
         r.assign(nx_,0.0);
         apply_mass(tmp,pV[t-1]);
-        update(r,tmp,-1.0);
+        updateVector(r,tmp,-1.0);
       }
       else {
         apply_mass(r,Q[t]);
