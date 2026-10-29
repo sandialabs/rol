@@ -1,0 +1,78 @@
+name: Test Python interface
+
+# Builds PyROL from source, regenerating the bindings with Binder, for both
+# pointer types ROL supports, and runs all of its Python tests with CTest.
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'pyrol/**'
+      - 'cmake/PythonTest.cmake'
+      - '.github/workflows/pyrol.yml'
+  workflow_dispatch:
+
+env:
+  PYBIND11_VERSION: "3.1.0"  # keep in sync with pyrol/pyproject.toml
+  BINDER_COMMIT: 93efb505172ce0ef34faa1f69a8e8f2b7455ce18
+
+jobs:
+  test-pyrol:
+    # Binder is built against LLVM 15 from apt, as in python.yml.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ptr: ["Teuchos::RCP", "std::shared_ptr"]
+    name: PyROL with ROL_Ptr=${{ matrix.ptr }}
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.x"
+    - name: Install packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build libopenblas-dev
+        sudo apt-get install -y clang-15 llvm-15 libclang-15-dev llvm-15-dev
+        python3 -m pip install "pybind11==${PYBIND11_VERSION}" numpy
+    - name: Build Binder
+      run: |
+        git clone https://github.com/RosettaCommons/binder.git ../binder
+        git -C ../binder checkout "${BINDER_COMMIT}"
+        cmake -G Ninja \
+              -D LLVM_DIR=/usr/lib/llvm-15/lib/cmake/llvm \
+              -D Clang_DIR=/usr/lib/llvm-15/lib/cmake/clang \
+              -D BINDER_ENABLE_TEST=OFF \
+              -B ../binder-build \
+              ../binder
+        cmake --build ../binder-build
+        cmake --install ../binder-build
+    - name: Clone Trilinos
+      run: git clone https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
+    - name: Copy ROL
+      run: rsync -ar --delete --exclude=.git . ../trilinos/packages/rol
+    - name: Configure (requires running Binder)
+      run: |
+        cmake -G Ninja \
+              -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+              -D BUILD_SHARED_LIBS:BOOL=ON \
+              -D Python3_EXECUTABLE:FILEPATH="$(which python3)" \
+              -D ROL_ENABLE_EXAMPLES:BOOL=OFF \
+              -D ROL_ENABLE_PYROL:BOOL=ON \
+              -D ROL_ENABLE_TESTS:BOOL=ON \
+              -D ROL_Ptr:STRING="${{ matrix.ptr }}" \
+              -D PYROL_ENABLE_BINDER:BOOL=ON \
+              -D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+              -D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
+              -D Trilinos_ENABLE_Fortran:BOOL=OFF \
+              -D Trilinos_ENABLE_ROL:BOOL=ON \
+              -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+              -B ../trilinos-build \
+              ../trilinos
+    - name: Build PyROL
+      run: cmake --build ../trilinos-build --target pyrol
+    - name: Run the Python tests
+      run: ctest --test-dir ../trilinos-build -R ROL_PYTHON --output-on-failure
