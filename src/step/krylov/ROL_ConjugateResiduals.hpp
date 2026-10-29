@@ -14,6 +14,7 @@
     \brief Provides definition of the Conjugate Residual solver.
 */
 
+#include "ROL_IterationPrinter.hpp"
 #include "ROL_Krylov.hpp"
 #include "ROL_Types.hpp"
 
@@ -35,8 +36,8 @@ public:
     : Krylov<Real>(absTol,relTol,maxit), isInitialized_(false), useInexact_(useInexact) {}
 
   // Run Krylov Method
-  Real run( Vector<Real> &x, LinearOperator<Real> &A, const Vector<Real> &b, LinearOperator<Real> &M, 
-            int &iter, int &flag ) {
+  Real run( Vector<Real> &x, LinearOperator<Real> &A, const Vector<Real> &b, LinearOperator<Real> &M,
+            int &iter, int &flag, std::ostream &outStream = std::cout ) {
     if ( !isInitialized_ ) {
       r_   = x.clone();
       v_   = b.clone();
@@ -77,6 +78,9 @@ public:
     //Real gHg   = r_->dot(v_->dual()); 
     Real gHg   = r_->apply(*v_); 
 
+    IterationPrinter<Real> out("CR",Krylov<Real>::getVerbosity(),{"prnorm","alpha"},outStream);
+    out.writeRow(0,{r_->norm()});
+
     for (iter = 0; iter < (int)Krylov<Real>::getMaximumIteration(); iter++) {
       itol = std::sqrt(ROL_EPSILON<Real>());
       M.applyInverse(*MAp_, *Ap_, itol);
@@ -92,6 +96,7 @@ public:
 
       r_->axpy(-alpha,*MAp_);
       rnorm = r_->norm();
+      out.writeRow(iter+1,{rnorm,alpha},flag);
       if ( rnorm < rtol ) {
         break;
       }
@@ -117,6 +122,7 @@ public:
     else {
       iter++;
     } 
+    out.writeSummary(iter,flag);
     return rnorm;
   }
 };

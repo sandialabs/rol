@@ -44,6 +44,7 @@ PrimalDualActiveSetAlgorithm<Real>::PrimalDualActiveSetAlgorithm(ParameterList  
   atolKrylov_  = list.sublist("General").sublist("Krylov").get("Absolute Tolerance", 1e-4);
   rtolKrylov_  = list.sublist("General").sublist("Krylov").get("Relative Tolerance", 1e-2);
   maxitKrylov_ = list.sublist("General").sublist("Krylov").get("Iteration Limit",    100);
+  verbKrylov_  = list.sublist("General").sublist("Krylov").get("Verbosity",          0);
 
   verbosity_    = list.sublist("General").get("Output Level",                     0);
   writeHeader_  = verbosity_ > 2;
@@ -74,6 +75,7 @@ void PrimalDualActiveSetAlgorithm<Real>::initialize(Vector<Real>          &x,
     krylov_ = makePtr<ConjugateResiduals<Real>>(atolKrylov_,rtolKrylov_,maxitKrylov_);
   }
   ekv_ = StringToEKrylov(krylovName_);
+  krylov_->resetVerbosity(verbKrylov_);
   // Initialize data
   const Real one(1);
   TypeB::Algorithm<Real>::initialize(x,g);
@@ -182,7 +184,7 @@ void PrimalDualActiveSetAlgorithm<Real>::run( Vector<Real>          &x,
                 state_->iterateVec,xlam,neps_,secant_,useSecantPrecond_,dwa);
           PartitionedVector<Real> rhs(std::vector<Ptr<Vector<Real>>>({gtmp,b}));
           PartitionedVector<Real> sol(std::vector<Ptr<Vector<Real>>>({state_->stepVec,mu}));
-          krylov_->run(sol,*hessian,rhs,*precond,iterKrylov_,flagKrylov_);
+          krylov_->run(sol,*hessian,rhs,*precond,iterKrylov_,flagKrylov_,outStream);
         }
         else {
           // Initialize Hessian and preconditioner
@@ -190,7 +192,7 @@ void PrimalDualActiveSetAlgorithm<Real>::run( Vector<Real>          &x,
                 state_->iterateVec,xlam,neps_,secant_,useSecantHessVec_,pwa);
           precond = makePtr<PrecondPDAS>(makePtrFromRef(obj),makePtrFromRef(bnd),
                 state_->iterateVec,xlam,neps_,secant_,useSecantPrecond_,dwa);
-          krylov_->run(*state_->stepVec,*hessian,*gtmp,*precond,iterKrylov_,flagKrylov_);
+          krylov_->run(*state_->stepVec,*hessian,*gtmp,*precond,iterKrylov_,flagKrylov_,outStream);
         }
         totalKrylov_ += iterKrylov_;
         bnd.pruneActive(*state_->stepVec,*xlam,neps_);     // s <- Is

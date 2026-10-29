@@ -40,7 +40,8 @@ public:
               int                      &iflag,
               int                      &iter,
               const Real                del,
-              TrustRegionModel_U<Real> &model ) {
+              TrustRegionModel_U<Real> &model,
+              std::ostream             & = std::cout ) {
     Real tol = std::sqrt(ROL_EPSILON<Real>());
     const Real one(1), zero(0), half(0.5), p2(0.2), p8(0.8), two(2);
     // Set s to be the (projected) gradient
