@@ -433,7 +433,7 @@ Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
                                         Real budget,
                                         ParameterList& list,
                                   const Ptr<const std::vector<IdType>>& globalIds,
-                                        std::ostream& os=std::cout) {
+                                        std::ostream& os) {
   // Set up algorithm for either adding or deleting experiments
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   Real scale = useDeletion ? static_cast<Real>(-1) : static_cast<Real>(1);
