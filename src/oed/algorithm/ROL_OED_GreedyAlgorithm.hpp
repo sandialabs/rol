@@ -427,12 +427,13 @@ private:
 };
 
 // General Greedy Algorithm Implementation
-template<typename Real>
+template<typename Real, typename IdType=unsigned>
 Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
                                   const Ptr<const Vector<Real>>& cvec,
                                         Real budget,
                                         ParameterList& list,
-                                        std::ostream& os=std::cout) {
+                                  const Ptr<const std::vector<IdType>>& globalIds,
+                                        std::ostream& os) {
   // Set up algorithm for either adding or deleting experiments
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   Real scale = useDeletion ? static_cast<Real>(-1) : static_cast<Real>(1);
@@ -461,12 +462,12 @@ Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
   if (useDeletion) {
     os << "Greedy Deletion Algorithm for Binary " << type << std::endl;
     os << "  >> Warning: Removing too many sensors may result in unexpected" << std::endl
-       << "              behavior due to a singular covariance matrix" << std::endl;
+       << "              behavior due to a potentially singular covariance matrix" << std::endl;
   }
   else {
     os << "Greedy Addition Algorithm for Binary " << type << std::endl;
     os << "  >> Warning: Starting with zero sensors may result in unexpected" << std::endl
-       << "              behavior due to a singular covariance matrix" << std::endl;
+       << "              behavior due to a potentially singular covariance matrix" << std::endl;
   }
   os << "  ";
   os << std::setw(6)  << std::left << "iter";
@@ -476,14 +477,18 @@ Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
   os << std::setw(10) << std::left << "index";
   if (nbatch > 1u)
     os << std::setw(10) << std::left << "rank";
+  if (globalIds!=nullPtr)
+    os << std::setw(10) << std::left << "global";
   os << std::endl;
 
   // Run greedy deletion algorithm
   const Real zero(0);
+  const unsigned tmpSize((globalIds==nullPtr)?4:5);
   unsigned jind(0), i(0), mind(0), rind(0);
+  IdType gind(0);
   Real val(0), vi(0), vij(0);
   Real cost(cvec->apply(*pvec)), cdel(0), ctmp(0);
-  std::vector<Real> gvi(4*nbatch), tmp(4);
+  std::vector<Real> gvi(tmpSize*nbatch), tmp(tmpSize);
   for (i=0u; i<size; ++i) {
     obj->update(*pvec,i);
     val = obj->value(*pvec);
@@ -498,12 +503,16 @@ Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
       os << std::setw(10) << std::left << "---";
       if (nbatch > 1u)
         os << std::setw(10) << std::left << "---";
+      if (globalIds!=nullPtr)
+        os << std::setw(10) << std::left << "---";
     }
     else {
       os << std::setw(15) << std::left << vi;
       os << std::setw(10) << std::left << mind;
       if (nbatch > 1u)
         os << std::setw(10) << std::left << rind;
+      if (globalIds!=nullPtr)
+        os << std::setw(10) << std::left << gind;
     }
     os << std::endl;
     if (!useDeletion && cost >= budget) break;
@@ -521,30 +530,36 @@ Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
 
     // Communicate index accross processors
     bman->barrier();
+    mind   = (myind.empty() ? 0u : myind[jind]);
     tmp[0] = vi;
     tmp[1] = static_cast<Real>(jind);
-    tmp[2] = (myind.empty() ? zero : static_cast<Real>(myind[jind]));
+    tmp[2] = static_cast<Real>(mind);
     tmp[3] = static_cast<Real>(rank);
-    bman->gather(tmp.data(),4,gvi.data(),4*nbatch,0);
+    if (globalIds!=nullPtr)
+      tmp[4] = static_cast<Real>((*globalIds)[mind]);
+    bman->gather(tmp.data(),tmpSize,gvi.data(),tmpSize*nbatch,0);
     if (rank==0u) {
       tmp[0] = gvi[0];
       tmp[1] = gvi[1];
       tmp[2] = gvi[2];
       tmp[3] = gvi[3];
+      if (globalIds!=nullPtr) tmp[4] = gvi[4];
       for (unsigned j=1u; j<nbatch; ++j) {
-        if (scale*tmp[0] < scale*gvi[4*j]) {
-          tmp[0] = gvi[4*j];
-          tmp[1] = gvi[4*j+1];
-          tmp[2] = gvi[4*j+2];
-          tmp[3] = gvi[4*j+3];
+        if (scale*tmp[0] < scale*gvi[tmpSize*j]) {
+          tmp[0] = gvi[tmpSize*j];
+          tmp[1] = gvi[tmpSize*j+1];
+          tmp[2] = gvi[tmpSize*j+2];
+          tmp[3] = gvi[tmpSize*j+3];
+	  if (globalIds!=nullPtr) tmp[4] = gvi[tmpSize*j+4];
         }
       }
     }
-    bman->broadcast(tmp.data(),4,0);
+    bman->broadcast(tmp.data(),tmpSize,0);
     vi = tmp[0];
     jind = static_cast<unsigned>(tmp[1]);
     mind = static_cast<unsigned>(tmp[2]);
     rind = static_cast<unsigned>(tmp[3]);
+    if (globalIds!=nullPtr) gind = static_cast<IdType>(tmp[4]);
 
     // Update design and cost
     ctmp = zero; cdel = zero;
@@ -572,12 +587,41 @@ Ptr<Vector<Real>> GreedyAlgorithm(const Ptr<GreedyObjective<Real>>& obj,
     os << std::setw(10) << std::left << mind;
     if (nbatch > 1u)
       os << std::setw(10) << std::left << rind;
+    if (globalIds!=nullPtr)
+      os << std::setw(10) << std::left << gind;
     os << std::endl;
   }
   return pvec;
 }
 
 // Specialized Greedy Algorithm for A-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  list.sublist("OED").set("Optimality Type","A");
+  cov->generateFactors(model,theta,obs,sampler);
+  bool useRandomTrace = list.sublist("OED").sublist("A-Optimality").get("Randomized Trace Estimation",false);
+  int nRandomTrace    = list.sublist("OED").sublist("A-Optimality").get("Number of Samples",100);
+  int nfactors        = theta->dimension();
+  int size            = (useRandomTrace ? nRandomTrace : nfactors);
+  Ptr<TraceSampler<Real>> traceSampler;
+  if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta,size);
+  else                traceSampler = makePtr<TraceSampler<Real>>(theta);
+  const int one(1);
+  Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
+  std::vector<Real> weight(size,val);
+  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
+  auto obj = makePtr<GreedyObjectiveA<Real>>(cov,traceSampler,weight,useDeletion);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
@@ -588,8 +632,22 @@ Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Constraint<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
+  return GreedyAlgorithmA<Real,unsigned>(model,obs,sampler,theta,cov,cvec,budget,list,nullPtr,os);
+}
+
+// Specialized Greedy Algorithm for A-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","A");
-  cov->generateFactors(model,theta,obs,sampler);
+  cov->generateFactors(model,theta,sampler);
   bool useRandomTrace = list.sublist("OED").sublist("A-Optimality").get("Randomized Trace Estimation",false);
   int nRandomTrace    = list.sublist("OED").sublist("A-Optimality").get("Number of Samples",100);
   int nfactors        = theta->dimension();
@@ -602,10 +660,8 @@ Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Constraint<Real>>& model,
   std::vector<Real> weight(size,val);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveA<Real>>(cov,traceSampler,weight,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
 }
-
-// Specialized Greedy Algorithm for A-Optimality
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -615,25 +671,11 @@ Ptr<Vector<Real>> GreedyAlgorithmA(const Ptr<Objective<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  list.sublist("OED").set("Optimality Type","A");
-  cov->generateFactors(model,theta,sampler);
-  bool useRandomTrace = list.sublist("OED").sublist("A-Optimality").get("Randomized Trace Estimation",false);
-  int nRandomTrace    = list.sublist("OED").sublist("A-Optimality").get("Number of Samples",100);
-  int nfactors        = theta->dimension();
-  int size            = (useRandomTrace ? nRandomTrace : nfactors);
-  Ptr<TraceSampler<Real>> traceSampler;
-  if (useRandomTrace) traceSampler = makePtr<Radamacher<Real>>(theta,size);
-  else                traceSampler = makePtr<TraceSampler<Real>>(theta);
-  const int one(1);
-  Real val = (useRandomTrace ? one/static_cast<Real>(nRandomTrace) : one);
-  std::vector<Real> weight(size,val);
-  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
-  auto obj = makePtr<GreedyObjectiveA<Real>>(cov,traceSampler,weight,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithmA<Real,unsigned>(model,sampler,theta,cov,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for C-Optimality
-template<typename Real>
+template<typename Real, typename IdType=unsigned>
 Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -643,15 +685,44 @@ Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& cvec,
                                          Real budget,
                                          ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds=nullPtr,
                                          std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","C");
   cov->generateFactors(model,theta,obs,sampler);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveC<Real>>(cov,CoptVec,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
+template<typename Real>
+Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& CoptVec,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmC<Real,unsigned>(model,obs,sampler,theta,cov,CoptVec,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for C-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  auto c = theta->dual().clone();
+  c->setScalar(static_cast<Real>(1));
+  return GreedyAlgorithmC<Real,IdType>(model,obs,theta,cov,c,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
@@ -662,12 +733,27 @@ Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Constraint<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  auto c = theta->dual().clone();
-  c->setScalar(static_cast<Real>(1));
-  return GreedyAlgorithmC<Real>(model,obs,theta,cov,c,cvec,budget,list,os);
+  return GreedyAlgorithmC<Real,unsigned>(model,obs,sampler,theta,cov,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for C-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& CoptVec,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  list.sublist("OED").set("Optimality Type","C");
+  cov->generateFactors(model,theta,sampler);
+  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
+  auto obj = makePtr<GreedyObjectiveC<Real>>(cov,CoptVec,useDeletion);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -678,14 +764,24 @@ Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Objective<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  list.sublist("OED").set("Optimality Type","C");
-  cov->generateFactors(model,theta,sampler);
-  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
-  auto obj = makePtr<GreedyObjectiveC<Real>>(cov,CoptVec,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithmC<Real,unsigned>(model,sampler,theta,cov,CoptVec,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for C-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  auto c = theta->dual().clone();
+  c->setScalar(static_cast<Real>(1));
+  return GreedyAlgorithmC<Real,IdType>(model,theta,cov,c,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -695,12 +791,27 @@ Ptr<Vector<Real>> GreedyAlgorithmC(const Ptr<Objective<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  auto c = theta->dual().clone();
-  c->setScalar(static_cast<Real>(1));
-  return GreedyAlgorithmC<Real>(model,theta,cov,c,cvec,budget,list,os);
+  return GreedyAlgorithmC<Real,unsigned>(model,theta,cov,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for D-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  list.sublist("OED").set("Optimality Type","D");
+  cov->generateFactors(model,theta,obs,sampler);
+  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
+  auto obj = makePtr<GreedyObjectiveD<Real>>(cov,useDeletion);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
@@ -711,14 +822,26 @@ Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Constraint<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  list.sublist("OED").set("Optimality Type","D");
-  cov->generateFactors(model,theta,obs,sampler);
-  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
-  auto obj = makePtr<GreedyObjectiveD<Real>>(cov,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithmD<Real,unsigned>(model,obs,sampler,theta,cov,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for D-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  list.sublist("OED").set("Optimality Type","D");
+  cov->generateFactors(model,theta,sampler);
+  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
+  auto obj = makePtr<GreedyObjectiveD<Real>>(cov,useDeletion);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -728,14 +851,29 @@ Ptr<Vector<Real>> GreedyAlgorithmD(const Ptr<Objective<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  list.sublist("OED").set("Optimality Type","D");
-  cov->generateFactors(model,theta,sampler);
-  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
-  auto obj = makePtr<GreedyObjectiveD<Real>>(cov,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithmD<Real,unsigned>(model,sampler,theta,cov,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for E-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmE(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  list.sublist("OED").set("Optimality Type","E");
+  cov->generateFactors(model,theta,obs,sampler);
+  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
+  int maxit = list.sublist("OED").sublist("Greedy").sublist("E-Optimality").get("Power Iteration Limit",0);
+  Real tol = list.sublist("OED").sublist("Greedy").sublist("E-Optimality").get("Power Iteration Tolerance",-1.0);
+  auto obj = makePtr<GreedyObjectiveE<Real>>(cov,useDeletion,maxit,tol);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmE(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
@@ -746,16 +884,28 @@ Ptr<Vector<Real>> GreedyAlgorithmE(const Ptr<Constraint<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
+  return GreedyAlgorithmE<Real,unsigned>(model,obs,sampler,theta,cov,cvec,budget,list,nullPtr,os);
+}
+
+// Specialized Greedy Algorithm for E-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmE(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","E");
-  cov->generateFactors(model,theta,obs,sampler);
+  cov->generateFactors(model,theta,sampler);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   int maxit = list.sublist("OED").sublist("Greedy").sublist("E-Optimality").get("Power Iteration Limit",0);
   Real tol = list.sublist("OED").sublist("Greedy").sublist("E-Optimality").get("Power Iteration Tolerance",-1.0);
   auto obj = makePtr<GreedyObjectiveE<Real>>(cov,useDeletion,maxit,tol);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
 }
-
-// Specialized Greedy Algorithm for E-Optimality
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmE(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -765,17 +915,11 @@ Ptr<Vector<Real>> GreedyAlgorithmE(const Ptr<Objective<Real>>& model,
                                          Real budget,
                                          ParameterList& list,
                                          std::ostream& os=std::cout) {
-  list.sublist("OED").set("Optimality Type","E");
-  cov->generateFactors(model,theta,sampler);
-  bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
-  int maxit = list.sublist("OED").sublist("Greedy").sublist("E-Optimality").get("Power Iteration Limit",0);
-  Real tol = list.sublist("OED").sublist("Greedy").sublist("E-Optimality").get("Power Iteration Tolerance",-1.0);
-  auto obj = makePtr<GreedyObjectiveE<Real>>(cov,useDeletion,maxit,tol);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithmE<Real,unsigned>(model,sampler,theta,cov,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for I-Optimality
-template<typename Real>
+template<typename Real, typename IdType=unsigned>
 Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -787,6 +931,7 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& cvec,
                                          Real budget,
                                          ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
                                          std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","I");
   cov->generateFactors(model,theta,obs,sampler);
@@ -803,11 +948,26 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
   std::vector<Real> weight(size,val);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveI<Real>>(cov,factorsPV,Isampler,traceSampler,weight,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
+template<typename Real>
+Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Constraint<Real>>& Ifun,
+                                   const Ptr<Vector<Real>>& Ivec,
+                                   const Ptr<SampleGenerator<Real>>& Isampler,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmI<Real,unsigned>(model,obs,sampler,theta,cov,Ifun,Ivec,Isampler,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for I-Optimality
-template<typename Real>
+template<typename Real, typename IdType=unsigned>
 Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
                                    const Ptr<Vector<Real>>& theta,
@@ -818,6 +978,7 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
                                    const Ptr<Vector<Real>>& cvec,
                                          Real budget,
                                          ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
                                          std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","I");
   cov->generateFactors(model,theta,sampler);
@@ -834,11 +995,25 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
   std::vector<Real> weight(size,val);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveI<Real>>(cov,factorsPV,Isampler,traceSampler,weight,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
+template<typename Real>
+Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Constraint<Real>>& Ifun,
+                                   const Ptr<Vector<Real>>& Ivec,
+                                   const Ptr<SampleGenerator<Real>>& Isampler,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmI<Real,unsigned>(model,sampler,theta,cov,Ifun,Ivec,Isampler,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for I-Optimality
-template<typename Real>
+template<typename Real, typename IdType=unsigned>
 Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
                                    const Ptr<SampleGenerator<Real>>& sampler,
@@ -849,6 +1024,7 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& cvec,
                                          Real budget,
                                          ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
                                          std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","I");
   cov->generateFactors(model,theta,obs,sampler);
@@ -865,11 +1041,25 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
   std::vector<Real> weight(size,val);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveI<Real>>(cov,factorsPV,Isampler,traceSampler,weight,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
+template<typename Real>
+Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Objective<Real>>& Ifun,
+                                   const Ptr<SampleGenerator<Real>>& Isampler,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmI<Real,unsigned>(model,obs,sampler,theta,cov,Ifun,Isampler,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for I-Optimality
-template<typename Real>
+template<typename Real, typename IdType=unsigned>
 Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
                                    const Ptr<Vector<Real>>& theta,
@@ -879,6 +1069,7 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
                                    const Ptr<Vector<Real>>& cvec,
                                          Real budget,
                                          ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
                                          std::ostream& os=std::cout) {
   list.sublist("OED").set("Optimality Type","I");
   cov->generateFactors(model,theta,sampler);
@@ -895,10 +1086,36 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
   std::vector<Real> weight(size,val);
   bool useDeletion = list.sublist("OED").sublist("Greedy").get("Use Deletion",true);
   auto obj = makePtr<GreedyObjectiveI<Real>>(cov,factorsPV,Isampler,traceSampler,weight,useDeletion);
-  return GreedyAlgorithm<Real>(obj,cvec,budget,list,os);
+  return GreedyAlgorithm<Real,IdType>(obj,cvec,budget,list,globalIds,os);
+}
+template<typename Real>
+Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Objective<Real>>& Ifun,
+                                   const Ptr<SampleGenerator<Real>>& Isampler,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmI<Real,unsigned>(model,sampler,theta,cov,Ifun,Isampler,cvec,budget,list,nullPtr,os);
 }
 
 // Specialized Greedy Algorithm for I-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
+                                   const Ptr<Vector<Real>>& obs,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmI<Real,IdType>(model,obs,sampler,theta,cov,model,obs,sampler,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
                                    const Ptr<Vector<Real>>& obs,
@@ -913,6 +1130,18 @@ Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Constraint<Real>>& model,
 }
 
 // Specialized Greedy Algorithm for I-Optimality
+template<typename Real, typename IdType=unsigned>
+Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
+                                   const Ptr<SampleGenerator<Real>>& sampler,
+                                   const Ptr<Vector<Real>>& theta,
+                                   const Ptr<MomentOperator<Real>>& cov,
+                                   const Ptr<Vector<Real>>& cvec,
+                                         Real budget,
+                                         ParameterList& list,
+                                   const Ptr<const std::vector<IdType>>& globalIds,
+                                         std::ostream& os=std::cout) {
+  return GreedyAlgorithmI<Real,IdType>(model,sampler,theta,cov,model,sampler,cvec,budget,list,globalIds,os);
+}
 template<typename Real>
 Ptr<Vector<Real>> GreedyAlgorithmI(const Ptr<Objective<Real>>& model,
                                    const Ptr<SampleGenerator<Real>>& sampler,
