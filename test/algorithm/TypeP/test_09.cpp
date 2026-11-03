@@ -177,15 +177,14 @@ int main(int argc, char *argv[]) {
     list.sublist("Status Test").set("Gradient Tolerance", 1e-8);
     list.sublist("Status Test").set("Constraint Tolerance", 1e-8);
     list.sublist("Status Test").set("Step Tolerance", 1e-12);
-    list.sublist("Status Test").set("Iteration Limit", 100);
+    list.sublist("Status Test").set("Iteration Limit", 500);
     list.sublist("Step").sublist("Trust Region").set("Initial Radius", 1e2);
 
-    // Required final gradient norm within the iteration limit.  The Cauchy
-    // point is a steepest-descent-type step, so only modest accuracy is
-    // expected of it.
+    // Required final gradient norm within the iteration limit (the Cauchy
+    // point is a steepest-descent-type step and needs many iterations).
     struct Case { std::string name; bool required; RealT gtol; };
     const std::vector<Case> cases = {
-      {"Cauchy Point",  true,  1e-3},
+      {"Cauchy Point",  true,  1e-6},
       {"Truncated CG",  true,  1e-6},
       {"SPG",           true,  1e-6},
       {"SPG2",          true,  1e-6}};
