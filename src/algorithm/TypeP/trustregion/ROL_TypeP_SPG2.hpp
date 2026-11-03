@@ -122,8 +122,8 @@ public:
       }
       // Evaluate model Hessian
       model.hessVec(*dwa,*s,x,tol); nhess_++; // dwa = H step
-      sHs   = s->apply(dwa->dual());                   // sHs = <step, H step>
-      gs    = s->apply(gmod.dual());
+      sHs   = s->apply(*dwa);                   // sHs = <step, H step>
+      gs    = s->apply(gmod);
       // Evaluate nonsmooth term
       nobj.update(*pwa1,UpdateType::Trial);
       nval = nobj.value(*pwa1,tol); nnval_++;
@@ -157,7 +157,7 @@ public:
       }
 
       if (sHs <= safeguard*std::pow(gnorm,2)) {
-        lambdaTmp = t0_/gmod.norm();
+        lambdaTmp = t0_/gmod.dual().norm();
       }
       else {
         lambdaTmp = std::pow(gnorm,2)/sHs;
@@ -208,8 +208,8 @@ void gcp2( Vector<Real>             &y,
    // Compute cp as single spg step
    pwa2->set(gmod.dual());
    model.hessVec(*dwa, *pwa2, x, tol);
-   gHg = dwa->apply(gmod);
-   gg  = pwa2->apply(*pwa2);
+   gHg = pwa2->apply(*dwa);
+   gg  = pwa2->dot(*pwa2);
 
    if (gHg > tol*gg) {
      t0Tmp = gg / gHg;
@@ -227,7 +227,7 @@ void gcp2( Vector<Real>             &y,
    // Hs
    model.hessVec(*dwa, *s, x, tol);
    sHs = s->apply(*dwa);
-   gs  = pwa2->dot(*s); //pwa2 = gmod.dual()
+   gs  = s->apply(gmod);
 
    nobj.update(*pwa1, UpdateType::Trial);
    nval = nobj.value(*pwa1, tol); nnval_++;
@@ -251,7 +251,6 @@ void gcp2( Vector<Real>             &y,
      nval = nobj.value(*pwa1, tol); nnval_++;
    }
    sval += gs + half*sHs;
-   y.set(*pwa1);
 }  // gcp2
 }; // SPG
 } // namespace TypeP

@@ -137,7 +137,7 @@ public:
   while (SPiter_ < maxit_) {
     // Compute initial spectral step size
     if (sHs <= 0) {
-      lambdaTmp = one / gmod.norm();
+      lambdaTmp = one / gmod.dual().norm();
     }
     else {
       lambdaTmp = ss / sHs;
@@ -157,7 +157,7 @@ public:
     nobj.update(*pwa2, UpdateType::Trial);
     nnew  = nobj.value(*pwa2, tol); nnval_++;
     sHs   = pwa->apply(*dwa);                 // sHs = <step, H step>
-    gs    = pwa->apply(gmod.dual());          // gs  = <step, model gradient>
+    gs    = pwa->apply(gmod);               // gs  = <step, model gradient>
     snew  = half * sHs + gs + sold;
     mnew  = snew + nnew;
     Qk    = gs + nnew - nold;
