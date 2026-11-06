@@ -39,6 +39,7 @@ private:
 
   const bool storage_;
   const bool useFDhessVec_;
+  const bool GaussNewtonHessian_;
 
   unsigned nupda_, nvalu_, ngrad_, nhess_, nprec_;
   unsigned nstat_, nadjo_, nssen_, nasen_;
@@ -59,6 +60,7 @@ public:
       @param[in] adjoint      is a pointer to a dual constraint space vector, \f$\mathcal{C}^*\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
       @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] GNH          is a flag whether or not to use the Gauss-Newton Hessian.
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -67,7 +69,8 @@ public:
       const Ptr<Vector<Real>> &control,
       const Ptr<Vector<Real>> &adjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const bool useFDhessVec = false,
+      const bool GNH = false);
 
   /** \brief Secondary, general constructor for use with dual optimization vector spaces
              where the user does not define the dual() method.
@@ -81,6 +84,7 @@ public:
       @param[in] dualadjoint  is a pointer to a constraint space vector, \f$\mathcal{C}\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
       @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] GNH          is a flag whether or not to use the Gauss-Newton Hessian.
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -92,7 +96,8 @@ public:
       const Ptr<Vector<Real>> &dualcontrol,
       const Ptr<Vector<Real>> &dualadjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const bool useFDhessVec = false,
+      const bool GNH = false);
 
   /** \brief Constructor.
 
@@ -104,6 +109,7 @@ public:
       @param[in] adjoint      is a pointer to a dual constraint space vector, \f$\mathcal{C}^*\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
       @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] GNH          is a flag whether or not to use the Gauss-Newton Hessian.
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -113,7 +119,8 @@ public:
       const Ptr<Vector<Real>> &control,
       const Ptr<Vector<Real>> &adjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const bool useFDhessVec = false,
+      const bool GNH = false);
 
   /** \brief Secondary, general constructor for use with dual optimization vector spaces
              where the user does not define the dual() method.
@@ -128,6 +135,7 @@ public:
       @param[in] dualadjoint  is a pointer to a constraint space vector, \f$\mathcal{C}\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
       @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] GNH          is a flag whether or not to use the Gauss-Newton Hessian.
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -140,7 +148,8 @@ public:
       const Ptr<Vector<Real>> &dualcontrol,
       const Ptr<Vector<Real>> &dualadjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const bool useFDhessVec = false,
+      const bool GNH = false);
 
   /** \brief Update the SimOpt objective function and equality constraint.
   */
@@ -162,6 +171,8 @@ public:
 
   /** \brief Given \f$z\in\mathcal{Z}\f$, evaluate the Hessian of the objective function
              \f$\nabla^2\widehat{J}(z)\f$ in the direction \f$v\in\mathcal{Z}\f$.
+             If the Gauss-Newton Hessian is used, the second derivatives of the
+             equality constraint are dropped.
   */
   void hessVec( Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &z, Real &tol ) override;
 

@@ -20,9 +20,10 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &control,
     const Ptr<Vector<Real>> &adjoint,
     const bool storage,
-    const bool useFDhessVec)
+    const bool useFDhessVec,
+    const bool GNH)
   : obj_(obj), con_(con),
-    storage_(storage), useFDhessVec_(useFDhessVec),
+    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -50,9 +51,10 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &dualcontrol,
     const Ptr<Vector<Real>> &dualadjoint,
     const bool storage,
-    const bool useFDhessVec)
+    const bool useFDhessVec,
+    const bool GNH)
   : obj_(obj), con_(con),
-    storage_(storage), useFDhessVec_(useFDhessVec),
+    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -78,9 +80,10 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &control,
     const Ptr<Vector<Real>> &adjoint,
     const bool storage,
-    const bool useFDhessVec)
+    const bool useFDhessVec,
+    const bool GNH)
   : obj_(obj), con_(con), stateStore_(stateStore),
-    storage_(storage), useFDhessVec_(useFDhessVec),
+    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -108,9 +111,10 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &dualcontrol,
     const Ptr<Vector<Real>> &dualadjoint,
     const bool storage,
-    const bool useFDhessVec)
+    const bool useFDhessVec,
+    const bool GNH)
   : obj_(obj), con_(con), stateStore_(stateStore),
-    storage_(storage), useFDhessVec_(useFDhessVec),
+    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -181,7 +185,7 @@ void Reduced_Objective_SimOpt<Real>::hessVec( Vector<Real> &hv, const Vector<Rea
     // Solve state equation
     solve_state_equation(z,tol);
     // Solve adjoint equation
-    solve_adjoint_equation(z,tol);
+    if ( !GaussNewtonHessian_ ) solve_adjoint_equation(z,tol);
     // Solve state sensitivity equation
     solve_state_sensitivity(v,z,tol);
     // Solve adjoint sensitivity equation
@@ -192,10 +196,12 @@ void Reduced_Objective_SimOpt<Real>::hessVec( Vector<Real> &hv, const Vector<Rea
     hv.plus(*dualcontrol_);
     obj_->hessVec_22(*dualcontrol_,v,*state_,z,tol);
     hv.plus(*dualcontrol_);
-    con_->applyAdjointHessian_12(*dualcontrol_,*adjoint_,*state_sens_,*state_,z,tol);
-    hv.plus(*dualcontrol_);
-    con_->applyAdjointHessian_22(*dualcontrol_,*adjoint_,v,*state_,z,tol);
-    hv.plus(*dualcontrol_);
+    if ( !GaussNewtonHessian_ ) {
+      con_->applyAdjointHessian_12(*dualcontrol_,*adjoint_,*state_sens_,*state_,z,tol);
+      hv.plus(*dualcontrol_);
+      con_->applyAdjointHessian_22(*dualcontrol_,*adjoint_,v,*state_,z,tol);
+      hv.plus(*dualcontrol_);
+    }
   }
 }
 
@@ -325,10 +331,12 @@ void Reduced_Objective_SimOpt<Real>::solve_adjoint_sensitivity(const Vector<Real
   obj_->hessVec_12(*dualstate1_,v,*state_,z,tol);
   dualstate_->plus(*dualstate1_);
   // Apply adjoint Hessian of constraint
-  con_->applyAdjointHessian_11(*dualstate1_,*adjoint_,*state_sens_,*state_,z,tol);
-  dualstate_->plus(*dualstate1_);
-  con_->applyAdjointHessian_21(*dualstate1_,*adjoint_,v,*state_,z,tol);
-  dualstate_->plus(*dualstate1_);
+  if ( !GaussNewtonHessian_ ) {
+    con_->applyAdjointHessian_11(*dualstate1_,*adjoint_,*state_sens_,*state_,z,tol);
+    dualstate_->plus(*dualstate1_);
+    con_->applyAdjointHessian_21(*dualstate1_,*adjoint_,v,*state_,z,tol);
+    dualstate_->plus(*dualstate1_);
+  }
   // Solve adjoint sensitivity equation
   dualstate_->scale(static_cast<Real>(-1));
   con_->applyInverseAdjointJacobian_1(*adjoint_sens_,*dualstate_,*state_,z,tol);
