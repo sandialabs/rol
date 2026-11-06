@@ -212,7 +212,7 @@ public:
       outStream << "    Optimality criterion:             " << gnorm     << std::endl;
       outStream << std::endl;
     }
-    if (gnorm < std::max(gtol, std::sqrt(tol))) break;
+    if (gnorm/t0_ < gtol) break;
   }
   if (useNMSP_ && useMin_) {
     sval = sval_min; nval = nval_min; y.set(*ymin);
