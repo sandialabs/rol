@@ -156,7 +156,7 @@ public:
       }
 
       if (sHs <= safeguard*std::pow(gnorm,2)) {
-        lambdaTmp = t0_/gmod.dual().norm();
+        lambdaTmp = t0_/gmod.norm();
       }
       else {
         lambdaTmp = std::pow(gnorm,2)/sHs;
