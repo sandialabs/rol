@@ -137,7 +137,7 @@ public:
   while (SPiter_ < maxit_) {
     // Compute initial spectral step size
     if (sHs <= 0) {
-      lambdaTmp = one / gmod.dual().norm();
+      lambdaTmp = one / gmod.norm();
     }
     else {
       lambdaTmp = ss / sHs;
