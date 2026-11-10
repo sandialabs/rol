@@ -168,7 +168,7 @@ public:
       //pgstep(*pwa1, *pwa, nobj, y, gmod.dual(), alpha, tol); nprox_++; //pwa1 = x1, pwa is evaluation
       s->set(*pwa1); s->axpy(-one, y);
       gnorm = s->norm();
-      if (gnorm/t0_ <= gtol) { SPflag_ = 0; break; }
+      if (gnorm/t0_ <= std::max(gtol, tol)) { SPflag_ = 0; break; }
 
 
       if (verbosity_ > 2) {

@@ -125,9 +125,7 @@ public:
     extrap = (-pRed <= mu0_*Qk) && (snorm <= (1-tol)*del);
     // Either increase or decrease alpha to find approximate Cauchy point
     int cnt = 0;
-    //printf("top %f %f\n", nval + sval, snorm);
     if (extrap) { // increase loop
-      //printf("inc loop\n");
       Real alpha1 = alpha_;
       Real pRed1  = pRed;
       Real sval1  = sval; //
@@ -146,7 +144,6 @@ public:
         sval1  = sold + gs + half * sHs;
         pRed1  = (sold + nold) - (sval1 + nval1);
         Qk     = gs + nval1 - nold;
-        //printf("cp inc %f  %f %f %f\n", -pRed, mu0_*Qk, snorm, nval+sval);
         if ((-pRed1 > mu0_*Qk && std::abs(pRed-pRed1) > qtol_*std::abs(pRed1)) || (snorm1 > (1-tol)*del)) {
           break;
         }
@@ -163,7 +160,6 @@ public:
       }
     } // end inc
     else {//decrease loop
-      //printf("dec loop\n");
       while (((-pRed > mu0_*Qk) || (snorm > (1-tol)*del)) && (cnt < redlim_)) {
         alpha_ *= interpf_;
         pgstep(*px, *s, nobj, x, *dgp, alpha_, tol); nprox_++;
@@ -176,7 +172,6 @@ public:
         nval   = nobj.value(*px, tol); nnval_++;
         pRed   = (sold + nold) - (sval + nval);
         Qk     = gs + nval - nold;
-        //printf("cp dec %f  %f  %f  %f  %f\n", pRed, -mu0_*Qk, snorm, sval, nval);
         cnt++;
       }
     }// end dec
@@ -191,11 +186,6 @@ public:
     //clean-up
     y.plus(*s);
     g.plus(*dwa);
-    //Real nvalt    = nobj.value(y, tol); nnval_++;
-    //Real nvalpt    = nobj.value(*px, tol); nnval_++;
-    //printf("%f  %f %f\n", nvalt, nval, nvalpt);
-    //nval = nobj.value(y, tol); nnval_++;
-    //printf("%f  %f \n", sval, sHs*alpha_);
     SPiter_ = cnt;
     SPflag_ = 2;
   } // solve
