@@ -157,7 +157,7 @@ public:
     nobj.update(*pwa2, UpdateType::Trial);
     nnew  = nobj.value(*pwa2, tol); nnval_++;
     sHs   = pwa->apply(*dwa);                 // sHs = <step, H step>
-    gs    = pwa->apply(gmod.dual());          // gs  = <step, model gradient>
+    gs    = pwa->apply(gmod);               // gs  = <step, model gradient>
     snew  = half * sHs + gs + sold;
     mnew  = snew + nnew;
     Qk    = gs + nnew - nold;
@@ -212,7 +212,7 @@ public:
       outStream << "    Optimality criterion:             " << gnorm     << std::endl;
       outStream << std::endl;
     }
-    if (gnorm < std::max(gtol, std::sqrt(tol))) break;
+    if (gnorm < std::max(gtol, tol)) break;
   }
   if (useNMSP_ && useMin_) {
     sval = sval_min; nval = nval_min; y.set(*ymin);
