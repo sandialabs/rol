@@ -38,7 +38,7 @@ private:
   Ptr<Vector<Real>> dualcontrol_;
 
   const bool storage_;
-  const bool useFDhessVec_;
+  unsigned hessApprox_;
 
   unsigned nupda_, nvalu_, ngrad_, nhess_, nprec_;
   unsigned nstat_, nadjo_, nssen_, nasen_;
@@ -58,7 +58,8 @@ public:
       @param[in] control      is a pointer to a optimization space vector, \f$\mathcal{Z}\f$.
       @param[in] adjoint      is a pointer to a dual constraint space vector, \f$\mathcal{C}^*\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
-      @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] hessApprox   is the Hessian approximation (0: none, 1: finite differences, 2: Gauss-Newton,
+                              3: Gauss-Newton without the mixed derivatives of the objective function).
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -67,7 +68,7 @@ public:
       const Ptr<Vector<Real>> &control,
       const Ptr<Vector<Real>> &adjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const unsigned hessApprox = 0);
 
   /** \brief Secondary, general constructor for use with dual optimization vector spaces
              where the user does not define the dual() method.
@@ -80,7 +81,8 @@ public:
       @param[in] dualstate    is a pointer to a dual state space vector, \f$\mathcal{U}^*\f$.
       @param[in] dualadjoint  is a pointer to a constraint space vector, \f$\mathcal{C}\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
-      @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] hessApprox   is the Hessian approximation (0: none, 1: finite differences, 2: Gauss-Newton,
+                              3: Gauss-Newton without the mixed derivatives of the objective function).
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -92,7 +94,7 @@ public:
       const Ptr<Vector<Real>> &dualcontrol,
       const Ptr<Vector<Real>> &dualadjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const unsigned hessApprox = 0);
 
   /** \brief Constructor.
 
@@ -103,7 +105,8 @@ public:
       @param[in] control      is a pointer to a optimization space vector, \f$\mathcal{Z}\f$.
       @param[in] adjoint      is a pointer to a dual constraint space vector, \f$\mathcal{C}^*\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
-      @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] hessApprox   is the Hessian approximation (0: none, 1: finite differences, 2: Gauss-Newton,
+                              3: Gauss-Newton without the mixed derivatives of the objective function).
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -113,7 +116,7 @@ public:
       const Ptr<Vector<Real>> &control,
       const Ptr<Vector<Real>> &adjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const unsigned hessApprox = 0);
 
   /** \brief Secondary, general constructor for use with dual optimization vector spaces
              where the user does not define the dual() method.
@@ -127,7 +130,8 @@ public:
       @param[in] dualstate    is a pointer to a dual state space vector, \f$\mathcal{U}^*\f$.
       @param[in] dualadjoint  is a pointer to a constraint space vector, \f$\mathcal{C}\f$.
       @param[in] storage      is a flag whether or not to store computed states and adjoints.
-      @param[in] useFDhessVec is a flag whether or not to use a finite-difference Hessian approximation.
+      @param[in] hessApprox   is the Hessian approximation (0: none, 1: finite differences, 2: Gauss-Newton,
+                              3: Gauss-Newton without the mixed derivatives of the objective function).
   */
   Reduced_Objective_SimOpt(
       const Ptr<Objective_SimOpt<Real>> &obj,
@@ -140,7 +144,7 @@ public:
       const Ptr<Vector<Real>> &dualcontrol,
       const Ptr<Vector<Real>> &dualadjoint,
       const bool storage = true,
-      const bool useFDhessVec = false);
+      const unsigned hessApprox = 0);
 
   /** \brief Update the SimOpt objective function and equality constraint.
   */
@@ -162,8 +166,14 @@ public:
 
   /** \brief Given \f$z\in\mathcal{Z}\f$, evaluate the Hessian of the objective function
              \f$\nabla^2\widehat{J}(z)\f$ in the direction \f$v\in\mathcal{Z}\f$.
+             If the Gauss-Newton Hessian is used, the second derivatives of the
+             equality constraint are dropped.
   */
   void hessVec( Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &z, Real &tol ) override;
+
+  /** \brief Set the Hessian approximation used in hessVec.
+  */
+  void setHessApprox( const unsigned hessApprox );
 
   /** \brief Apply a reduced Hessian preconditioner.
   */
