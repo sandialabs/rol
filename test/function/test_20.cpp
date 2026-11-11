@@ -8,7 +8,7 @@
 // @HEADER
 
 /*! \file  test_20.cpp
-    \brief Test the Gauss-Newton Hessian of Reduced_Objective_SimOpt.
+    \brief Test the Hessian approximations of Reduced_Objective_SimOpt.
 
     With \f$S(z)\f$ the solution of \f$c(S(z),z)=0\f$, the Gauss-Newton
     Hessian keeps the second derivatives of the objective function and drops
@@ -19,11 +19,13 @@
     The test problem is
     \f[
        \min_{u,z}\; \frac{1}{2}\sum_{i<m} (u_i-d_i)^2 + \frac{\alpha}{2}\sum_i z_i^2
+                     + \gamma\sum_i u_i z_i
        \quad\text{subject to}\quad
        u_i + \beta(z_i^2 u_i + u_i^3) - z_{i+1} = 0,
     \f]
     where the index of \f$z\f$ is periodic.  All four blocks of the constraint
-    Hessian are nonzero for \f$\beta\neq 0\f$.
+    Hessian are nonzero for \f$\beta\neq 0\f$, and the objective function has
+    mixed second derivatives for \f$\gamma\neq 0\f$.
 */
 
 #include "ROL_StdVector.hpp"
@@ -177,7 +179,7 @@ template<class Real>
 class Objective_Tracking : public ROL::Objective_SimOpt<Real> {
 private:
   std::vector<Real> d_;
-  const Real alpha_;
+  const Real alpha_, gamma_;
 
   ROL::Ptr<const std::vector<Real>> getVector(const ROL::Vector<Real> &x) const {
     return dynamic_cast<const ROL::StdVector<Real>&>(x).getVector();
@@ -189,7 +191,8 @@ private:
 
 public:
   // The first d.size() entries of the state are observed.
-  Objective_Tracking(const std::vector<Real> &d, const Real alpha) : d_(d), alpha_(alpha) {}
+  Objective_Tracking(const std::vector<Real> &d, const Real alpha, const Real gamma = 0)
+    : d_(d), alpha_(alpha), gamma_(gamma) {}
 
   void setData(const std::vector<Real> &d) { d_ = d; }
 
@@ -201,7 +204,7 @@ public:
       val += half*((*up)[i]-d_[i])*((*up)[i]-d_[i]);
     }
     for (std::size_t i = 0; i < zp->size(); ++i) {
-      val += half*alpha_*(*zp)[i]*(*zp)[i];
+      val += half*alpha_*(*zp)[i]*(*zp)[i] + gamma_*(*up)[i]*(*zp)[i];
     }
     return val;
   }
@@ -209,15 +212,17 @@ public:
   void gradient_1(ROL::Vector<Real> &g, const ROL::Vector<Real> &u, const ROL::Vector<Real> &z, Real &tol) override {
     ROL::Ptr<std::vector<Real>> gp = getVector(g);
     ROL::Ptr<const std::vector<Real>> up = getVector(u);
-    g.zero();
+    g.set(z);
+    g.scale(gamma_);
     for (std::size_t i = 0; i < d_.size(); ++i) {
-      (*gp)[i] = (*up)[i]-d_[i];
+      (*gp)[i] += (*up)[i]-d_[i];
     }
   }
 
   void gradient_2(ROL::Vector<Real> &g, const ROL::Vector<Real> &u, const ROL::Vector<Real> &z, Real &tol) override {
     g.set(z);
     g.scale(alpha_);
+    g.axpy(gamma_,u);
   }
 
   void hessVec_11(ROL::Vector<Real> &hv, const ROL::Vector<Real> &v, const ROL::Vector<Real> &u,
@@ -232,12 +237,14 @@ public:
 
   void hessVec_12(ROL::Vector<Real> &hv, const ROL::Vector<Real> &v, const ROL::Vector<Real> &u,
                   const ROL::Vector<Real> &z, Real &tol) override {
-    hv.zero();
+    hv.set(v);
+    hv.scale(gamma_);
   }
 
   void hessVec_21(ROL::Vector<Real> &hv, const ROL::Vector<Real> &v, const ROL::Vector<Real> &u,
                   const ROL::Vector<Real> &z, Real &tol) override {
-    hv.zero();
+    hv.set(v);
+    hv.scale(gamma_);
   }
 
   void hessVec_22(ROL::Vector<Real> &hv, const ROL::Vector<Real> &v, const ROL::Vector<Real> &u,
@@ -260,6 +267,28 @@ void differenceState(ROL::Vector<RealT> &s, const ROL::Vector<RealT> &v,
   s.axpy(-one,*unew);
   s.scale(half/h);
 }
+
+// Reduced objective that uses the Gauss-Newton Hessian while the iteration
+// number passed to update is below numGN and the Hessian afterwards.
+template<class Real>
+class Reduced_Objective_Switch : public ROL::Reduced_Objective_SimOpt<Real> {
+private:
+  const int numGN_;
+
+public:
+  Reduced_Objective_Switch(const ROL::Ptr<ROL::Objective_SimOpt<Real>> &obj,
+                           const ROL::Ptr<ROL::Constraint_SimOpt<Real>> &con,
+                           const ROL::Ptr<ROL::Vector<Real>> &state,
+                           const ROL::Ptr<ROL::Vector<Real>> &control,
+                           const ROL::Ptr<ROL::Vector<Real>> &adjoint,
+                           const int numGN)
+    : ROL::Reduced_Objective_SimOpt<Real>(obj,con,state,control,adjoint,true,2), numGN_(numGN) {}
+
+  void update(const ROL::Vector<Real> &z, ROL::UpdateType type, int iter = -1) override {
+    ROL::Reduced_Objective_SimOpt<Real>::update(z,type,iter);
+    if (iter >= 0) this->setHessApprox((iter < numGN_) ? 2 : 0);
+  }
+};
 
 int main(int argc, char *argv[]) {
 
@@ -328,11 +357,13 @@ int main(int argc, char *argv[]) {
     /*************************************************************************/
     /************* INITIALIZE REDUCED OBJECTIVES *****************************/
     /*************************************************************************/
-    bool storage = true, useFDhessVec = false;
+    // The last argument is the Hessian approximation (0: none, 1: finite differences,
+    // 2: Gauss-Newton, 3: Gauss-Newton without the mixed derivatives of the objective).
+    bool storage = true;
     ROL::Ptr<ROL::Objective<RealT>> robj
-      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,useFDhessVec,false);
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,0);
     ROL::Ptr<ROL::Objective<RealT>> robjGN
-      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,useFDhessVec,true);
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,2);
 
     /*************************************************************************/
     /************* CHECK DERIVATIVES OF THE TEST PROBLEM *********************/
@@ -351,14 +382,14 @@ int main(int argc, char *argv[]) {
     /*************************************************************************/
     /************* VALUE AND GRADIENT ****************************************/
     /*************************************************************************/
-    // The Gauss-Newton flag has to leave the value and the gradient alone.
+    // The Hessian approximation has to leave the value and the gradient alone.
     robj->update(*zp,ROL::UpdateType::Initial);
     robjGN->update(*zp,ROL::UpdateType::Initial);
     RealT f = robj->value(*zp,tol), fGN = robjGN->value(*zp,tol);
     robj->gradient(*g,*zp,tol);
     robjGN->gradient(*gGN,*zp,tol);
     gGN->axpy(-one,*g);
-    *outStream << "\nCheck value and gradient with the Gauss-Newton flag\n";
+    *outStream << "\nCheck value and gradient with the Gauss-Newton Hessian\n";
     *outStream << "  Change in value    = " << std::abs(fGN-f) << "\n";
     *outStream << "  Change in gradient = " << gGN->norm() << "\n";
     errorFlag += ((fGN != f) ? 1 : 0) + ((gGN->norm() != zero) ? 1 : 0);
@@ -525,9 +556,9 @@ int main(int argc, char *argv[]) {
     conLin->setSolveParameters(list);
     obj->setData(std::vector<RealT>(nobs,one));
     ROL::Ptr<ROL::Objective<RealT>> robjLin
-      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,conLin,up,zp,lp,storage,useFDhessVec,false);
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,conLin,up,zp,lp,storage,0);
     ROL::Ptr<ROL::Objective<RealT>> robjLinGN
-      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,conLin,up,zp,lp,storage,useFDhessVec,true);
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,conLin,up,zp,lp,storage,2);
     robjLin->update(*zp,ROL::UpdateType::Initial);
     robjLinGN->update(*zp,ROL::UpdateType::Initial);
     RealT fz = robjLinGN->value(*zp,tol);
@@ -561,6 +592,146 @@ int main(int argc, char *argv[]) {
     algo.run(*xp,*robjLinGN,*outStream);
     errorFlag += (algo.getState()->iter != 1) ? 1 : 0;
     errorFlag += (algo.getState()->statusFlag != ROL::EXITSTATUS_CONVERGED) ? 1 : 0;
+
+    /*************************************************************************/
+    /************* MIXED DERIVATIVES OF THE OBJECTIVE ************************/
+    /*************************************************************************/
+    // With gamma nonzero the objective has the mixed derivatives f_uz = f_zu = gamma I.
+    // Dropping them gives the Gauss-Newton Hessian for gamma = 0, keeping them
+    // adds S'(z)^* f_uz + f_zu S'(z).
+    RealT gamma(0.5);
+    ROL::Ptr<Objective_Tracking<RealT>> objMix
+      = ROL::makePtr<Objective_Tracking<RealT>>(std::vector<RealT>(nobs,one),alpha,gamma);
+    ROL::Ptr<ROL::Objective<RealT>> robjMix
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(objMix,con,up,zp,lp,storage,0);
+    ROL::Ptr<ROL::Objective<RealT>> robjMixGN
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(objMix,con,up,zp,lp,storage,2);
+    ROL::Ptr<ROL::Objective<RealT>> robjMixGN3
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(objMix,con,up,zp,lp,storage,3);
+    *outStream << "\nCheck derivatives with mixed derivatives of the objective\n";
+    robjMix->update(*zp,ROL::UpdateType::Initial);
+    gcheck = robjMix->checkGradient(*zp,*vp,true,*outStream,7,2);
+    hcheck = robjMix->checkHessVec(*zp,*vp,true,*outStream,7,2);
+    gerr = ROL::ROL_INF<RealT>();
+    herr = ROL::ROL_INF<RealT>();
+    for (std::size_t i = 0; i < gcheck.size(); ++i)
+      gerr = std::min(gerr,gcheck[i][3]/std::abs(gcheck[i][1]));
+    for (std::size_t i = 0; i < hcheck.size(); ++i)
+      herr = std::min(herr,hcheck[i][3]/hcheck[i][1]);
+    errorFlag += ((gerr > tol) ? 1 : 0) + ((herr > tol) ? 1 : 0);
+    robjGN->update(*zp,ROL::UpdateType::Initial);
+    robjMixGN->update(*zp,ROL::UpdateType::Initial);
+    robjMixGN3->update(*zp,ROL::UpdateType::Initial);
+    robjGN->hessVec(*hvGN,*vp,*zp,tol);
+    robjMixGN->hessVec(*hv,*vp,*zp,tol);
+    // The constraint Hessian must not be applied.
+    nhess = con->getNumberHessianCalls();
+    robjMixGN3->hessVec(*dhv,*vp,*zp,tol);
+    errorFlag += (con->getNumberHessianCalls() != nhess) ? 1 : 0;
+    dhv->axpy(-one,*hvGN);
+    RealT nomixerr = dhv->norm()/hvGN->norm();
+    // Solve state sensitivity equation.
+    con->solve(*cp,*up,*zp,tol);
+    con->applyJacobian_2(*jv,*vp,*up,*zp,tol);
+    jv->scale(-one);
+    con->applyInverseJacobian_1(*sp,*jv,*up,*zp,tol);
+    // Apply S'(z)^* f_uz + f_zu S'(z).
+    objMix->hessVec_12(*hs,*vp,*up,*zp,tol);
+    hs->scale(-one);
+    con->applyInverseAdjointJacobian_1(*pp,*hs,*up,*zp,tol);
+    con->applyAdjointJacobian_2(*dhv,*pp,*up,*zp,tol);
+    objMix->hessVec_21(*hz,*sp,*up,*zp,tol);
+    dhv->plus(*hz);
+    RealT mixnorm = dhv->norm();
+    hv->axpy(-one,*hvGN);
+    hv->axpy(-one,*dhv);
+    RealT mixerr = hv->norm()/mixnorm;
+    *outStream << "\nCheck Gauss-Newton Hessian with and without the mixed derivatives\n";
+    *outStream << "  Relative error without the mixed derivatives = " << nomixerr << "\n";
+    *outStream << "  ||mixed derivatives|| / ||GN hessVec||       = " << mixnorm/hvGN->norm() << "\n";
+    *outStream << "  Relative error of the mixed derivatives      = " << mixerr << "\n";
+    errorFlag += ((nomixerr > eps) ? 1 : 0) + ((mixnorm == zero) ? 1 : 0) + ((mixerr > eps) ? 1 : 0);
+
+    /*************************************************************************/
+    /************* FINITE-DIFFERENCE HESSIAN *********************************/
+    /*************************************************************************/
+    // The finite-difference Hessian uses gradients only, so the constraint
+    // Hessian must not be applied.
+    ROL::Ptr<ROL::Objective<RealT>> robjFD
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,1);
+    robj->update(*zp,ROL::UpdateType::Initial);
+    robjFD->update(*zp,ROL::UpdateType::Initial);
+    robj->hessVec(*hv,*vp,*zp,tol);
+    nhess = con->getNumberHessianCalls();
+    robjFD->hessVec(*dhv,*vp,*zp,tol);
+    errorFlag += (con->getNumberHessianCalls() != nhess) ? 1 : 0;
+    // Passing true, as for the old finite-difference flag, gives the same result.
+    ROL::Ptr<ROL::Objective<RealT>> robjFDflag
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,true);
+    robjFDflag->update(*zp,ROL::UpdateType::Initial);
+    robjFDflag->hessVec(*hz,*vp,*zp,tol);
+    hz->axpy(-one,*dhv);
+    dhv->axpy(-one,*hv);
+    RealT fderr = dhv->norm()/hv->norm();
+    *outStream << "\nCheck finite-difference hessVec against the Hessian\n";
+    *outStream << "  Relative error                 = " << fderr << "\n";
+    *outStream << "  Change with a boolean argument = " << hz->norm() << "\n";
+    errorFlag += ((fderr > std::sqrt(tol)) ? 1 : 0) + ((hz->norm() != zero) ? 1 : 0);
+
+    /*************************************************************************/
+    /************* INVALID HESSIAN APPROXIMATION *****************************/
+    /*************************************************************************/
+    ROL::Ptr<ROL::Objective<RealT>> robjBad
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,4);
+    *outStream << "\nCheck that hessVec throws for an invalid Hessian approximation\n";
+    int thrown = 0;
+    try {
+      robjBad->hessVec(*dhv,*vp,*zp,tol);
+    }
+    catch (std::invalid_argument& exc) {
+      *outStream << exc.what() << "\n";
+      thrown++;
+    };
+    errorFlag += (thrown != 1) ? 1 : 0;
+
+    /*************************************************************************/
+    /************* CHANGE THE HESSIAN APPROXIMATION IN UPDATE ****************/
+    /*************************************************************************/
+    // Gauss-Newton Hessian while the iteration number is below numGN, then the Hessian.
+    int numGN = 2;
+    ROL::Ptr<ROL::Objective<RealT>> robjSwitch
+      = ROL::makePtr<Reduced_Objective_Switch<RealT>>(obj,con,up,zp,lp,numGN);
+    robj->update(*zp,ROL::UpdateType::Initial);
+    robjGN->update(*zp,ROL::UpdateType::Initial);
+    robj->hessVec(*hv,*vp,*zp,tol);
+    robjGN->hessVec(*hvGN,*vp,*zp,tol);
+    robjSwitch->update(*zp,ROL::UpdateType::Initial,0);
+    robjSwitch->hessVec(*dhv,*vp,*zp,tol);
+    dhv->axpy(-one,*hvGN);
+    RealT serrGN = dhv->norm()/hvGN->norm();
+    robjSwitch->update(*zp,ROL::UpdateType::Accept,numGN);
+    robjSwitch->hessVec(*dhv,*vp,*zp,tol);
+    dhv->axpy(-one,*hv);
+    RealT serr = dhv->norm()/hv->norm();
+    *outStream << "\nCheck change of the Hessian approximation in update\n";
+    *outStream << "  Relative error against GN hessVec at iteration 0 = " << serrGN << "\n";
+    *outStream << "  Relative error against hessVec at iteration " << numGN << "    = " << serr << "\n";
+    errorFlag += ((serrGN > eps) ? 1 : 0) + ((serr > eps) ? 1 : 0);
+
+    // Newton-Krylov stopped at iteration numGN never applies the constraint Hessian.
+    parlist.sublist("Status Test").set("Iteration Limit",numGN);
+    ROL::TypeU::LineSearchAlgorithm<RealT> algoGN(parlist);
+    xp->zero();
+    nhess = con->getNumberHessianCalls();
+    algoGN.run(*xp,*robjSwitch,*outStream);
+    errorFlag += (con->getNumberHessianCalls() != nhess) ? 1 : 0;
+    // Run to convergence, the Hessian takes over.
+    parlist.sublist("Status Test").set("Iteration Limit",100);
+    ROL::TypeU::LineSearchAlgorithm<RealT> algoSwitch(parlist);
+    xp->zero();
+    algoSwitch.run(*xp,*robjSwitch,*outStream);
+    errorFlag += (con->getNumberHessianCalls() == nhess) ? 1 : 0;
+    errorFlag += (algoSwitch.getState()->statusFlag != ROL::EXITSTATUS_CONVERGED) ? 1 : 0;
   }
   catch (std::logic_error& err) {
     *outStream << err.what() << "\n";

@@ -20,10 +20,9 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &control,
     const Ptr<Vector<Real>> &adjoint,
     const bool storage,
-    const bool useFDhessVec,
-    const bool GNH)
+    const unsigned hessApprox)
   : obj_(obj), con_(con),
-    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
+    storage_(storage), hessApprox_(hessApprox),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -51,10 +50,9 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &dualcontrol,
     const Ptr<Vector<Real>> &dualadjoint,
     const bool storage,
-    const bool useFDhessVec,
-    const bool GNH)
+    const unsigned hessApprox)
   : obj_(obj), con_(con),
-    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
+    storage_(storage), hessApprox_(hessApprox),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -80,10 +78,9 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &control,
     const Ptr<Vector<Real>> &adjoint,
     const bool storage,
-    const bool useFDhessVec,
-    const bool GNH)
+    const unsigned hessApprox)
   : obj_(obj), con_(con), stateStore_(stateStore),
-    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
+    storage_(storage), hessApprox_(hessApprox),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -111,10 +108,9 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const Ptr<Vector<Real>> &dualcontrol,
     const Ptr<Vector<Real>> &dualadjoint,
     const bool storage,
-    const bool useFDhessVec,
-    const bool GNH)
+    const unsigned hessApprox)
   : obj_(obj), con_(con), stateStore_(stateStore),
-    storage_(storage), useFDhessVec_(useFDhessVec), GaussNewtonHessian_(GNH),
+    storage_(storage), hessApprox_(hessApprox),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
@@ -178,31 +174,40 @@ void Reduced_Objective_SimOpt<Real>::gradient( Vector<Real> &g, const Vector<Rea
 template<typename Real>
 void Reduced_Objective_SimOpt<Real>::hessVec( Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &z, Real &tol ) {
   nhess_++;
-  if ( useFDhessVec_ ) {
+  ROL_TEST_FOR_EXCEPTION( hessApprox_>3, std::invalid_argument,
+    ">>> ERROR (ROL::Reduced_Objective_SimOpt::hessVec): Invalid Hessian approximation!");
+  if ( hessApprox_ == 1 ) {
     Objective<Real>::hessVec(hv,v,z,tol);
   }
   else {
     // Solve state equation
     solve_state_equation(z,tol);
     // Solve adjoint equation
-    if ( !GaussNewtonHessian_ ) solve_adjoint_equation(z,tol);
+    if ( hessApprox_ == 0 ) solve_adjoint_equation(z,tol);
     // Solve state sensitivity equation
     solve_state_sensitivity(v,z,tol);
     // Solve adjoint sensitivity equation
     solve_adjoint_sensitivity(v,z,tol);
     // Build hessVec
     con_->applyAdjointJacobian_2(hv,*adjoint_sens_,*state_,z,tol);
-    obj_->hessVec_21(*dualcontrol_,*state_sens_,*state_,z,tol);
-    hv.plus(*dualcontrol_);
+    if ( hessApprox_ != 3 ) {
+      obj_->hessVec_21(*dualcontrol_,*state_sens_,*state_,z,tol);
+      hv.plus(*dualcontrol_);
+    }
     obj_->hessVec_22(*dualcontrol_,v,*state_,z,tol);
     hv.plus(*dualcontrol_);
-    if ( !GaussNewtonHessian_ ) {
+    if ( hessApprox_ == 0 ) {
       con_->applyAdjointHessian_12(*dualcontrol_,*adjoint_,*state_sens_,*state_,z,tol);
       hv.plus(*dualcontrol_);
       con_->applyAdjointHessian_22(*dualcontrol_,*adjoint_,v,*state_,z,tol);
       hv.plus(*dualcontrol_);
     }
   }
+}
+
+template<typename Real>
+void Reduced_Objective_SimOpt<Real>::setHessApprox( const unsigned hessApprox ) {
+  hessApprox_ = hessApprox;
 }
 
 template<typename Real>
@@ -328,10 +333,12 @@ template<typename Real>
 void Reduced_Objective_SimOpt<Real>::solve_adjoint_sensitivity(const Vector<Real> &v, const Vector<Real> &z, Real &tol) {
   // Evaluate full hessVec in the direction (s,v)
   obj_->hessVec_11(*dualstate_,*state_sens_,*state_,z,tol);
-  obj_->hessVec_12(*dualstate1_,v,*state_,z,tol);
-  dualstate_->plus(*dualstate1_);
+  if ( hessApprox_ != 3 ) {
+    obj_->hessVec_12(*dualstate1_,v,*state_,z,tol);
+    dualstate_->plus(*dualstate1_);
+  }
   // Apply adjoint Hessian of constraint
-  if ( !GaussNewtonHessian_ ) {
+  if ( hessApprox_ == 0 ) {
     con_->applyAdjointHessian_11(*dualstate1_,*adjoint_,*state_sens_,*state_,z,tol);
     dualstate_->plus(*dualstate1_);
     con_->applyAdjointHessian_21(*dualstate1_,*adjoint_,v,*state_,z,tol);
