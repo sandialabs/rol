@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "standalone-ci",
+      "hidden": false,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "ENABLE_TESTS": true,
+        "ENABLE_EXAMPLES": true
+      }
+    },
+    {
+      "name": "standalone-dev",
+      "hidden": false,
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+        "ENABLE_TESTS": true,
+        "ENABLE_EXAMPLES": true
+      }
+    }
+  ]
+}
