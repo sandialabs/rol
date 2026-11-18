@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Release, Debug]
+        build_type: [release, debug]
         compiler: [gcc-12, gcc-14, clang-18, clang-19]
         include:
           - compiler: gcc-12
@@ -50,8 +50,7 @@ jobs:
         command -v "${{ matrix.fortran }}"
     - name: Configure ROL
       run: |
-        cmake --preset standalone-ci \
-              -D CMAKE_BUILD_TYPE:STRING=${{ matrix.build_type }} \
+        cmake --preset standalone-ci-${{ matrix.build_type }} \
               -D CMAKE_CXX_COMPILER=${{ matrix.cxx }} \
               -D CMAKE_Fortran_COMPILER=${{ matrix.fortran }} \
               -B "build-${{ matrix.compiler }}" \
