@@ -13,7 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout ROL
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
+    - name: Set up ccache
+      uses: hendrikmuhs/ccache-action@v1.2
     - name: Clone Trilinos
       if: github.event_name != 'schedule' || github.ref == 'refs/heads/develop'
       run: git clone https://github.com/trilinos/Trilinos.git --branch develop --depth 1 ../trilinos
@@ -38,6 +40,7 @@ jobs:
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+              -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
               -D BUILD_SHARED_LIBS:BOOL=ON \
               -D ROL_ENABLE_EXAMPLES=ON \
               -D ROL_ENABLE_TESTS=ON \
