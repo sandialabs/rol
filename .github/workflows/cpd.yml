@@ -1,0 +1,31 @@
+name: Copy/paste detection
+
+on:
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PMD_VERSION: 7.29.0
+
+jobs:
+  cpd:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout ROL
+      uses: actions/checkout@v4
+    - name: Download PMD
+      run: |
+        curl -sSL -o pmd.zip "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip"
+        unzip -q pmd.zip
+    - name: Run copy/paste detection
+      run: |
+        pmd-bin-${PMD_VERSION}/bin/pmd cpd \
+              --minimum-tokens 100 \
+              --language cpp \
+              --dir src \
+              --no-fail-on-violation
