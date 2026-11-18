@@ -6,27 +6,56 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-standalone:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [release, debug]
+        compiler: [gcc-12, gcc-14, clang-18, clang-19]
+        include:
+          - compiler: gcc-12
+            cxx: g++-12
+            fortran: gfortran-12
+            install: false
+          - compiler: gcc-14
+            cxx: g++-14
+            fortran: gfortran-14
+            install: false
+          - compiler: clang-18
+            cxx: clang++-18
+            fortran: gfortran-14
+            install: false
+          - compiler: clang-19
+            cxx: clang++-19
+            fortran: gfortran-14
+            install: true
     steps:
     - name: Checkout ROL
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Set up dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake libopenblas-dev
-        sudo apt-get install -y ninja-build
+        sudo apt-get install -y libopenblas-dev
+    - name: Install compiler
+      if: ${{ matrix.install }}
+      run: sudo apt-get install -y "${{ matrix.compiler }}"
+    - name: Check compilers
+      run: |
+        command -v "${{ matrix.cxx }}"
+        command -v "${{ matrix.fortran }}"
+    - name: Configure ROL
+      run: |
+        cmake --preset standalone-ci-${{ matrix.build_type }} \
+              -D CMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -D CMAKE_Fortran_COMPILER=${{ matrix.fortran }} \
+              -B "build-${{ matrix.compiler }}" \
+              -S .
     - name: Build ROL
-      run: |
-        cmake -G Ninja \
-              -D CMAKE_BUILD_TYPE:STRING=RELEASE \
-              -D ENABLE_EXAMPLES:BOOL=ON \
-              -D ENABLE_TESTS:BOOL=ON \
-              -B build \
-               .
-        cmake --build build
+      run: cmake --build "build-${{ matrix.compiler }}"
     - name: Run CTest
-      run: |
-        cd build
-        ctest --output-on-failure
+      run: ctest --test-dir "build-${{ matrix.compiler }}" --output-on-failure
