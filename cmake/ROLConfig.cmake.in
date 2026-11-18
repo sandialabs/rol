@@ -2,6 +2,9 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(pugixml CONFIG)
+if(NOT @ROL_ENABLE_TEUCHOS_LITE_OBJECTS@)
+  find_dependency(TeuchosNumerics CONFIG)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/ROLTargets.cmake")
 

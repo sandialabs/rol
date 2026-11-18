@@ -90,6 +90,11 @@ if( STANDALONE_ROL )
     "Compile Teuchos-lite object implementations into standalone ROL"
     ON)
 
+  # Without the Teuchos-lite objects, ROL uses (and links) a real Teuchos.
+  if(NOT ROL_ENABLE_TEUCHOS_LITE_OBJECTS)
+    find_package(TeuchosNumerics CONFIG REQUIRED)
+  endif()
+
   # Configure the config header
   configure_file("${PROJECT_SOURCE_DIR}/cmake/ROL_config.h.in" ROL_config.h @ONLY)
 
@@ -111,10 +116,14 @@ if( STANDALONE_ROL )
                                  ${ROL_MPI_COMPAT_DIR}
                                  ${SRC}/compatibility/simple/parameterlist
                                  ${SRC}/compatibility/std/shared_ptr
-                                 ${SRC}/compatibility/teuchos/stacktrace
-                                 ${SRC}/compatibility/teuchos-lite)
+                                 ${SRC}/compatibility/teuchos/stacktrace)
 
+  # The teuchos-lite headers are only used with the Teuchos-lite objects.
+  # Otherwise ROL is built against (and linked to) a real Teuchos, whose headers
+  # must not be shadowed -- neither when building ROL nor, once installed, for
+  # consumers sharing ROL's install prefix.
   if(ROL_ENABLE_TEUCHOS_LITE_OBJECTS)
+    list(APPEND ROL_COMPATIBILITY_INCLUDES ${SRC}/compatibility/teuchos-lite)
     add_library(Teuchos_BLAS OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_BLAS.cpp)
     add_library(Teuchos_CompObject OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_CompObject.cpp)
     add_library(Teuchos_TestForException OBJECT ${SRC}/compatibility/teuchos-lite/Teuchos_TestForException.cpp)
@@ -177,6 +186,9 @@ if( STANDALONE_ROL )
 
   target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
                                     ${ROL_PUGIXML_TARGET})
+  if(NOT ROL_ENABLE_TEUCHOS_LITE_OBJECTS)
+    target_link_libraries(rol PUBLIC TeuchosNumerics::all_libs)
+  endif()
 
   add_library(rol::rol ALIAS rol)
   add_library(ROL::rol ALIAS rol)
