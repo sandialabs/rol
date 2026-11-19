@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - develop
+  push:
+    branches:
+      - develop
   workflow_dispatch:
 
 permissions:
@@ -40,7 +43,8 @@ jobs:
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: ${{ matrix.compiler }}-${{ matrix.build_type }}
+        key: standalone-${{ matrix.compiler }}-${{ matrix.build_type }}
+        save: ${{ github.event_name == 'push' }}
     - name: Set up dependencies
       run: |
         sudo apt-get update
