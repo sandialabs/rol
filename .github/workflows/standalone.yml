@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - develop
+  push:
+    branches:
+      - develop
   workflow_dispatch:
 
 permissions:
@@ -37,6 +40,11 @@ jobs:
     steps:
     - name: Checkout ROL
       uses: actions/checkout@v7
+    - name: Set up ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: standalone-${{ matrix.compiler }}-${{ matrix.build_type }}
+        save: ${{ github.event_name == 'push' }}
     - name: Set up dependencies
       run: |
         sudo apt-get update
@@ -53,6 +61,7 @@ jobs:
         cmake --preset standalone-ci-${{ matrix.build_type }} \
               -D CMAKE_CXX_COMPILER=${{ matrix.cxx }} \
               -D CMAKE_Fortran_COMPILER=${{ matrix.fortran }} \
+              -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
               -B "build-${{ matrix.compiler }}" \
               -S .
     - name: Build ROL
