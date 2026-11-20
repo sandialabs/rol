@@ -7,7 +7,9 @@
       "generator": "Ninja",
       "cacheVariables": {
         "ENABLE_TESTS": true,
-        "ENABLE_EXAMPLES": true
+        "ENABLE_EXAMPLES": true,
+        "WARNINGS_AS_ERRORS": true,
+        "COMMON_WARNING_FLAGS": "-Wall"
       }
     },
     {

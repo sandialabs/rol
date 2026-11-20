@@ -251,7 +251,7 @@ public:
     vmax_->randomize(static_cast<Real>(-1),static_cast<Real>(1));
     vmax_->scale(static_cast<Real>(1)/vmax_->norm());
   }
-  void update(const Vector<Real>& x, int iter=-1) {
+  void update(const Vector<Real>& x, int iter=-1) override final {
     GreedyObjective<Real>::update(x,iter);
     lamMax_ = powerit(*vmax_,x);
     vinc_->set(*vmax_);

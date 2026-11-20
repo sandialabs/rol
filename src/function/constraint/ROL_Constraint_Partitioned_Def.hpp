@@ -16,9 +16,8 @@ template<typename Real>
 Constraint_Partitioned<Real>::Constraint_Partitioned(const std::vector<Ptr<Constraint<Real>>> &cvec,
                                                      bool isInequality,
                                                      int offset)
- : cvec_(cvec), offset_(offset),
+ : cvec_(cvec), isInequality_(cvec_.size(), isInequality), offset_(offset),
    scratch_(nullPtr), ncval_(0), initialized_(false) {
-  isInequality_.clear(); isInequality_.resize(cvec.size(),isInequality);
 }
 
 template<typename Real>
