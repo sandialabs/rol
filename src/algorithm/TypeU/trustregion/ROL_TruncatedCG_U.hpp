@@ -14,10 +14,11 @@
     \brief Provides interface for truncated CG trust-region subproblem solver.
 */
 
+#include "ROL_IterationPrinter.hpp"
 #include "ROL_TrustRegion_U.hpp"
 #include "ROL_Types.hpp"
 
-namespace ROL { 
+namespace ROL {
 
 template<class Real>
 class TruncatedCG_U : public TrustRegion_U<Real> {
@@ -28,6 +29,8 @@ private:
   Real tol1_;
   Real tol2_;
 
+  int verbosity_;
+
 public:
 
   // Constructor
@@ -37,6 +40,7 @@ public:
     maxit_ = parlist.sublist("General").sublist("Krylov").get("Iteration Limit",20);
     tol1_  = parlist.sublist("General").sublist("Krylov").get("Absolute Tolerance",em4);
     tol2_  = parlist.sublist("General").sublist("Krylov").get("Relative Tolerance",em2);
+    verbosity_ = parlist.sublist("General").sublist("Krylov").get("Verbosity", 0);
   }
 
   void initialize(const Vector<Real> &x, const Vector<Real> &g) {
@@ -53,7 +57,8 @@ public:
               int                      &iflag,
               int                      &iter,
               const Real                del,
-              TrustRegionModel_U<Real> &model ) {
+              TrustRegionModel_U<Real> &model,
+              std::ostream             &outStream = std::cout ) {
     Real tol = std::sqrt(ROL_EPSILON<Real>());
     const Real zero(0), one(1), two(2), half(0.5);
     // Initialize step
@@ -69,9 +74,12 @@ public:
     // Initialize basis vector
     p_->set(*v_); p_->scale(-one);
     Real pnorm2 = v_->apply(*g_);
+    IterationPrinter<Real> out("TCG",verbosity_,{"rnorm","snorm","alpha","pRed"},outStream,true);
+    out.writeRow(0,{gnorm});
     if ( pnorm2 <= zero ) {
       iflag = 4;
       iter  = 0;
+      out.writeSummary(iter,iflag);
       return;
     }
     // Initialize scalar storage
@@ -113,6 +121,7 @@ public:
       // Check for convergence
       g_->axpy(alpha,*Hp_);
       normg = g_->norm();
+      out.writeRow(iter+1,{normg,std::sqrt(snorm2),alpha,pRed},iflag);
       if (normg < gtol) break;
       // Preconditioned updated (projected) gradient vector
       model.precond(*v_,*g_,s,tol);
@@ -131,6 +140,10 @@ public:
     // Check iteration count
     if (iter == maxit_) iflag = 1;
     if (iflag != 1)     iter++;
+    // Truncation row: show the truncated step length in alpha, omit the stale residual.
+    const Real na = IterationPrinter<Real>::none();
+    if (iflag == 2 || iflag == 3) out.writeRow(iter,{na,snorm,sigma,pRed},iflag);
+    out.writeSummary(iter,iflag);
   }
 };
 

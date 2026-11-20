@@ -143,6 +143,15 @@ BoxConstrained_ColemanLi
   ADD_DIR_TO_NAME
   )
 
+ROL_ADD_EXECUTABLE_AND_TEST(
+  TypeBStreamDiagnostics
+  SOURCES test_17.cpp
+  ARGS PrintItAll
+  NUM_MPI_PROCS 1
+  PASS_REGULAR_EXPRESSION "TEST PASSED"
+  ADD_DIR_TO_NAME
+  )
+
 ROL_COPY_FILES_TO_BINARY_DIR(
   TypeBTestDataCopy
   SOURCE_FILES

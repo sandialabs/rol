@@ -372,7 +372,7 @@ int main(int argc, char *argv[]) {
         (*outStream) << "RELATIVE TOLERANCE = " << relTol << std::endl;
 
       ROL::GMRES<RealT> krylov(parlist); // TODO: Do Belos
-      krylov.enableOutput(*outStream);
+      krylov.resetVerbosity(1);
 
       int flag = 0, iter = 0;
 
@@ -388,7 +388,7 @@ int main(int argc, char *argv[]) {
       }
 
       timer->start("krylov");
-      RealT finalTol = krylov.run(*kkt_x_out,kktOperator,*kkt_b,*precOperator,iter,flag);
+      RealT finalTol = krylov.run(*kkt_x_out,kktOperator,*kkt_b,*precOperator,iter,flag,*outStream);
       timer->stop("krylov");
 
       if(myRank==0)
@@ -536,8 +536,8 @@ solveKKTSystem(const std::string & prefix,
 
   ROL::GMRES<RealT> krylov(parlist); // TODO: Do Belos
   // ROL::MINRES<RealT> krylov(1e0, 1e-6, 200); // TODO: Do Belos
- 
-  krylov.enableOutput(*outStream);
+
+  krylov.resetVerbosity(1);
 
   int flag = 0;
   int iter = 0;
@@ -555,7 +555,7 @@ solveKKTSystem(const std::string & prefix,
   double t0 = MPI_Wtime();
 
   timer->start("krylov");
-  RealT finalTol = krylov.run(*kkt_x_out,kktOperator,*kkt_b,*precOperator,iter,flag);
+  RealT finalTol = krylov.run(*kkt_x_out,kktOperator,*kkt_b,*precOperator,iter,flag,*outStream);
   timer->stop("krylov");
 
   MPI_Barrier(MPI_COMM_WORLD);

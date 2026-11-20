@@ -74,7 +74,8 @@ namespace ROL {
 
 
             /// \brief Compute solution vector
-            Real run( V &x, OP& A, const V &b, OP &M, int &iter, int &flag )  {
+            Real run( V &x, OP& A, const V &b, OP &M, int &iter, int &flag,
+                      std::ostream & = std::cout )  {
 
                 
                 

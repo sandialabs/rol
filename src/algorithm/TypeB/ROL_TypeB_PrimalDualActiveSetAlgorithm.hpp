@@ -50,6 +50,7 @@ private:
   Real atolKrylov_;   ///< Absolute tolerance for Krylov solve (default: 1e-4)
   Real rtolKrylov_;   ///< Relative tolerance for Krylov solve (default: 1e-2)
   int maxitKrylov_;   ///< Maximum number of Krylov iterations (default: 100)
+  int verbKrylov_;    ///< Verbosity for the inner Krylov solve (default: 0)
   bool feasible_;     ///< Flag whether the current iterate is feasible or not
 
   int verbosity_;
