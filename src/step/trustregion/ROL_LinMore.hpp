@@ -366,13 +366,11 @@ private:
     const Real half(0.5), one(1), mu0(0.01), interpf(0.5);
     Real tol = std::sqrt(ROL_EPSILON<Real>());
     Real beta(1), snorm(0), q(0), gs(0), bpmin(0), bpmax(0);
-    int nsteps = 0;
     // Compute break points of x+beta*s;
     dbreakpt(x,s,model,bpmin,bpmax,pwa);
     // Reduce beta until sufficient decrease is satisfied
     bool search = true;
     while (search && beta > bpmin) {
-      nsteps++;
       snorm = dgpstep(pwa,s,x,beta,model);
       dynamic_cast<LinMoreModel<Real>&>(model).applyFreeHessian(dwa,pwa,x,tol);
       gs = pwa.dot(g);

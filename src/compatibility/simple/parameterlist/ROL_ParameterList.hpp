@@ -69,13 +69,11 @@ public:
     return values_.at(key);
   }
 
-  virtual int get_level() const = 0;
-
-  friend std::ostream& operator << ( std::ostream& os,
-                                     const PList& plist ) {
-    for( auto it=plist.values_.begin();
-              it != plist.values_.end(); ++it )
-      os << std::string(2*(plist.get_level()),' ') <<
+  std::ostream& display( std::ostream& os,
+                         const int level ) const {
+    for( auto it=values_.begin();
+              it != values_.end(); ++it )
+      os << std::string(2*(level),' ') <<
             it->first << " : " << it->second << std::endl;
     return os;
   }
@@ -98,8 +96,6 @@ public:
   // True if type can be converted to any of the ParameterList value types
   template<typename value_type>
   static constexpr bool is_valid_type_v = disjunction_v<std::is_convertible<value_type,ValueTypes>...>;
-
-  ParameterList( int level = 0 ) : level_(level) {}
 
   template<typename value_type>
   inline void set( key_type   key,
@@ -132,17 +128,14 @@ public:
     return PList<value_type>::get(key,value);
   }
 
-
-private:
-  int level_ = 0;
-
 }; // class detail::ParameterList
 
 template<typename...ValueTypes>
 inline void display( std::ostream& os,
+                     const int level,
                      const ParameterList<ValueTypes...>& parlist ) {
   using expander = int[];
-  (void)expander{0, (void( os << static_cast<const PList<ValueTypes>&>(parlist) ),0) ... };
+  (void)expander{0, (void( static_cast<const PList<ValueTypes>&>(parlist).display(os, level) ),0) ... };
 }
 
 } // namespace detail
@@ -257,11 +250,11 @@ public:
            hasKey<std::vector<std::string>>(key);
   }
 
-  int get_level() const override { return level_; }
+  int get_level() const { return level_; }
 
   friend std::ostream& operator << ( std::ostream&  os,
                                      const ParameterList& parlist ) {
-    detail::display( os , parlist );
+    detail::display( os , parlist.get_level(), parlist );
     os << std::endl;
     for( auto it=parlist.sublists_.begin(); it != parlist.sublists_.end(); ++it )
       os << std::string(2*parlist.get_level(),' ') <<
