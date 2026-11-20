@@ -20,6 +20,15 @@ if( STANDALONE_ROL )
   set(CMAKE_CXX_EXTENSIONS OFF)
   set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
+  if(WARNINGS_AS_ERRORS)
+    message(STATUS "Using -Werror")
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Werror>")
+  endif()
+
+  if(COMMON_WARNING_FLAGS)
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${COMMON_WARNING_FLAGS}>")
+  endif()
+
   include(GNUInstallDirs)
   include(CMakePackageConfigHelpers)
 
