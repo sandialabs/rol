@@ -1,0 +1,37 @@
+name: Copy/paste detection
+
+on:
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      cpd_minimum_tokens:
+        description: "Minimum token count for copy/paste detection"
+        required: false
+        type: number
+
+permissions:
+  contents: read
+
+env:
+  PMD_VERSION: 7.29.0
+  CPD_MINIMUM_TOKENS: ${{ inputs.cpd_minimum_tokens || '100' }}
+
+jobs:
+  cpd:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout ROL
+      uses: actions/checkout@v7
+    - name: Download PMD
+      run: |
+        curl -sSL -o pmd.zip "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip"
+        unzip -q pmd.zip
+    - name: Run copy/paste detection
+      run: |
+        pmd-bin-${PMD_VERSION}/bin/pmd cpd \
+              --minimum-tokens ${CPD_MINIMUM_TOKENS} \
+              --language cpp \
+              --dir src \
+              --no-fail-on-violation
