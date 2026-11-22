@@ -11,6 +11,7 @@
 #define ROL_EXPECTATIONQUAD_HPP
 
 #include "ROL_Types.hpp"
+#include <vector>
 
 /** @ingroup risk_group
     \class ROL::ExpectationQuad
@@ -186,6 +187,49 @@ public:
       t *= p1;
     }
     std::cout << "\n";
+  }
+
+protected:
+  /** \brief Run centered finite-difference tests for the derivatives of the
+             scalar regret function at the given points.
+
+      @param[in]   X      are the points
+      @param[in]   name   are the names of the points used in the output
+      @param[in]   order  is the highest derivative to test
+  */
+  void check(const std::vector<Real> &X, const std::vector<std::string> &name,
+             const int order = 2) {
+    const Real two(2), p1(0.1);
+    for (size_t k = 0; k < X.size(); k++) {
+      for (int deriv = 1; deriv <= order; deriv++) {
+        // v' is compared with differences of v and v'' with differences of v'
+        const std::string dv_name = (deriv==1 ? "v'" : "v''");
+        const std::string v_name  = (deriv==1 ? "v"  : "v'");
+        Real x = X[k], vx(0), vy(0), t(1), diff(0), err(0);
+        Real dv = regret(x,deriv);
+        std::cout << std::right << std::setw(20)
+                  << "CHECK REGRET: "+dv_name+"("+name[k]+") is correct? \n";
+        std::cout << std::right << std::setw(20) << "t"
+                                << std::setw(20) << dv_name+"(x)"
+                                << std::setw(20) << "("+v_name+"(x+t)-"+v_name+"(x-t))/2t"
+                                << std::setw(20) << "Error"
+                                << "\n";
+        for (int i = 0; i < 13; i++) {
+          vy = regret(x+t,deriv-1);
+          vx = regret(x-t,deriv-1);
+          diff = (vy-vx)/(two*t);
+          err = std::abs(diff-dv);
+          std::cout << std::scientific << std::setprecision(11) << std::right
+                    << std::setw(20) << t
+                    << std::setw(20) << dv
+                    << std::setw(20) << diff
+                    << std::setw(20) << err
+                    << "\n";
+          t *= p1;
+        }
+        std::cout << "\n";
+      }
+    }
   }
 };
 
