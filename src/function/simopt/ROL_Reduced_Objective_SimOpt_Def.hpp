@@ -22,11 +22,12 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const bool storage,
     const unsigned hessApprox)
   : obj_(obj), con_(con),
-    storage_(storage), hessApprox_(hessApprox),
+    storage_(storage),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
     newUpdate_(false), isUpdated_(true) {
+  setHessApprox(hessApprox);
   stateStore_   = makePtr<VectorController<Real>>();
   adjointStore_ = makePtr<VectorController<Real>>();
   state_        = state->clone(); state_->set(*state);
@@ -52,11 +53,12 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const bool storage,
     const unsigned hessApprox)
   : obj_(obj), con_(con),
-    storage_(storage), hessApprox_(hessApprox),
+    storage_(storage),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
     newUpdate_(false), isUpdated_(true) {
+  setHessApprox(hessApprox);
   stateStore_   = makePtr<VectorController<Real>>();
   adjointStore_ = makePtr<VectorController<Real>>();
   state_        = state->clone(); state_->set(*state);
@@ -80,11 +82,12 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const bool storage,
     const unsigned hessApprox)
   : obj_(obj), con_(con), stateStore_(stateStore),
-    storage_(storage), hessApprox_(hessApprox),
+    storage_(storage),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
     newUpdate_(false), isUpdated_(true) {
+  setHessApprox(hessApprox);
   adjointStore_ = makePtr<VectorController<Real>>();
   state_        = state->clone(); state_->set(*state);
   adjoint_      = adjoint->clone();
@@ -110,11 +113,12 @@ Reduced_Objective_SimOpt<Real>::Reduced_Objective_SimOpt(
     const bool storage,
     const unsigned hessApprox)
   : obj_(obj), con_(con), stateStore_(stateStore),
-    storage_(storage), hessApprox_(hessApprox),
+    storage_(storage),
     nupda_(0), nvalu_(0), ngrad_(0), nhess_(0), nprec_(0),
     nstat_(0), nadjo_(0), nssen_(0), nasen_(0),
     updateFlag_(true), updateIter_(0), updateType_(UpdateType::Initial),
     newUpdate_(false), isUpdated_(true) {
+  setHessApprox(hessApprox);
   adjointStore_ = makePtr<VectorController<Real>>();
   state_        = state->clone(); state_->set(*state);
   adjoint_      = adjoint->clone();
@@ -174,8 +178,6 @@ void Reduced_Objective_SimOpt<Real>::gradient( Vector<Real> &g, const Vector<Rea
 template<typename Real>
 void Reduced_Objective_SimOpt<Real>::hessVec( Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &z, Real &tol ) {
   nhess_++;
-  ROL_TEST_FOR_EXCEPTION( hessApprox_>3, std::invalid_argument,
-    ">>> ERROR (ROL::Reduced_Objective_SimOpt::hessVec): Invalid Hessian approximation!");
   if ( hessApprox_ == 1 ) {
     Objective<Real>::hessVec(hv,v,z,tol);
   }
@@ -207,6 +209,8 @@ void Reduced_Objective_SimOpt<Real>::hessVec( Vector<Real> &hv, const Vector<Rea
 
 template<typename Real>
 void Reduced_Objective_SimOpt<Real>::setHessApprox( const unsigned hessApprox ) {
+  ROL_TEST_FOR_EXCEPTION( hessApprox>3, std::invalid_argument,
+    ">>> ERROR (ROL::Reduced_Objective_SimOpt): Invalid Hessian approximation!");
   hessApprox_ = hessApprox;
 }
 

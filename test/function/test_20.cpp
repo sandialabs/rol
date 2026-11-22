@@ -681,18 +681,26 @@ int main(int argc, char *argv[]) {
     /*************************************************************************/
     /************* INVALID HESSIAN APPROXIMATION *****************************/
     /*************************************************************************/
-    ROL::Ptr<ROL::Objective<RealT>> robjBad
-      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,4);
-    *outStream << "\nCheck that hessVec throws for an invalid Hessian approximation\n";
+    *outStream << "\nCheck that an invalid Hessian approximation throws\n";
     int thrown = 0;
     try {
-      robjBad->hessVec(*dhv,*vp,*zp,tol);
+      ROL::Ptr<ROL::Objective<RealT>> robjBad
+        = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,4);
     }
     catch (std::invalid_argument& exc) {
       *outStream << exc.what() << "\n";
       thrown++;
     };
-    errorFlag += (thrown != 1) ? 1 : 0;
+    ROL::Ptr<ROL::Reduced_Objective_SimOpt<RealT>> robjSet
+      = ROL::makePtr<ROL::Reduced_Objective_SimOpt<RealT>>(obj,con,up,zp,lp,storage,2);
+    try {
+      robjSet->setHessApprox(4);
+    }
+    catch (std::invalid_argument& exc) {
+      *outStream << exc.what() << "\n";
+      thrown++;
+    };
+    errorFlag += (thrown != 2) ? 1 : 0;
 
     /*************************************************************************/
     /************* CHANGE THE HESSIAN APPROXIMATION IN UPDATE ****************/
