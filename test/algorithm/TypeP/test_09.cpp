@@ -129,6 +129,101 @@ public:
   }
 };
 
+class InexactQuadratic : public ROL::Objective<RealT> {
+  bool rejectFirst_;
+  bool trial_ = false;
+  int trials_ = 0;
+public:
+  bool invalidTolerance = false;
+  int refreshed = 0;
+  int accepted = 0, rejected = 0;
+
+  explicit InexactQuadratic(bool rejectFirst) : rejectFirst_(rejectFirst) {}
+  void update(const ROL::Vector<RealT> &, ROL::UpdateType type, int = -1) override {
+    trial_ = (type == ROL::UpdateType::Trial);
+    if (trial_) ++trials_;
+    if (type == ROL::UpdateType::Accept) ++accepted;
+    if (type == ROL::UpdateType::Revert) ++rejected;
+  }
+  RealT value(const ROL::Vector<RealT> &x, RealT &tol) override {
+    if (!std::isfinite(tol) || tol < 0) invalidTolerance = true;
+    const RealT z = static_cast<const WeightedVector&>(x).get()[0] - 1;
+    if (!trial_ && tol < 1) ++refreshed;
+    // The first trial can be made deliberately poor to exercise rejection.
+    return 0.5*z*z + (tol > 1 ? -0.1 : 0)
+         + (trial_ && rejectFirst_ && trials_ == 1 ? 1 : 0);
+  }
+  void gradient(ROL::Vector<RealT> &g, const ROL::Vector<RealT> &x, RealT &) override {
+    static_cast<WeightedVector&>(g).get()[0] = static_cast<const WeightedVector&>(x).get()[0] - 1;
+  }
+  void hessVec(ROL::Vector<RealT> &hv, const ROL::Vector<RealT> &v,
+               const ROL::Vector<RealT> &, RealT &) override {
+    hv.set(v);
+  }
+};
+
+class ConstantProx : public ROL::Objective<RealT> {
+public:
+  RealT value(const ROL::Vector<RealT> &, RealT &) override { return 0.02; }
+  void prox(ROL::Vector<RealT> &pv, const ROL::Vector<RealT> &v, RealT, RealT &) override {
+    pv.set(v);
+  }
+};
+
+class ObservedTrustRegion : public ROL::TypeP::TrustRegionAlgorithm<RealT> {
+public:
+  using ROL::TypeP::TrustRegionAlgorithm<RealT>::TrustRegionAlgorithm;
+  using ROL::TypeP::TrustRegionAlgorithm<RealT>::computeValue;
+  bool badPrediction = false;
+  int calls = 0;
+  RealT computeValue(RealT inTol, RealT &outTol, RealT pRed, RealT &fold,
+                     RealT del, int iter, const ROL::Vector<RealT> &x,
+                     const ROL::Vector<RealT> &xold, ROL::Objective<RealT> &obj) override {
+    const RealT oldz = static_cast<const WeightedVector&>(xold).get()[0] - 1;
+    const RealT newz = static_cast<const WeightedVector&>(x).get()[0] - 1;
+    if (std::abs(pRed - 0.5*(oldz*oldz-newz*newz)) > 1e-12) badPrediction = true;
+    ++calls;
+    return ROL::TypeP::TrustRegionAlgorithm<RealT>::computeValue(
+        inTol, outTol, pRed, fold, del, iter, x, xold, obj);
+  }
+};
+
+int testInexactValues(std::ostream &out) {
+  int errors = 0;
+  auto m = ROL::makePtr<std::vector<RealT>>(1, 1);
+  for (bool rejectFirst : {false, true}) {
+    ROL::ParameterList list;
+    list.sublist("General").set("Inexact Objective Function", true);
+    list.sublist("Step").sublist("Trust Region").set("Initial Radius", 0.1);
+    list.sublist("Status Test").set("Iteration Limit", rejectFirst ? 2 : 1);
+    list.sublist("Status Test").set("Gradient Tolerance", 1e-12);
+    list.sublist("Status Test").set("Step Tolerance", 1e-14);
+    WeightedVector x(m);
+    InexactQuadratic smooth(rejectFirst);
+    ConstantProx nonsmooth;
+    ObservedTrustRegion algo(list);
+    algo.run(x, smooth, nonsmooth, out);
+    auto state = algo.getState();
+    if (smooth.refreshed == 0 || smooth.invalidTolerance || algo.badPrediction ||
+        smooth.accepted != 1 || smooth.rejected != (rejectFirst ? 1 : 0) ||
+        algo.calls != (rejectFirst ? 2 : 1) || x.get()[0] <= 0 ||
+        std::abs(state->value - state->svalue - state->nvalue) > 1e-12) {
+      out << "Inexact value synchronization failed, rejectFirst=" << rejectFirst << "\n";
+      ++errors;
+    }
+
+    for (RealT pRed : {-0.1, 0.0}) {
+      RealT outTol = 0, oldValue = 0;
+      algo.computeValue(1, outTol, pRed, oldValue, 0.1, 1, x, x, smooth);
+      if (!std::isfinite(outTol) || outTol <= 0 || smooth.invalidTolerance) {
+        out << "Invalid tolerance for nonpositive predicted reduction\n";
+        ++errors;
+      }
+    }
+  }
+  return errors;
+}
+
 int main(int argc, char *argv[]) {
 
   ROL::GlobalMPISession mpiSession(&argc, &argv);
@@ -142,6 +237,7 @@ int main(int argc, char *argv[]) {
   int errorFlag = 0;
 
   try {
+    errorFlag += testInexactValues(*outStream);
     const int dim = 40;
     const RealT beta = 1e-3, alpha = 1e-4, errTol = 1e-1;
 

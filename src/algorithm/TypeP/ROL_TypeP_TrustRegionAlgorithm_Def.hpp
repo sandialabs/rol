@@ -138,7 +138,9 @@ Real TrustRegionAlgorithm<Real>::computeValue(Real inTol,
     if (!(iter%updateIter_) && (iter!=0)) force_ *= forceFactor_;
     const Real one(1);
     Real eta = static_cast<Real>(0.999)*std::min(eta1_,one-eta2_);
-    outTol   = scale_*std::pow(eta*std::min(pRed,force_),one/omega_);
+    // For nonpositive predicted reduction, retain the default finite tolerance.
+    if (pRed > static_cast<Real>(0))
+      outTol = scale_*std::pow(eta*std::min(pRed,force_),one/omega_);
     if (inTol > outTol) {
       fold = sobj.value(xold,outTol); state_->nsval++;
     }
@@ -229,6 +231,8 @@ void TrustRegionAlgorithm<Real>::run(Vector<Real>       &x,
 
     // Compute trial objective value
     strial = computeValue(inTol,outTol,pRed,state_->svalue,state_->searchSize, state_->iter,x,*state_->iterateVec,sobj);
+    // The model reduction was computed before any current-value reevaluation.
+    state_->value = state_->svalue + state_->nvalue;
     Ftrial = strial + ntrial;
 
     // Compute ratio of actual and predicted reduction
