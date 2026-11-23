@@ -60,7 +60,7 @@ void InexactNewtonAlgorithm<Real>::initialize(Vector<Real>          &x,
   const Real one(1);
   Real tol(std::sqrt(ROL_EPSILON<Real>()));
   // Initialize data
-  TypeP::Algorithm<Real>::initialize(x,g);
+  Algorithm<Real>::initialize(x,g);
   // Update approximate gradient and approximate objective function.
   Real ftol = std::sqrt(ROL_EPSILON<Real>());
   if (initProx_) {
