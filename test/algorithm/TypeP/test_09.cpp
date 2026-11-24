@@ -129,15 +129,6 @@ public:
   }
 };
 
-class InexactQuadratic : public ROL::Objective<RealT> {
-  bool rejectFirst_;
-  bool trial_ = false;
-  int trials_ = 0;
-public:
-  bool invalidTolerance = false;
-  int refreshed = 0;
-  int accepted = 0, rejected = 0;
-
 int main(int argc, char *argv[]) {
 
   ROL::GlobalMPISession mpiSession(&argc, &argv);
