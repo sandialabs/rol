@@ -185,8 +185,9 @@ public:
   }
 
   Real apply(const Vector<Real> &x) const {
+    ROL::Ptr<const V> xp = dynamic_cast<const ProfiledVector&>(x).getVector();
     functionCalls_.apply_++;
-    return v_->apply(x);
+    return v_->apply(*xp);
   }
 
   ROL::Ptr<Vector<Real> > getVector() {
