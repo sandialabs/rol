@@ -24,18 +24,22 @@ jobs:
           - compiler: gcc-12
             cxx: g++-12
             fortran: gfortran-12
+            use_sanitizers: true
             install: false
           - compiler: gcc-14
             cxx: g++-14
             fortran: gfortran-14
+            use_sanitizers: false
             install: false
           - compiler: clang-18
             cxx: clang++-18
             fortran: gfortran-14
+            use_sanitizers: true
             install: false
           - compiler: clang-19
             cxx: clang++-19
             fortran: gfortran-14
+            use_sanitizers: false
             install: true
     steps:
     - name: Checkout ROL
@@ -62,6 +66,7 @@ jobs:
               -D CMAKE_CXX_COMPILER=${{ matrix.cxx }} \
               -D CMAKE_Fortran_COMPILER=${{ matrix.fortran }} \
               -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -D USE_SANITIZERS=${{ matrix.use_sanitizers }} \
               -B "build-${{ matrix.compiler }}" \
               -S .
     - name: Build ROL
