@@ -128,7 +128,7 @@ Real TrustRegionAlgorithm<Real>::computeValue(Real inTol,
                                               Real &outTol,
                                               Real pRed,
                                               Real &fold,
-                                              Real del,
+                                              tReal del,
                                               int  iter,
                                               const Vector<Real> &x,
                                               const Vector<Real> &xold,
@@ -226,6 +226,7 @@ void TrustRegionAlgorithm<Real>::run(Vector<Real>       &x,
                    *state_->iterateVec, state_->searchSize, 
                    *model_, nobj, SPflag_, SPiter_, nhess_, state_->nprox, state_->nnval, outStream);
     pRed = state_->value - (smodel+ntrial);
+    ROL_TEST_FOR_EXCEPTION(!std::isfinite(pRed) || pRed < Real(0), std::runtime_error,"Trust-region subproblem returned a negative or nonfinite predicted reduction.");
     state_->stepVec->set(x); state_->stepVec->axpy(-one,*state_->iterateVec);
     state_->snorm = state_->stepVec->norm();
 
