@@ -67,28 +67,6 @@ class Flops
 {
   public:
 
-    //! @name Constructor/Destructor.
-  //@{
-
-  //! Default Constructor.
-  /*! Creates a Flops instance. This instance can be queried for
-      the number of floating point operations performed for the associated
-      \e this object.
-  */
-  Flops();
-
-  //! Copy Constructor.
-  /*! Makes an exact copy of an existing Flops instance.
-  */
-  Flops(const Flops &flops);
-
-  //! Destructor.
-  /*! Completely deletes a Flops object.
-  */
-  virtual ~Flops();
-
-  //@}
-
   //! @name Accessor methods.
   //@{
 

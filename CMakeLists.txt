@@ -20,6 +20,14 @@ if( STANDALONE_ROL )
   set(CMAKE_CXX_EXTENSIONS OFF)
   set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
+  option(USE_SANITIZERS "Builds ROL with runtime sanitizers" OFF)
+  if(USE_SANITIZERS)
+    message(STATUS "Compiling with asan and ubsan")
+    set(SANITIZER_FLAGS "-fsanitize=address,undefined;-fno-omit-frame-pointer")
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${SANITIZER_FLAGS}>")
+    add_link_options(${SANITIZER_FLAGS})
+  endif()
+
   include(GNUInstallDirs)
   include(CMakePackageConfigHelpers)
 
