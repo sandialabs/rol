@@ -81,61 +81,9 @@ public:
 
   void check(void) {
     ExpectationQuad<Real>::check();
-    // Check v'(beta)
-    Real x = beta_, zero(0), one(1), two(2), p1(0.1);
-    Real vx = zero, vy = zero;
-    Real dv = regret(x,1);
-    Real t = one;
-    Real diff = zero;
-    Real err = zero;
-    std::cout << std::right << std::setw(20) << "CHECK REGRET: v'(beta) is correct? \n";
-    std::cout << std::right << std::setw(20) << "t"
-                            << std::setw(20) << "v'(x)"
-                            << std::setw(20) << "(v(x+t)-v(x-t))/2t"
-                            << std::setw(20) << "Error"
-                            << "\n";
-    for (int i = 0; i < 13; i++) {
-      vy = regret(x+t,0);
-      vx = regret(x-t,0);
-      diff = (vy-vx)/(two*t);
-      err = std::abs(diff-dv);
-      std::cout << std::scientific << std::setprecision(11) << std::right
-                << std::setw(20) << t
-                << std::setw(20) << dv
-                << std::setw(20) << diff
-                << std::setw(20) << err
-                << "\n";
-      t *= p1;
-    }
-    std::cout << "\n";
-    // Check v'(-beta)
-    x = -beta_;
-    vx = zero;
-    vy = zero;
-    dv = regret(x,1);
-    t = one;
-    diff = zero;
-    err = zero;
-    std::cout << std::right << std::setw(20) << "CHECK REGRET: v'(-beta) is correct? \n";
-    std::cout << std::right << std::setw(20) << "t"
-                            << std::setw(20) << "v'(x)"
-                            << std::setw(20) << "(v(x+t)-v(x-t))/2t"
-                            << std::setw(20) << "Error"
-                            << "\n";
-    for (int i = 0; i < 13; i++) {
-      vy = regret(x+t,0);
-      vx = regret(x-t,0);
-      diff = (vy-vx)/(two*t);
-      err = std::abs(diff-dv);
-      std::cout << std::scientific << std::setprecision(11) << std::right
-                << std::setw(20) << t
-                << std::setw(20) << dv
-                << std::setw(20) << diff
-                << std::setw(20) << err
-                << "\n";
-      t *= p1;
-    }
-    std::cout << "\n";
+    std::vector<Real> X = {beta_, -beta_};
+    std::vector<std::string> name = {"beta", "-beta"};
+    ExpectationQuad<Real>::check(X,name,1);
   }
 
 };
