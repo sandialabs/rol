@@ -129,6 +129,143 @@ public:
   }
 };
 
+class CountingQuadratic : public WeightedQuadratic {
+public:
+  int gradients = 0;
+  using WeightedQuadratic::WeightedQuadratic;
+  void gradient(ROL::Vector<RealT> &g, const ROL::Vector<RealT> &x, RealT &tol) override {
+    ++gradients;
+    WeightedQuadratic::gradient(g,x,tol);
+  }
+};
+
+class TestTrustRegion : public ROL::TypeP::TrustRegionAlgorithm<RealT> {
+public:
+  using ROL::TypeP::TrustRegionAlgorithm<RealT>::TrustRegionAlgorithm;
+  using ROL::TypeP::TrustRegionAlgorithm<RealT>::computeGradient;
+};
+
+class TestTruncatedCG : public ROL::TypeP::TruncatedCG<RealT> {
+public:
+  using ROL::TypeP::TruncatedCG<RealT>::TruncatedCG;
+  void direction(RealT d) { static_cast<WeightedVector&>(*s).get()[0] = d; }
+};
+
+class TrackingL1 : public WeightedL1 {
+  RealT trial_ = 0;
+public:
+  bool mismatched = false;
+  bool nonnegative = false;
+  using WeightedL1::WeightedL1;
+  void update(const ROL::Vector<RealT> &x, ROL::UpdateType, int = -1) override {
+    trial_ = static_cast<const WeightedVector&>(x).get()[0];
+  }
+  RealT value(const ROL::Vector<RealT> &x, RealT &tol) override {
+    if (trial_ != static_cast<const WeightedVector&>(x).get()[0]) mismatched = true;
+    if (nonnegative && trial_ < 0) return ROL::ROL_INF<RealT>();
+    return WeightedL1::value(x,tol);
+  }
+  RealT trial() const { return trial_; }
+};
+
+class AscentProx : public ROL::Objective<RealT> {
+public:
+  RealT value(const ROL::Vector<RealT> &, RealT &) override { return 0; }
+  void prox(ROL::Vector<RealT> &pv, const ROL::Vector<RealT> &v, RealT, RealT &) override {
+    pv.set(v);
+    static_cast<WeightedVector&>(pv).get()[0] += 2;
+  }
+};
+
+int testInexactGradient(std::ostream &out) {
+  auto m = ROL::makePtr<std::vector<RealT>>(1,1);
+  WeightedVector x(m), g(m,true), px(m), dg(m), step(m);
+  CountingQuadratic smooth(m,{1},{1});
+  WeightedL1 nonsmooth(m,0.001);
+  ROL::ParameterList list;
+  list.sublist("General").set("Inexact Gradient",true);
+  list.sublist("Step").sublist("Trust Region").sublist("Inexact")
+      .sublist("Gradient").set("Tolerance Scaling",1e8);
+  TestTrustRegion algo(list);
+  algo.initialize(x,g,1.0,smooth,nonsmooth,px,dg,out);
+  x.get()[0] = 0.5;
+  const RealT radius = 232830643.65386963;
+  RealT gtol = 1e8*radius, gnorm = radius;
+  const int before = smooth.gradients;
+  algo.computeGradient(x,g,px,dg,step,radius,smooth,nonsmooth,true,gtol,gnorm,out);
+  if (smooth.gradients == before || std::abs(g.get()[0]+0.5) > 1e-14) {
+    out << "Accepted-step gradient was not refreshed\n";
+    return 1;
+  }
+  const int after = smooth.gradients;
+  gtol = 0;
+  algo.computeGradient(x,g,px,dg,step,radius,smooth,nonsmooth,false,gtol,gnorm,out);
+  if (smooth.gradients != after) {
+    out << "Rejected-step gradient was unnecessarily refreshed\n";
+    return 1;
+  }
+  return 0;
+}
+
+int testLineSearch(std::ostream &out) {
+  auto m = ROL::makePtr<std::vector<RealT>>(1,1);
+  WeightedVector y(m), g(m,true);
+  ROL::ParameterList list;
+  TestTruncatedCG solver(list);
+  solver.initialize(y,g);
+  TrackingL1 nonsmooth(m,0.001);
+  struct Case { RealT y, s, lambda, tmax, kappa, gs; bool descent, nonnegative; };
+  const std::vector<Case> cases = {
+    {1, -3.8181672765e-9, 8801.1754331558532, 1.4035712260437875e17,
+     3.1607747511487261e-15, 3.6538877175686831e-12, true, false},
+    {0, 1, 1, 1e6, 1e-12, -5e-4, false, false},
+    {1, -1e-6, 1, 1e6, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 1e12, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 1e20, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 1e27, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 0, 1e-12, 5e-10, false, false},
+    {1, -1, 0.5, 2, 1, -2, true, true}
+  };
+  int errors = 0;
+  for (const auto &c : cases) {
+    y.get()[0] = c.y;
+    solver.direction(c.s);
+    nonsmooth.nonnegative = c.nonnegative;
+    RealT alpha = 0, nval = 0.001*std::abs(c.y), pred = 0;
+    const RealT nold = nval;
+    int nnval = 0;
+    solver.dbls(alpha,nval,pred,y,c.lambda,c.tmax,c.kappa,c.gs,nonsmooth,nnval,out);
+    const RealT expectedN = 0.001*std::abs(c.y+alpha*c.s);
+    const RealT expectedP = alpha*(0.5*alpha*c.kappa+c.gs)+expectedN-nold;
+    if ((c.descent ? !(alpha > 0 && pred < 0) : alpha != 0)
+        || alpha > c.tmax || std::abs(nval-expectedN) > 1e-15
+        || std::abs(pred-expectedP) > 1e-15
+        || (c.s == -1e-6 && c.descent && std::abs(alpha-500) > 0.1)
+        || pred > 1e-4*std::min(RealT(0),alpha*c.gs+nval-nold)
+        || nonsmooth.trial() != c.y+alpha*c.s || nonsmooth.mismatched) {
+      out << "Line search failed, tmax=" << c.tmax << ", alpha=" << alpha
+          << ", change=" << pred << "\n";
+      ++errors;
+    }
+  }
+  WeightedVector x(m), modelGradient(m,true);
+  modelGradient.get()[0] = 1;
+  WeightedQuadratic model(m,{1},{-1});
+  AscentProx ascent;
+  RealT sval = 0.5, nval = 0;
+  int flag = 0, iterations = 0, nhess = 0, nprox = 0, nnval = 0;
+  solver.solve(y,sval,nval,modelGradient,x,1,model,ascent,
+               flag,iterations,nhess,nprox,nnval,out);
+  if (flag != 3 || y.get()[0] != 0 || sval != 0.5 || nval != 0
+      || modelGradient.get()[0] != 1) {
+    out << "NCG did not report line-search failure without taking a step: "
+        << flag << " " << y.get()[0] << " " << sval << " " << nval
+        << " " << modelGradient.get()[0] << "\n";
+    ++errors;
+  }
+  return errors;
+}
+
 int main(int argc, char *argv[]) {
 
   ROL::GlobalMPISession mpiSession(&argc, &argv);
@@ -142,6 +279,8 @@ int main(int argc, char *argv[]) {
   int errorFlag = 0;
 
   try {
+    errorFlag += testInexactGradient(*outStream);
+    errorFlag += testLineSearch(*outStream);
     const int dim = 40;
     const RealT beta = 1e-3, alpha = 1e-4, errTol = 1e-1;
 
