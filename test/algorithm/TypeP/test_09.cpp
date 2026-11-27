@@ -171,6 +171,7 @@ public:
 class AscentProx : public ROL::Objective<RealT> {
 public:
   RealT value(const ROL::Vector<RealT> &, RealT &) override { return 0; }
+  // Deliberately produces an ascent direction to test line-search failure handling.
   void prox(ROL::Vector<RealT> &pv, const ROL::Vector<RealT> &v, RealT, RealT &) override {
     pv.set(v);
     static_cast<WeightedVector&>(pv).get()[0] += 2;
@@ -189,6 +190,7 @@ int testInexactGradient(std::ostream &out) {
   TestTrustRegion algo(list);
   algo.initialize(x,g,1.0,smooth,nonsmooth,px,dg,out);
   x.get()[0] = 0.5;
+  // At this scale, adding one to the initial tolerance rounds back to the same value.
   const RealT radius = 232830643.65386963;
   RealT gtol = 1e8*radius, gnorm = radius;
   const int before = smooth.gradients;
@@ -216,8 +218,10 @@ int testLineSearch(std::ostream &out) {
   TrackingL1 nonsmooth(m,0.001);
   struct Case { RealT y, s, lambda, tmax, kappa, gs; bool descent, nonnegative; };
   const std::vector<Case> cases = {
+    // Wide bracket that previously returned an increasing step after Brent exhausted its budget.
     {1, -3.8181672765e-9, 8801.1754331558532, 1.4035712260437875e17,
      3.1607747511487261e-15, 3.6538877175686831e-12, true, false},
+    // No descent, ordinary descent at varying bounds, zero bound, and restricted domain.
     {0, 1, 1, 1e6, 1e-12, -5e-4, false, false},
     {1, -1e-6, 1, 1e6, 1e-12, 5e-10, true, false},
     {1, -1e-6, 1, 1e12, 1e-12, 5e-10, true, false},
@@ -246,6 +250,16 @@ int testLineSearch(std::ostream &out) {
       out << "Line search failed, tmax=" << c.tmax << ", alpha=" << alpha
           << ", change=" << pred << "\n";
       ++errors;
+    }
+    if (!c.descent && c.tmax > 0) {
+      // Loose evaluation bound for this no-descent case; it is not a general bound.
+      const RealT tol = std::sqrt(ROL::ROL_EPSILON<RealT>());
+      const int maxit = static_cast<int>(std::max(5.0,
+        std::ceil((std::log(c.tmax)-std::log(1e-2*tol))/std::log(2.0))));
+      if (nnval > maxit+2) {
+        out << "Line search performed extra evaluations after Brent's method\n";
+        ++errors;
+      }
     }
   }
   WeightedVector x(m), modelGradient(m,true);
