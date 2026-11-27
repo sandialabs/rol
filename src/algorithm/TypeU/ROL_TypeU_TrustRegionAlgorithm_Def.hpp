@@ -179,7 +179,7 @@ void TrustRegionAlgorithm<Real>::run( Vector<Real>       &x,
     pRed = zero;
     SPflag_ = 0; SPiter_ = 0;
     solver_->solve(*state_->stepVec,state_->snorm,pRed,SPflag_,SPiter_,
-                   state_->searchSize,*model_);
+                   state_->searchSize,*model_,outStream);
     // Compute trial objective function value
     x.plus(*state_->stepVec);
     ftrial = computeValue(x,obj,pRed);

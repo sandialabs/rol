@@ -14,6 +14,8 @@
     \brief Provides interface for and implements trust-region subproblem solvers.
 */
 
+#include <iostream>
+
 #include "ROL_Vector.hpp"
 #include "ROL_TrustRegionModel_U.hpp"
 
@@ -32,7 +34,8 @@ public:
                      int                      &iflag,      // Exit flag (to be computed)
                      int                      &iter,       // Iteration count (to be computed)
                      const Real                del,        // Trust-region radius
-                     TrustRegionModel_U<Real> &model) = 0; // Trust-region model
+                     TrustRegionModel_U<Real> &model,      // Trust-region model
+                     std::ostream             &outStream = std::cout) = 0; // Diagnostic output stream
 };
 
 } // namespace ROL

@@ -41,7 +41,8 @@ public:
               int                      &iflag,
               int                      &iter,
               const Real                del,
-              TrustRegionModel_U<Real> &model ) {
+              TrustRegionModel_U<Real> &model,
+              std::ostream             & = std::cout ) {
     Real tol = std::sqrt(ROL_EPSILON<Real>());
     const Real zero(0), half(0.5), one(1), two(2);
     iter = 0;
