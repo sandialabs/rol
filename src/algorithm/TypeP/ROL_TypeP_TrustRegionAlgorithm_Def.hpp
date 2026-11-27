@@ -138,7 +138,9 @@ Real TrustRegionAlgorithm<Real>::computeValue(Real inTol,
     if (!(iter%updateIter_) && (iter!=0)) force_ *= forceFactor_;
     const Real one(1);
     Real eta = static_cast<Real>(0.999)*std::min(eta1_,one-eta2_);
-    outTol   = scale_*std::pow(eta*std::min(pRed,force_),one/omega_);
+    // For nonpositive predicted reduction, retain the default finite tolerance.
+    if (pRed > static_cast<Real>(0))
+      outTol = scale_*std::pow(eta*std::min(pRed,force_),one/omega_);
     if (inTol > outTol) {
       fold = sobj.value(xold,outTol); state_->nsval++;
     }
@@ -164,9 +166,10 @@ void TrustRegionAlgorithm<Real>::computeGradient(const Vector<Real> &x,
                                                  std::ostream &outStream) const {
   if ( useInexact_[1] ) {
     Real gtol0 = scale0_*del;
-    if (accept) gtol  = gtol0 + static_cast<Real>(1);
-    else        gtol0 = scale0_*std::min(gnorm,del);
-    while ( gtol > gtol0 ) {
+    if (!accept) gtol0 = scale0_*std::min(gnorm,del);
+    bool first = accept;
+    while ( first || gtol > gtol0 ) {
+      first = false;
       gtol = gtol0;
       sobj.gradient(g,x,gtol); state_->ngrad++;
       dg.set(g.dual());
@@ -224,11 +227,14 @@ void TrustRegionAlgorithm<Real>::run(Vector<Real>       &x,
                    *state_->iterateVec, state_->searchSize, 
                    *model_, nobj, SPflag_, SPiter_, nhess_, state_->nprox, state_->nnval, outStream);
     pRed = state_->value - (smodel+ntrial);
+    ROL_TEST_FOR_EXCEPTION(!std::isfinite(pRed) || pRed < Real(0), std::runtime_error,"Trust-region subproblem returned a negative or nonfinite predicted reduction.");
     state_->stepVec->set(x); state_->stepVec->axpy(-one,*state_->iterateVec);
     state_->snorm = state_->stepVec->norm();
 
     // Compute trial objective value
     strial = computeValue(inTol,outTol,pRed,state_->svalue,state_->searchSize, state_->iter,x,*state_->iterateVec,sobj);
+    // The model reduction was computed before any current-value reevaluation.
+    state_->value = state_->svalue + state_->nvalue;
     Ftrial = strial + ntrial;
 
     // Compute ratio of actual and predicted reduction
@@ -346,10 +352,10 @@ void TrustRegionAlgorithm<Real>::writeHeader( std::ostream& os ) const {
       os << std::endl;
       os << "  iterCG - Number of Truncated CG iterations" << std::endl << std::endl;
       os << "  flagCG - Trust-Region Truncated CG flag" << std::endl;
-      for( int flag = CG_FLAG_SUCCESS; flag != CG_FLAG_UNDEFINED; ++flag ) {
-        os << "    " << NumberToString(flag) << " - "
-             << ECGFlagToString(static_cast<ECGFlag>(flag)) << std::endl;
-      }            
+      os << "    0 - Proximal gradient tolerance met" << std::endl;
+      os << "    1 - Iteration limit exceeded" << std::endl;
+      os << "    2 - Trust-region boundary reached" << std::endl;
+      os << "    3 - Line search failed to find a decreasing step" << std::endl;
     }
     else if( algSelect_ == TRUSTREGION_P_SPG || algSelect_ == TRUSTREGION_P_SPG2 ) {
       os << std::endl;

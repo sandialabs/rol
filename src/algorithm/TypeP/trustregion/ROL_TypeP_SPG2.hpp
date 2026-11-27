@@ -99,7 +99,6 @@ public:
     s->axpy(-one, x);
     // Compute initial step
     gnorm  = s->norm();                            // norm(step) / lambda
-
     // Compute initial projected gradient norm
     const Real gtol = std::min(tol1_,tol2_*std::pow((gnorm/t0_),2));
 
@@ -122,8 +121,8 @@ public:
       }
       // Evaluate model Hessian
       model.hessVec(*dwa,*s,x,tol); nhess_++; // dwa = H step
-      sHs   = s->apply(dwa->dual());                   // sHs = <step, H step>
-      gs    = s->apply(gmod.dual());
+      sHs   = s->apply(*dwa);                   // sHs = <step, H step>
+      gs    = s->apply(gmod);
       // Evaluate nonsmooth term
       nobj.update(*pwa1,UpdateType::Trial);
       nval = nobj.value(*pwa1,tol); nnval_++;
@@ -169,7 +168,7 @@ public:
       //pgstep(*pwa1, *pwa, nobj, y, gmod.dual(), alpha, tol); nprox_++; //pwa1 = x1, pwa is evaluation
       s->set(*pwa1); s->axpy(-one, y);
       gnorm = s->norm();
-      if (gnorm/t0_ <= gtol) { SPflag_ = 0; break; }
+      if (gnorm/t0_ <= std::max(gtol, tol)) { SPflag_ = 0; break; }
 
 
       if (verbosity_ > 2) {
@@ -208,13 +207,13 @@ void gcp2( Vector<Real>             &y,
    // Compute cp as single spg step
    pwa2->set(gmod.dual());
    model.hessVec(*dwa, *pwa2, x, tol);
-   gHg = dwa->apply(gmod);
-   gg  = pwa2->apply(*pwa2);
+   gHg = pwa2->apply(*dwa);
+   gg  = pwa2->dot(*pwa2);
 
    if (gHg > tol*gg) {
      t0Tmp = gg / gHg;
    }
-   else{
+   else{ // this is much faster sometimes
      t0Tmp = t0_ / std::sqrt(gg);
    }
    lam = std::min(lambdaMax_, std::max(lambdaMin_, t0Tmp));
@@ -227,7 +226,7 @@ void gcp2( Vector<Real>             &y,
    // Hs
    model.hessVec(*dwa, *s, x, tol);
    sHs = s->apply(*dwa);
-   gs  = pwa2->dot(*s); //pwa2 = gmod.dual()
+   gs  = s->apply(gmod);
 
    nobj.update(*pwa1, UpdateType::Trial);
    nval = nobj.value(*pwa1, tol); nnval_++;
@@ -251,10 +250,9 @@ void gcp2( Vector<Real>             &y,
      nval = nobj.value(*pwa1, tol); nnval_++;
    }
    sval += gs + half*sHs;
-   y.set(*pwa1);
-}  // gcp2
-}; // SPG
-} // namespace TypeP
+  }  // gcp2
+  }; // SPG
+ } // namespace TypeP
 }  // namespace ROL
 
 #endif

@@ -147,6 +147,7 @@ public:
   if (verbosity_>2) outStream << "  Truncated CG" << std::endl;
 
   SPiter_ = 0;
+  if (gnorm <= gtol) { SPflag_ = 0; return; }
   SPflag_ = 1;
   while (SPiter_ < maxit_) {
     SPiter_++;
@@ -167,6 +168,8 @@ public:
     }
     //should output nold and alpha - pass s, pwa5
     dbls(alpha,nold,pred,y,lam1,alphaMax,sHs,gs,nobj, nnval_, outStream);
+    // A zero step means no acceptable candidate was found; leave the model unchanged.
+    if (alpha == zero) { SPflag_ = 3; break; }
 
     // Update quantities to evaluate quadratic model value and gradient
     y.axpy(alpha, *s);
@@ -289,11 +292,23 @@ public:
     Real tol(std::sqrt(ROL_EPSILON<Real>()));
     const Real eps1(1e-2*tol), tol0(1e4*tol);
     //const Real eps0(1e2*ROL_EPSILON<Real>());
-    const unsigned maxit(std::max(5.0, std::ceil(-std::log(1e-2*tol/tmax)/std::log(2))));
     const Real zero(0), half(0.5), two(2); //one(1), two(2);
     const Real lam(0.5*(3.0-std::sqrt(5.0)));
     const Real nold(nval);
     const Real mu(1e-4);
+    // Keep the best finite, sufficiently decreasing candidate, including if Brent exhausts its budget.
+    // Zero is the fallback when no evaluated candidate qualifies.
+    Real bestT(0), bestP(0), bestN(nold);
+    ROL_TEST_FOR_EXCEPTION(!std::isfinite(tmax), std::runtime_error,
+                           "dbls: nonfinite line-search bound.");
+    if (tmax <= zero) {
+      alpha = zero; pred = zero; nval = nold;
+      nobj.update(y,UpdateType::Trial);
+      if (verbosity_ > 2)
+        outStream << "  dbls: No acceptable step-size found." << std::endl;
+      return;
+    }
+    const unsigned maxit(std::max(5.0, std::ceil((std::log(tmax)-std::log(1e-2*tol))/std::log(2))));
 
     // Evaluate model at initial left end point (t = 0)
     Real tL(0), pL(0), nL(nold), nR(ROL_INF<Real>());
@@ -305,12 +320,18 @@ public:
     Real pR(0), n0(0), p0(0), t0(0);
     Real t2(0), tolBS(0), t1(0), tp(0), n1(0),  pp(p0), np(n0); //n2(0)
     if (nR >= ROL_INF<Real>()) {
-      t0 = lambda;
+      t0 = std::min(lambda,tmax);
       pwa5->set(y);
       pwa5->axpy(t0, *s);
       nobj.update(*pwa5,UpdateType::Trial);
       n0 = nobj.value(*pwa5,tol); nnval++;
       p0 = t0 * (half * t0 * kappa + gs) + n0 - nold;
+      Real q0 = t0*gs + n0 - nold;
+      if (t0 > zero && t0 <= tmax && std::isfinite(n0) && n0 < ROL_INF<Real>()
+          && std::isfinite(q0) && std::isfinite(p0)
+          && p0 < bestP && p0 <= mu*std::min(zero,q0)) {
+        bestT = t0; bestP = p0; bestN = n0;
+      }
       if (p0 >= zero){ // this t0 increases the pred from t0, so use as end point
         tR = t0;
         nR = n0;
@@ -324,6 +345,7 @@ public:
           t1 = half * (t0 + t2);
           pwa5->set(y);
           pwa5->axpy(t1, *s);
+          nobj.update(*pwa5,UpdateType::Trial);
           n1 = nobj.value(*pwa5, tol); nnval++;
           if ( n1 >= ROL_INF<Real>() ) { // test if inf
             t2 = t1;
@@ -336,6 +358,12 @@ public:
             t0 = t1;
             n0 = n1;
             p0 = t0 * (half * t0 * kappa + gs) + n0 - nold;
+            q0 = t0*gs + n0 - nold;
+            if (t0 > zero && t0 <= tmax && std::isfinite(n0) && n0 < ROL_INF<Real>()
+                && std::isfinite(q0) && std::isfinite(p0)
+                && p0 < bestP && p0 <= mu*std::min(zero,q0)) {
+              bestT = t0; bestP = p0; bestN = n0;
+            }
             if (p0 >= pp) { // pred is increasing between tp and t0
               tL = tp;
               nL = np; //not used?
@@ -351,6 +379,12 @@ public:
     else {
      pR = tR * (half * tR * kappa + gs) + nR - nold;
     }
+    Real qR = tR*gs + nR - nold;
+    if (tR > zero && tR <= tmax && std::isfinite(nR) && nR < ROL_INF<Real>()
+        && std::isfinite(qR) && std::isfinite(pR)
+        && pR < bestP && pR <= mu*std::min(zero,qR)) {
+      bestT = tR; bestP = pR; bestN = nR;
+    }
     // Compute minimizer of quadratic upper bound
     //Real t = (kappa > 0) ? std::min(tR,(((nold - nR)/(tR - tL)) + gs) / kappa) : tR;
     Real t = tR;
@@ -360,7 +394,7 @@ public:
     bool useOptT = true;
     if (t <= tL) {
       //t = (t0 < tR ? t0 : half*tR);
-      t = tL + lambda*(tR - tL);
+      t = tL + ((lambda > zero && lambda < Real(1)) ? lambda : half)*(tR - tL);
       useOptT = false;
     }
 
@@ -371,24 +405,21 @@ public:
     Real nt = nobj.value(*pwa5,tol); nnval++;
     Real Qt = t * gs + nt - nold, Qu = Qt;
     Real pt = half * t * t * kappa + Qt;
+    if (t > zero && t <= tmax && std::isfinite(nt) && nt < ROL_INF<Real>()
+        && std::isfinite(Qt) && std::isfinite(pt)
+        && pt < bestP && pt <= mu*std::min(zero,Qt)) {
+      bestT = t; bestP = pt; bestN = nt;
+    }
     // If phi(x) = phi(x+tmax s) = phi(x+ts), then
     // phi(x+ts) is constant for all t, so the TR
     // model is quadratic---use the minimizer
-    if (useOptT && pt < zero && nt == nold && nR == nold) {
-      alpha = t;
-      pred  = pt ; //t * (half * t * kappa) + gs;
-      nval  = nold;
-      return;
-    }
-
     // If pt >= max(pL, pR), then the model is concave
     // and the minimum is obtained at the end points
-    if (pt >= std::max(pL, pR) && (pR < zero)) {
-      alpha = tR;
-      pred  = pR;
-      nval  = nR;
-      return;
-    }
+    const bool skipBrent =
+      (useOptT && pt < zero && pt <= mu*std::min(zero,Qt)
+       && nt == nold && nR == nold)
+      || (pt >= std::max(pL, pR) && pR < zero
+          && pR <= mu*std::min(zero,qR));
 
     // Run Brent's method (quadratic interpolation + golden section)
     // to minimize m_k(x+ts) with respect to t
@@ -401,7 +432,7 @@ public:
     //Real tol3 = eps1;
     e         = std::max(t - tL, tR - t);
     int iter(0);
-    for (unsigned it = 0u; it < maxit; ++it) {
+    for (unsigned it = 0u; it < maxit && !skipBrent; ++it) {
       iter +=1;
       dL = tL-t;
       dR = tR-t;
@@ -442,6 +473,11 @@ public:
       nu = nobj.value(*pwa5, tol); nnval++;
       Qu = u * gs + nu - nold;
       pu = half * u * u * kappa + Qu;
+      if (u > zero && u <= tmax && std::isfinite(nu) && nu < ROL_INF<Real>()
+          && std::isfinite(Qu) && std::isfinite(pu)
+          && pu < bestP && pu <= mu*std::min(zero,Qu)) {
+        bestT = u; bestP = pu; bestN = nu;
+      }
 
       if (pu <= pt) {
         if (u >= t) tL = t;
@@ -467,18 +503,15 @@ public:
       //tol3 = eps0 * std::max(std::abs(Qt),one);
       //if (pt <= (mu*std::min(zero,Qt)+tol3) && std::abs(t-tm) <= (tol2-half*(tR-tL))) break;
       if (pt <= (mu*std::min(zero,Qt)) && std::abs(t-tm) <= (tol2-half*(tR-tL))){
-        //printf("pt = %2.2e  rhs = %2.2e   |t - tm| = %2.2e  rhs = %2.2e\n",   pt, (mu*std::min(zero,Qt)), std::abs(t-tm), tol2-half*(tR-tL));
         break;
       }
     }
-    alpha = t;
-    pred  = pt;
-    nval  = nt;
-    //if (pt >= 0 && verbosity_>1) outStream << "  dbls: No acceptable step-size found." << "pred = " << pred << std::endl;
-    //printf("out dbls\n");
-    if (pt >= zero && verbosity_ > 2) {
-      outStream << "  dbls: No acceptable step-size found. pred = " << pred << std::endl;
-    }
+    // Return consistent values and restore the objective's trial state to the selected point.
+    alpha = bestT; pred = bestP; nval = bestN;
+    pwa5->set(y); pwa5->axpy(alpha,*s);
+    nobj.update(*pwa5,UpdateType::Trial);
+    if (alpha == zero && verbosity_ > 2)
+      outStream << "  dbls: No acceptable step-size found." << std::endl;
 }
 };
 } // namespace TypeP

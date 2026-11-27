@@ -49,6 +49,7 @@ private:
   Ptr<Vector<Real>> s;
   Ptr<Vector<Real>> ss;
   Ptr<Vector<Real>> px;
+  Ptr<Vector<Real>> dgp;
   Ptr<Vector<Real>> dwa;
   Ptr<Vector<Real>> dwa1;
   int  redlim_;    ///< Maximum number of Cauchy point reduction steps (default: 10)
@@ -85,6 +86,7 @@ public:
     s    = x.clone();
     ss   = x.clone();
     px   = x.clone();
+    dgp  = x.clone();
     dwa  = g.clone();
     dwa1 = g.clone();
     if (normAlpha_) alpha_ /= g.norm(); //from trust-region::init
@@ -105,15 +107,16 @@ public:
              int                      &nnval_,
              std::ostream             &outStream) {
     // setup
+    dgp->set(g.dual()); // g is a dual vector; the Riesz map is needed for the primal step
     const Real half(0.5), sold(sval), nold(nval);
     Real tol = std::sqrt(ROL_EPSILON<Real>());
     bool extrap = false;
     Real gs(0), snorm(0), Qk(0), pRed(0), sHs(0);
     // Compute s = P(x[0] - alpha g[0]) - x[0]
-    pgstep(*px, *s, nobj, x, g, alpha_, tol); nprox_++;
+    pgstep(*px, *s, nobj, x, *dgp, alpha_, tol); nprox_++;
     snorm = s->norm();
     model.hessVec(*dwa,*s,x,tol); nhess_++;
-    gs     = s->dot(g);
+    gs     = s->apply(g);
     sval   = sold + gs + half * s->apply(*dwa);
     nobj.update(*px, UpdateType::Trial);
     nval   = nobj.value(*px, tol); nnval_++;
@@ -122,9 +125,7 @@ public:
     extrap = (-pRed <= mu0_*Qk) && (snorm <= (1-tol)*del);
     // Either increase or decrease alpha to find approximate Cauchy point
     int cnt = 0;
-    //printf("top %f %f\n", nval + sval, snorm);
     if (extrap) { // increase loop
-      //printf("inc loop\n");
       Real alpha1 = alpha_;
       Real pRed1  = pRed;
       Real sval1  = sval; //
@@ -133,17 +134,16 @@ public:
       dwa1->set(*dwa);    // Hs1
       while (cnt < explim_) {
         alpha1 *= extrapf_;
-        pgstep(*px, *ss, nobj, x, g, alpha1, tol); nprox_++;
+        pgstep(*px, *ss, nobj, x, *dgp, alpha1, tol); nprox_++;
         snorm1 = ss->norm();
         model.hessVec(*dwa1,*ss,x,tol); nhess_++;
         nobj.update(*px, UpdateType::Trial);
         nval1  = nobj.value(*px, tol); nnval_++;
-        gs     = ss->dot(g);
+        gs     = ss->apply(g);
         sHs    = ss->apply(*dwa1);
         sval1  = sold + gs + half * sHs;
         pRed1  = (sold + nold) - (sval1 + nval1);
         Qk     = gs + nval1 - nold;
-        //printf("cp inc %f  %f %f %f\n", -pRed, mu0_*Qk, snorm, nval+sval);
         if ((-pRed1 > mu0_*Qk && std::abs(pRed-pRed1) > qtol_*std::abs(pRed1)) || (snorm1 > (1-tol)*del)) {
           break;
         }
@@ -160,20 +160,18 @@ public:
       }
     } // end inc
     else {//decrease loop
-      //printf("dec loop\n");
       while (((-pRed > mu0_*Qk) || (snorm > (1-tol)*del)) && (cnt < redlim_)) {
         alpha_ *= interpf_;
-        pgstep(*px, *s, nobj, x, g, alpha_, tol); nprox_++;
+        pgstep(*px, *s, nobj, x, *dgp, alpha_, tol); nprox_++;
         snorm = s->norm();
         model.hessVec(*dwa,*s,x,tol); nhess_++;
-        gs     = s->dot(g);
+        gs     = s->apply(g);
         sHs    = s->apply(*dwa);
         sval   = sold + gs + half * sHs;
         nobj.update(*px, UpdateType::Trial);
         nval   = nobj.value(*px, tol); nnval_++;
         pRed   = (sold + nold) - (sval + nval);
         Qk     = gs + nval - nold;
-        //printf("cp dec %f  %f  %f  %f  %f\n", pRed, -mu0_*Qk, snorm, sval, nval);
         cnt++;
       }
     }// end dec
@@ -188,11 +186,6 @@ public:
     //clean-up
     y.plus(*s);
     g.plus(*dwa);
-    //Real nvalt    = nobj.value(y, tol); nnval_++;
-    //Real nvalpt    = nobj.value(*px, tol); nnval_++;
-    //printf("%f  %f %f\n", nvalt, nval, nvalpt);
-    //nval = nobj.value(y, tol); nnval_++;
-    //printf("%f  %f \n", sval, sHs*alpha_);
     SPiter_ = cnt;
     SPflag_ = 2;
   } // solve

@@ -112,6 +112,7 @@ public:
       ++nhess_;
       sHs = this->dwa->apply(*this->s);
       this->dbls(alpha,nold,pred,y,lam1,alphaMax,sHs,gs,nobj,nnval_,outStream);
+      if (alpha == zero) { SPflag_ = 3; break; }
 
       y.axpy(alpha,*this->s);
       gmod.axpy(alpha,*this->dwa);

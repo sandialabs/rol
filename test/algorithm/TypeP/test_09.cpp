@@ -1,0 +1,371 @@
+// @HEADER
+// *****************************************************************************
+//               Rapid Optimization Library (ROL) Package
+//
+// Copyright 2014 NTESS and the ROL contributors.
+// SPDX-License-Identifier: BSD-3-Clause
+// *****************************************************************************
+// @HEADER
+
+/*! \file  test_09.cpp
+    \brief Validate TypeP trust-region subproblem solvers when the primal
+           space has a non-identity inner product (diagonal, lumped-mass-like
+           weights).  The model gradient is a dual vector, so solvers that use
+           it as a primal vector stall.
+
+           Problem: min_x  sum_i m_i [ 0.5 a_i (x_i-d_i)^2 + beta |x_i| ]
+           with <x,y> = sum_i m_i x_i y_i.  The mass weight cancels in the
+           prox, so the solution is x_i = soft(d_i, beta/a_i).
+*/
+
+#include "ROL_TypeP_TrustRegionAlgorithm.hpp"
+#include "ROL_Objective.hpp"
+#include "ROL_Vector.hpp"
+#include "ROL_Stream.hpp"
+#include "ROL_GlobalMPISession.hpp"
+#include <cmath>
+#include <vector>
+
+typedef double RealT;
+
+// Vector with inner product sum_i m_i x_i y_i; the dual vector stores
+// functional coefficients with inner product sum_i x_i y_i / m_i.
+class WeightedVector : public ROL::Vector<RealT> {
+private:
+  ROL::Ptr<const std::vector<RealT>> m_;
+  std::vector<RealT> v_;
+  bool isDual_;
+  mutable ROL::Ptr<WeightedVector> dual_;
+
+public:
+  WeightedVector(const ROL::Ptr<const std::vector<RealT>> &m, bool isDual = false)
+    : m_(m), v_(m->size(), 0), isDual_(isDual) {}
+
+  std::vector<RealT>       &get()       { return v_; }
+  const std::vector<RealT> &get() const { return v_; }
+
+  void plus(const ROL::Vector<RealT> &x) override {
+    const auto &xv = static_cast<const WeightedVector&>(x).v_;
+    for (size_t i = 0; i < v_.size(); ++i) v_[i] += xv[i];
+  }
+  void scale(const RealT alpha) override { for (auto &e : v_) e *= alpha; }
+  RealT dot(const ROL::Vector<RealT> &x) const override {
+    const auto &xv = static_cast<const WeightedVector&>(x).v_;
+    RealT s(0);
+    for (size_t i = 0; i < v_.size(); ++i)
+      s += isDual_ ? v_[i]*xv[i]/(*m_)[i] : (*m_)[i]*v_[i]*xv[i];
+    return s;
+  }
+  RealT norm() const override { return std::sqrt(dot(*this)); }
+  ROL::Ptr<ROL::Vector<RealT>> clone() const override {
+    return ROL::makePtr<WeightedVector>(m_, isDual_);
+  }
+  int dimension() const override { return static_cast<int>(v_.size()); }
+  const ROL::Vector<RealT> &dual() const override {
+    if (dual_ == ROL::nullPtr) dual_ = ROL::makePtr<WeightedVector>(m_, !isDual_);
+    for (size_t i = 0; i < v_.size(); ++i)
+      dual_->v_[i] = isDual_ ? v_[i]/(*m_)[i] : (*m_)[i]*v_[i];
+    return *dual_;
+  }
+  RealT apply(const ROL::Vector<RealT> &x) const override {
+    const auto &xv = static_cast<const WeightedVector&>(x).v_;
+    RealT s(0);
+    for (size_t i = 0; i < v_.size(); ++i) s += v_[i]*xv[i];
+    return s;
+  }
+};
+
+class WeightedQuadratic : public ROL::Objective<RealT> {
+private:
+  ROL::Ptr<const std::vector<RealT>> m_;
+  std::vector<RealT> a_, d_;
+public:
+  WeightedQuadratic(const ROL::Ptr<const std::vector<RealT>> &m,
+                    const std::vector<RealT> &a, const std::vector<RealT> &d)
+    : m_(m), a_(a), d_(d) {}
+
+  RealT value(const ROL::Vector<RealT> &x, RealT &) override {
+    const auto &xv = static_cast<const WeightedVector&>(x).get();
+    RealT v(0);
+    for (size_t i = 0; i < xv.size(); ++i)
+      v += (*m_)[i]*0.5*a_[i]*(xv[i]-d_[i])*(xv[i]-d_[i]);
+    return v;
+  }
+  void gradient(ROL::Vector<RealT> &g, const ROL::Vector<RealT> &x, RealT &) override {
+    auto &gv = static_cast<WeightedVector&>(g).get();
+    const auto &xv = static_cast<const WeightedVector&>(x).get();
+    for (size_t i = 0; i < xv.size(); ++i)
+      gv[i] = (*m_)[i]*a_[i]*(xv[i]-d_[i]);
+  }
+  void hessVec(ROL::Vector<RealT> &hv, const ROL::Vector<RealT> &v,
+               const ROL::Vector<RealT> &, RealT &) override {
+    auto &hvv = static_cast<WeightedVector&>(hv).get();
+    const auto &vv = static_cast<const WeightedVector&>(v).get();
+    for (size_t i = 0; i < vv.size(); ++i)
+      hvv[i] = (*m_)[i]*a_[i]*vv[i];
+  }
+};
+
+// beta * sum_i m_i |x_i| with the prox taken in the weighted inner product
+class WeightedL1 : public ROL::Objective<RealT> {
+private:
+  ROL::Ptr<const std::vector<RealT>> m_;
+  RealT beta_;
+public:
+  WeightedL1(const ROL::Ptr<const std::vector<RealT>> &m, RealT beta) : m_(m), beta_(beta) {}
+
+  RealT value(const ROL::Vector<RealT> &x, RealT &) override {
+    const auto &xv = static_cast<const WeightedVector&>(x).get();
+    RealT v(0);
+    for (size_t i = 0; i < xv.size(); ++i) v += (*m_)[i]*std::abs(xv[i]);
+    return beta_*v;
+  }
+  void prox(ROL::Vector<RealT> &Pv, const ROL::Vector<RealT> &v, RealT t, RealT &) override {
+    auto &p = static_cast<WeightedVector&>(Pv).get();
+    const auto &vv = static_cast<const WeightedVector&>(v).get();
+    const RealT thr = t*beta_;
+    for (size_t i = 0; i < vv.size(); ++i)
+      p[i] = std::max(RealT(0), std::abs(vv[i])-thr) * (vv[i] < 0 ? -1 : 1);
+  }
+};
+
+class CountingQuadratic : public WeightedQuadratic {
+public:
+  int gradients = 0;
+  using WeightedQuadratic::WeightedQuadratic;
+  void gradient(ROL::Vector<RealT> &g, const ROL::Vector<RealT> &x, RealT &tol) override {
+    ++gradients;
+    WeightedQuadratic::gradient(g,x,tol);
+  }
+};
+
+class TestTrustRegion : public ROL::TypeP::TrustRegionAlgorithm<RealT> {
+public:
+  using ROL::TypeP::TrustRegionAlgorithm<RealT>::TrustRegionAlgorithm;
+  using ROL::TypeP::TrustRegionAlgorithm<RealT>::computeGradient;
+};
+
+class TestTruncatedCG : public ROL::TypeP::TruncatedCG<RealT> {
+public:
+  using ROL::TypeP::TruncatedCG<RealT>::TruncatedCG;
+  void direction(RealT d) { static_cast<WeightedVector&>(*s).get()[0] = d; }
+};
+
+class TrackingL1 : public WeightedL1 {
+  RealT trial_ = 0;
+public:
+  bool mismatched = false;
+  bool nonnegative = false;
+  using WeightedL1::WeightedL1;
+  void update(const ROL::Vector<RealT> &x, ROL::UpdateType, int = -1) override {
+    trial_ = static_cast<const WeightedVector&>(x).get()[0];
+  }
+  RealT value(const ROL::Vector<RealT> &x, RealT &tol) override {
+    if (trial_ != static_cast<const WeightedVector&>(x).get()[0]) mismatched = true;
+    if (nonnegative && trial_ < 0) return ROL::ROL_INF<RealT>();
+    return WeightedL1::value(x,tol);
+  }
+  RealT trial() const { return trial_; }
+};
+
+class AscentProx : public ROL::Objective<RealT> {
+public:
+  RealT value(const ROL::Vector<RealT> &, RealT &) override { return 0; }
+  // Deliberately produces an ascent direction to test line-search failure handling.
+  void prox(ROL::Vector<RealT> &pv, const ROL::Vector<RealT> &v, RealT, RealT &) override {
+    pv.set(v);
+    static_cast<WeightedVector&>(pv).get()[0] += 2;
+  }
+};
+
+int testInexactGradient(std::ostream &out) {
+  auto m = ROL::makePtr<std::vector<RealT>>(1,1);
+  WeightedVector x(m), g(m,true), px(m), dg(m), step(m);
+  CountingQuadratic smooth(m,{1},{1});
+  WeightedL1 nonsmooth(m,0.001);
+  ROL::ParameterList list;
+  list.sublist("General").set("Inexact Gradient",true);
+  list.sublist("Step").sublist("Trust Region").sublist("Inexact")
+      .sublist("Gradient").set("Tolerance Scaling",1e8);
+  TestTrustRegion algo(list);
+  algo.initialize(x,g,1.0,smooth,nonsmooth,px,dg,out);
+  x.get()[0] = 0.5;
+  // At this scale, adding one to the initial tolerance rounds back to the same value.
+  const RealT radius = 232830643.65386963;
+  RealT gtol = 1e8*radius, gnorm = radius;
+  const int before = smooth.gradients;
+  algo.computeGradient(x,g,px,dg,step,radius,smooth,nonsmooth,true,gtol,gnorm,out);
+  if (smooth.gradients == before || std::abs(g.get()[0]+0.5) > 1e-14) {
+    out << "Accepted-step gradient was not refreshed\n";
+    return 1;
+  }
+  const int after = smooth.gradients;
+  gtol = 0;
+  algo.computeGradient(x,g,px,dg,step,radius,smooth,nonsmooth,false,gtol,gnorm,out);
+  if (smooth.gradients != after) {
+    out << "Rejected-step gradient was unnecessarily refreshed\n";
+    return 1;
+  }
+  return 0;
+}
+
+int testLineSearch(std::ostream &out) {
+  auto m = ROL::makePtr<std::vector<RealT>>(1,1);
+  WeightedVector y(m), g(m,true);
+  ROL::ParameterList list;
+  TestTruncatedCG solver(list);
+  solver.initialize(y,g);
+  TrackingL1 nonsmooth(m,0.001);
+  struct Case { RealT y, s, lambda, tmax, kappa, gs; bool descent, nonnegative; };
+  const std::vector<Case> cases = {
+    // Wide bracket that previously returned an increasing step after Brent exhausted its budget.
+    {1, -3.8181672765e-9, 8801.1754331558532, 1.4035712260437875e17,
+     3.1607747511487261e-15, 3.6538877175686831e-12, true, false},
+    // No descent, ordinary descent at varying bounds, zero bound, and restricted domain.
+    {0, 1, 1, 1e6, 1e-12, -5e-4, false, false},
+    {1, -1e-6, 1, 1e6, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 1e12, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 1e20, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 1e27, 1e-12, 5e-10, true, false},
+    {1, -1e-6, 1, 0, 1e-12, 5e-10, false, false},
+    {1, -1, 0.5, 2, 1, -2, true, true}
+  };
+  int errors = 0;
+  for (const auto &c : cases) {
+    y.get()[0] = c.y;
+    solver.direction(c.s);
+    nonsmooth.nonnegative = c.nonnegative;
+    RealT alpha = 0, nval = 0.001*std::abs(c.y), pred = 0;
+    const RealT nold = nval;
+    int nnval = 0;
+    solver.dbls(alpha,nval,pred,y,c.lambda,c.tmax,c.kappa,c.gs,nonsmooth,nnval,out);
+    const RealT expectedN = 0.001*std::abs(c.y+alpha*c.s);
+    const RealT expectedP = alpha*(0.5*alpha*c.kappa+c.gs)+expectedN-nold;
+    if ((c.descent ? !(alpha > 0 && pred < 0) : alpha != 0)
+        || alpha > c.tmax || std::abs(nval-expectedN) > 1e-15
+        || std::abs(pred-expectedP) > 1e-15
+        || (c.s == -1e-6 && c.descent && std::abs(alpha-500) > 0.1)
+        || pred > 1e-4*std::min(RealT(0),alpha*c.gs+nval-nold)
+        || nonsmooth.trial() != c.y+alpha*c.s || nonsmooth.mismatched) {
+      out << "Line search failed, tmax=" << c.tmax << ", alpha=" << alpha
+          << ", change=" << pred << "\n";
+      ++errors;
+    }
+    if (!c.descent && c.tmax > 0) {
+      // Loose evaluation bound for this no-descent case; it is not a general bound.
+      const RealT tol = std::sqrt(ROL::ROL_EPSILON<RealT>());
+      const int maxit = static_cast<int>(std::max(5.0,
+        std::ceil((std::log(c.tmax)-std::log(1e-2*tol))/std::log(2.0))));
+      if (nnval > maxit+2) {
+        out << "Line search performed extra evaluations after Brent's method\n";
+        ++errors;
+      }
+    }
+  }
+  WeightedVector x(m), modelGradient(m,true);
+  modelGradient.get()[0] = 1;
+  WeightedQuadratic model(m,{1},{-1});
+  AscentProx ascent;
+  RealT sval = 0.5, nval = 0;
+  int flag = 0, iterations = 0, nhess = 0, nprox = 0, nnval = 0;
+  solver.solve(y,sval,nval,modelGradient,x,1,model,ascent,
+               flag,iterations,nhess,nprox,nnval,out);
+  if (flag != 3 || y.get()[0] != 0 || sval != 0.5 || nval != 0
+      || modelGradient.get()[0] != 1) {
+    out << "NCG did not report line-search failure without taking a step: "
+        << flag << " " << y.get()[0] << " " << sval << " " << nval
+        << " " << modelGradient.get()[0] << "\n";
+    ++errors;
+  }
+  return errors;
+}
+
+int main(int argc, char *argv[]) {
+
+  ROL::GlobalMPISession mpiSession(&argc, &argv);
+
+  int iprint = argc - 1;
+  ROL::Ptr<std::ostream> outStream;
+  ROL::nullstream bhs;
+  if (iprint > 0) outStream = ROL::makePtrFromRef(std::cout);
+  else            outStream = ROL::makePtrFromRef(bhs);
+
+  int errorFlag = 0;
+
+  try {
+    errorFlag += testInexactGradient(*outStream);
+    errorFlag += testLineSearch(*outStream);
+    const int dim = 40;
+    const RealT beta = 1e-3, alpha = 1e-4, errTol = 1e-1;
+
+    // Non-uniform lumped-mass-like weights, and a smooth quadratic
+    // with a small Tikhonov term.
+    auto mP = ROL::makePtr<std::vector<RealT>>(dim);
+    std::vector<RealT> a(dim), d(dim), xstar(dim);
+    for (int i = 0; i < dim; ++i) {
+      (*mP)[i] = 1e-3*(1.0 + 9.0*std::pow(std::sin(0.7*i+0.3), 2));
+      a[i]     = alpha + std::pow(std::cos(0.37*i), 2);
+      d[i]     = std::sin(1.3*i+0.1);
+      const RealT thr = beta/a[i];
+      xstar[i] = std::max(RealT(0), std::abs(d[i])-thr) * (d[i] < 0 ? -1 : 1);
+    }
+    ROL::Ptr<const std::vector<RealT>> m = mP;
+
+    auto sobj = ROL::makePtr<WeightedQuadratic>(m, a, d);
+    auto nobj = ROL::makePtr<WeightedL1>(m, beta);
+    auto sol  = ROL::makePtr<WeightedVector>(m);
+
+    // Verify the test vector's dual/Riesz map and the objective derivatives
+    auto xd = sol->clone(); auto yd = sol->clone();
+    for (int i = 0; i < dim; ++i) {
+      static_cast<WeightedVector&>(*xd).get()[i] = std::sin(2.0*i);
+      static_cast<WeightedVector&>(*yd).get()[i] = std::cos(3.0*i);
+    }
+    sobj->checkGradient(*xd,*yd,true,*outStream);
+    sobj->checkHessVec(*xd,*yd,true,*outStream);
+
+    ROL::ParameterList list;
+    list.sublist("General").set("Output Level", iprint);
+    list.sublist("Step").set("Type","Trust Region");
+    list.sublist("Status Test").set("Gradient Tolerance", 1e-8);
+    list.sublist("Status Test").set("Constraint Tolerance", 1e-8);
+    list.sublist("Status Test").set("Step Tolerance", 1e-12);
+    list.sublist("Status Test").set("Iteration Limit", 500);
+    list.sublist("Step").sublist("Trust Region").set("Initial Radius", 1e2);
+
+    // Required final gradient norm within the iteration limit (the Cauchy
+    // point is a steepest-descent-type step and needs many iterations).
+    struct Case { std::string name; bool required; RealT gtol; };
+    const std::vector<Case> cases = {
+      {"Cauchy Point",  true,  1e-6},
+      {"Truncated CG",  true,  1e-6},
+      {"SPG",           true,  1e-6},
+      {"SPG2",          true,  1e-6}};
+
+    *outStream << std::endl
+               << "Weighted-metric l1 problem (dim = " << dim << ")" << std::endl;
+    for (const auto &c : cases) {
+      list.sublist("Step").sublist("Trust Region").set("Subproblem Solver", c.name);
+      sol->zero();
+      auto algo = ROL::makePtr<ROL::TypeP::TrustRegionAlgorithm<RealT>>(list);
+      algo->run(*sol, *sobj, *nobj, *outStream);
+      const auto &s = static_cast<WeightedVector&>(*sol).get();
+      RealT err(0);
+      for (int i = 0; i < dim; ++i) err = std::max(err, std::abs(s[i]-xstar[i]));
+      auto st = algo->getState();
+      *outStream << "  " << c.name << ": outer iterations = " << st->iter << ", prox evaluations = "
+                 << st->nprox << ", gnorm = " << st->gnorm << ", max err = "
+                 << err << (st->gnorm <= c.gtol ? "" : "  (NOT CONVERGED)") << std::endl;
+      if (c.required && (st->gnorm > c.gtol || err > errTol)) errorFlag += 1;
+    }
+  }
+  catch (std::logic_error &err) {
+    *outStream << err.what() << "\n";
+    errorFlag = -1000;
+  }
+
+  if (errorFlag != 0) std::cout << "End Result: TEST FAILED\n";
+  else                std::cout << "End Result: TEST PASSED\n";
+
+  return 0;
+}
